@@ -5,8 +5,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QCursor, QIcon
 from PySide6.QtWidgets import QApplication
 
 from . import APP_ID, APP_NAME, VERSION
@@ -52,6 +52,9 @@ def main(argv=None):
         win.pages["packages"].search()
     win.show()
     if args.screenshot:
+        QCursor.setPos(-1000, -1000)  # no hover highlight in the picture
+        win.sidebar.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover, False)
+
         def shot():
             win.grab().save(args.screenshot)
             app.quit()

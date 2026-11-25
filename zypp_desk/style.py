@@ -18,10 +18,10 @@ PURPLE = "#9b59b6"
 STYLESHEET = f"""
 /* sidebar */
 QListWidget#sidebar {{ background: transparent; border: none; outline: 0; }}
-QListWidget#sidebar::item {{ padding: 7px 8px; margin: 1px 2px; border-radius: 8px; }}
+QListWidget#sidebar::item {{ padding: 0px 8px; margin: 1px 2px; border-radius: 8px; }}
 QListWidget#sidebar::item:hover {{ background: rgba(39, 174, 96, 0.10); }}
 QListWidget#sidebar::item:selected {{ background: rgba(39, 174, 96, 0.22); color: palette(text); }}
-QListWidget#sidebar::item:disabled {{ color: palette(placeholder-text); padding-top: 12px; }}
+QListWidget#sidebar::item:disabled {{ color: palette(placeholder-text); padding-top: 10px; }}
 
 /* the main action of each place */
 QPushButton[primary="true"] {{ background: {GREEN}; color: white; border: 1px solid {GREEN_DARK};

@@ -1,5 +1,6 @@
 zypp_desk/appicons.py
 zypp_desk/app.py
+zypp_desk/apps.py
 zypp_desk/backend.py
 zypp_desk/explain.py
 zypp_desk/flatpak.py
@@ -7,6 +8,9 @@ zypp_desk/i18n.py
 zypp_desk/__init__.py
 zypp_desk/__main__.py
 zypp_desk/mainwindow.py
+zypp_desk/online.py
+zypp_desk/pages/apps.py
+zypp_desk/pages/findrepo.py
 zypp_desk/pages/flatpak.py
 zypp_desk/pages/home.py
 zypp_desk/pages/__init__.py
@@ -15,6 +19,7 @@ zypp_desk/pages/repos.py
 zypp_desk/pages/system.py
 zypp_desk/pages/updates.py
 zypp_desk/pages/websources.py
+zypp_desk/repocheck.py
 zypp_desk/routine.py
 zypp_desk/runner.py
 zypp_desk/settings.py

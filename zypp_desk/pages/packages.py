@@ -66,10 +66,12 @@ class PackagesPage(Page):
         self.repo = QComboBox(self)
         self.repo.addItem(_("All repositories"), "")
         search_btn = button(_("Search"), "edit-find", self.search)
+        self.online_btn = button(_("Search online…"), "internet-services", self.search_online)
+        self.online_btn.setToolTip(_("Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"))
 
         top = QHBoxLayout()
         top.addWidget(self.term, 1)
-        for w in (self.kind, self.status, self.repo, search_btn):
+        for w in (self.kind, self.status, self.repo, search_btn, self.online_btn):
             top.addWidget(w)
 
         self.chips = {
@@ -246,6 +248,13 @@ class PackagesPage(Page):
                   repo=self.repo.currentData() or None, special=special, **opts,
                   on_done=lambda res, err: self._searched(sid, res, err, special))
 
+    def search_online(self):
+        try:
+            from .findrepo import FindRepoDialog
+        except ImportError:
+            return
+        FindRepoDialog(self.ctx, term=self.term.text().strip(), parent=self).exec()
+
     def _searched(self, sid, results, err, special):
         if sid != self.search_id:
             return  # an older search finished late
@@ -259,6 +268,13 @@ class PackagesPage(Page):
                 "suggested": _("Suggested packages that are not installed")}.get(special)
         n = len(results)
         self.info.setText((what + " · " if what else "") + _("{n} found").format(n=n))
+        missing = n == 0 and not special
+        if missing:
+            self.info.setText(_("Not found in your repositories. “Search online…” looks for it in the openSUSE Build "
+                                "Service, in Fedora COPR and on Flathub."))
+        self.online_btn.setProperty("primary", missing)
+        self.online_btn.style().unpolish(self.online_btn)
+        self.online_btn.style().polish(self.online_btn)
         self.tree.setSortingEnabled(False)
         for d in results:
             ref = d["installed"] or d["best"] or (d["versions"][0] if d["versions"] else None)

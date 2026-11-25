@@ -130,9 +130,9 @@ class HomePage(Page):
             run_async(lambda: (flatpak.installed(), flatpak.updates()), on_done=self._flatpak)
         else:
             self.t_flatpak.set(_("Not installed"), _("Install Flatpak from here"))
-        sources = websources.load()
+        sources = [s for s in websources.load() if s.get("type") != "manual"]
         if sources:
-            run_async(lambda: [websources.check(s) for s in sources], on_done=self._web)
+            run_async(lambda: [self._check_one(s) for s in sources], on_done=self._web)
         else:
             self.t_web.set(_("None yet"), _("Follow programs you download from GitHub"))
 
@@ -168,6 +168,15 @@ class HomePage(Page):
                            ngettext("{n} update waiting", "{n} updates waiting", n_up).format(n=n_up) if n_up
                            else _("All up to date"))
 
+    @staticmethod
+    def _check_one(source):
+        try:
+            found = websources.check(source)
+        except Exception:  # a site that does not answer must not hide the others
+            found = {}
+        found["package"] = source["package"]
+        return found
+
     def _web(self, res, err):
         if err or res is None:
             self.t_web.set("?", str(err or "")[:80])
@@ -175,7 +184,7 @@ class HomePage(Page):
         newer = [r for r in res if r.get("newer")]
         if newer:
             self.t_web.set(ngettext("{n} new version", "{n} new versions", len(newer)).format(n=len(newer)),
-                           ", ".join(r["asset"] or "" for r in newer)[:80], ORANGE)
+                           ", ".join(r["package"] for r in newer)[:80], ORANGE)
         else:
             self.t_web.set(_("All up to date"),
                            ngettext("{n} program followed", "{n} programs followed", len(res)).format(n=len(res)))

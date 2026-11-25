@@ -7,8 +7,9 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFrame, QHB
                                QListWidgetItem, QMainWindow, QMessageBox, QSplitter, QStackedWidget,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from . import APP_NAME, appicons, backend
+from . import APP_NAME, appicons, backend, websources
 from .i18n import _
+from .pages.apps import AppsPage
 from .pages.flatpak import FlatpakPage
 from .pages.packages import PackagesPage
 from .pages.repos import ReposPage
@@ -26,7 +27,7 @@ from .txqueue import TxQueue
 from .ui import button, heading, icon, mono, muted
 
 SIDEBAR = [
-    (None, ["home", "packages", "updates", "flatpak"]),
+    (None, ["home", "apps", "packages", "updates", "flatpak"]),
     (_("Sources"), ["repos", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
 ]
@@ -81,8 +82,8 @@ class MainWindow(QMainWindow):
         self.icon_catalog = {}
 
         # ------------------------------------------------ pages
-        page_classes = [HomePage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage, WebSourcesPage, LocksPage, LocalesPage,
-                        HistoryPage, MaintenancePage, SettingsPage]
+        page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage,
+                        WebSourcesPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage, SettingsPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
         self.pages = {}
@@ -102,6 +103,7 @@ class MainWindow(QMainWindow):
             if group:
                 hdr = QListWidgetItem(group)
                 hdr.setFlags(Qt.ItemFlag.NoItemFlags)
+                hdr.setSizeHint(QSize(0, 32))  # fixed heights: the highlight never covers the next row
                 f = hdr.font()
                 f.setPointSizeF(f.pointSizeF() * 0.9)
                 hdr.setFont(f)
@@ -110,6 +112,7 @@ class MainWindow(QMainWindow):
                 p = self.pages[k]
                 it = QListWidgetItem(icon(p.icon_name, "application-vnd.flatpak.ref", "package-x-generic"), p.title)
                 it.setData(Qt.ItemDataRole.UserRole, k)
+                it.setSizeHint(QSize(0, 38))
                 self.sidebar.addItem(it)
                 self._rows[k] = it
         self.sidebar.currentItemChanged.connect(lambda cur, _p: cur and self.go(cur.data(Qt.ItemDataRole.UserRole)))
@@ -192,6 +195,7 @@ class MainWindow(QMainWindow):
         self.status_timer.start(30000)
         self.update_status()
         run_async(appicons.load_catalog, on_done=self._catalog_loaded)
+        run_async(websources.clean_downloads, on_done=lambda _r, _e: None)
         self.sidebar.setCurrentItem(self._rows["home"])
         self.terminal.view.note(_("zypper's own output appears here while it works."), "info")
         if not helper_path():
@@ -299,6 +303,10 @@ class MainWindow(QMainWindow):
     def simulate_queue(self):
         st = self.queue.simulation_step()
         others = [s for s in self.queue.steps() if not s.args[1:2] or s.args[1] not in ("install", "remove")]
+        later = self.queue.not_simulable()
+        if later:
+            self.terminal.view.note(_("Not simulated, because their repository is only added when the queue is "
+                                      "applied: {list}").format(list=", ".join(a.target for a in later)), "info")
         if st is None:
             QMessageBox.information(self, _("Simulate"), _("Changes to repositories, locks, languages and Flatpak "
                                                            "apps cannot be simulated. These commands will run:")
@@ -359,6 +367,12 @@ class MainWindow(QMainWindow):
             # Stopping zypper half-way through installing could leave the system half updated.
             QMessageBox.information(self, APP_NAME, _("zypper is still working. Wait until it finishes before "
                                                       "closing the window."))
+            ev.ignore()
+            return
+        web = self.pages.get("websources")
+        if web is not None and web.downloading and QMessageBox.question(
+                self, APP_NAME, _("A program from the web is still downloading. Close anyway? The download stops "
+                                  "and nothing is added to the queue.")) != QMessageBox.StandardButton.Yes:
             ev.ignore()
             return
         super().closeEvent(ev)

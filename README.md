@@ -6,9 +6,11 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: 0.2, early development.** Searching, package details, the change queue with
-> simulation, routines, Flatpak apps, programs downloaded from GitHub, repositories, locks,
-> services, languages, history and maintenance work, and warnings are explained. Still missing:
+> **Status: 0.3, early development.** Searching, package details, the change queue with
+> simulation, routines, your applications by origin, discovering programs by theme, Flatpak apps,
+> programs downloaded from the web, repositories with a health check, searching the openSUSE
+> Build Service, Fedora COPR and Flathub, locks, services, languages, history and maintenance
+> work, and warnings are explained. Still missing:
 > choosing among zypper's proposed solutions to a conflict inside the window, and editing
 > `zypp.conf`. Expect rough edges.
 
@@ -22,10 +24,18 @@ maintenance — and always see the exact zypper command and its real output.
 - **Routines.** Write your update routine the way you type it, for example
   `zypper -v ref ; zypper -v dup -d -l && zypper -v dup ; flatpak update -y`, and run it with one
   click, step by step.
+- **Your applications, wherever they come from.** One list of the programs you have, from the
+  repositories, from Flatpak or from files downloaded from the web, with what can be updated;
+  and the openSUSE and Flathub catalogues to discover programs by theme.
 - **Flatpak too.** Installed apps, search, updates and remotes, through the same queue.
-- **Programs from the web.** Follow programs you install from RPM files published on GitHub:
-  Zypp Desk finds new releases, downloads them, checks the SHA-256 and the signature, and
-  queues them.
+- **Programs from the web.** Follow programs you install from RPM files: from GitHub releases, a
+  fixed download address or a download page (a .zip with the RPM inside works too). Zypp Desk
+  finds new versions, downloads them over https only, checks the SHA-256 when it is published,
+  the package name and the signature, and queues them.
+- **Repositories that work.** Enabled ones first, a check that tells which ones no longer answer,
+  a list or a cards view, the Flatpak remotes next to them, and a search in the openSUSE Build
+  Service, Fedora COPR and Flathub for what your repositories do not have — with a plain word on
+  how far each source can be trusted.
 - **Warnings explained.** After every run, each message is shown with how serious it is, what it
   means in plain words and what to do.
 - **Native.** Qt 6 through PySide6, so it follows the Plasma theme (Breeze) and the system icons.

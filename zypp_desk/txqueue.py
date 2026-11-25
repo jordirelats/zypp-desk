@@ -137,8 +137,15 @@ class TxQueue(QObject):
         return [a for a in self.actions if a.kind in kinds]
 
     # ---------------------------------------------------------- commands
+    def not_simulable(self):
+        """Installs that name a repository still waiting in the queue ('alias:package'): zypper does not know
+        that repository until the queue runs, so a dry run would only say it cannot find them."""
+        new_aliases = {a.target for a in self.of("repo-add")}
+        return [a for a in self.of("install") if ":" in a.target and a.target.split(":", 1)[0] in new_aliases]
+
     def package_args(self, dry_run=False):
-        inst = [a for a in self.of("install")]
+        skip = self.not_simulable() if dry_run else []
+        inst = [a for a in self.of("install") if a not in skip]
         rem = [a.target for a in self.of("remove")]
         if not inst and not rem:
             return None

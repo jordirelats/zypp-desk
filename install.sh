@@ -22,6 +22,15 @@ rm -f "$tmp"
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$SRC/data/icons/$APP_ID.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg"
 ln -sf "$SRC/zypp-desk" "$HOME/.local/bin/zypp-desk"
-sed "s|@EXEC@|$SRC/zypp-desk|" "$SRC/data/$APP_ID.desktop.in" > "$HOME/.local/share/applications/$APP_ID.desktop"
+# The icon by its full path: a desktop shell that started before the icon existed does not find it by name.
+sed -e "s|@EXEC@|$SRC/zypp-desk|" \
+    -e "s|^Icon=.*|Icon=$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg|" \
+    "$SRC/data/$APP_ID.desktop.in" > "$HOME/.local/share/applications/$APP_ID.desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" || true
+# A stale icon index (icon-theme.cache) hides new icons from the menu and the desktop: rebuild it.
+icons="$HOME/.local/share/icons/hicolor"
+if [ -e "$icons/icon-theme.cache" ] && command -v gtk-update-icon-cache >/dev/null; then
+  gtk-update-icon-cache -q -f -t "$icons" || true
+fi
+command -v kbuildsycoca6 >/dev/null && kbuildsycoca6 >/dev/null 2>&1 || true
 echo "Done. Start it from the menu (Zypp Desk) or with: zypp-desk"

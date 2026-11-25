@@ -18,6 +18,7 @@ DEFAULTS = {
     "dup_allow_downgrade": True,
     "dup_from_repo": "",
     "after_routine_check_restart": True,
+    "web_folder": "",
 }
 
 
