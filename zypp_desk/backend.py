@@ -134,8 +134,9 @@ def search(term="", *, kind="package", status="all", repo=None, descriptions=Fal
             d["installed"] = v
     for d in found.values():
         d["best"] = best_version(d["versions"])
-        d["updatable"] = bool(d["installed"] and d["best"]
-                              and vercmp(d["best"]["edition"], d["installed"]["edition"]) > 0)
+        # A newer edition somewhere is not enough (another vendor, a beta that conflicts…):
+        # 'updatable' is set by the caller from 'zypper list-updates', which asks the solver.
+        d["updatable"] = False
     return sorted(found.values(), key=lambda d: (d["name"], d["kind"]))
 
 

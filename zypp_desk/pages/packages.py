@@ -1,0 +1,395 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Packages: search with every zypper option, the package card, and adding changes to the queue."""
+
+import html
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QBrush
+from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTabWidget, QTextBrowser,
+                               QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+
+from .. import backend
+from ..i18n import _
+from ..tasks import run_async
+from ..txqueue import Action
+from ..ui import Chip, Page, button, heading, icon, mono, muted
+
+KIND_LABELS = [("package", _("Packages")), ("pattern", _("Patterns")), ("patch", _("Patches")),
+               ("product", _("Products")), ("srcpackage", _("Source packages"))]
+# zypper info prints these keys in English (it runs with LC_ALL=C); these are their labels.
+INFO_LABELS = {"Repository": _("Repository"), "Version": _("Version"), "Arch": _("Architecture"),
+               "Vendor": _("Vendor"), "Installed Size": _("Installed size"), "Status": _("Status"),
+               "Source package": _("Source package"), "Upstream URL": _("Web site"), "License": _("License")}
+DEP_LABELS = {"Provides": _("Provides"), "Requires": _("Requires"), "Recommends": _("Recommends"),
+              "Suggests": _("Suggests"), "Conflicts": _("Conflicts"), "Obsoletes": _("Obsoletes"),
+              "Supplements": _("Supplements")}
+STATUS_LABELS = [("all", _("Any status")), ("installed", _("Installed")), ("not-installed", _("Not installed"))]
+
+
+class PackagesPage(Page):
+    key = "packages"
+    title = _("Packages")
+    icon_name = "package-x-generic"
+
+    def __init__(self, ctx, parent=None):
+        super().__init__(ctx, parent)
+        self.results = []
+        self.current = None
+        self.search_id = 0
+        self.locked_names = set()
+        self.updates = {}
+
+        self.term = QLineEdit(self)
+        self.term.setPlaceholderText(_("Search packages, for example vlc"))
+        self.term.setClearButtonEnabled(True)
+        self.term.returnPressed.connect(self.search)
+        self.kind = QComboBox(self)
+        for k, label in KIND_LABELS:
+            self.kind.addItem(label, k)
+        self.status = QComboBox(self)
+        for k, label in STATUS_LABELS:
+            self.status.addItem(label, k)
+        self.repo = QComboBox(self)
+        self.repo.addItem(_("All repositories"), "")
+        search_btn = button(_("Search"), "edit-find", self.search)
+
+        top = QHBoxLayout()
+        top.addWidget(self.term, 1)
+        for w in (self.kind, self.status, self.repo, search_btn):
+            top.addWidget(w)
+
+        self.chips = {
+            "descriptions": Chip(_("Summary and description")),
+            "provides": Chip(_("Provides")),
+            "requires": Chip(_("Requires")),
+            "recommends": Chip(_("Recommends")),
+            "files": Chip(_("Files")),
+            "exact": Chip(_("Exact match")),
+            "case": Chip(_("Case-sensitive")),
+        }
+        chips = QHBoxLayout()
+        chips.addWidget(muted(_("Search in:"), wrap=False))
+        for c in self.chips.values():
+            chips.addWidget(c)
+        chips.addStretch(1)
+        lists = QHBoxLayout()
+        lists.addWidget(muted(_("Lists:"), wrap=False))
+        for key, label in (("orphaned", _("Orphaned")), ("unneeded", _("Unneeded")),
+                           ("recommended", _("Recommended")), ("suggested", _("Suggested"))):
+            b = Chip(label)
+            b.setCheckable(False)
+            b.clicked.connect(lambda _c=False, k=key: self.search(special=k))
+            lists.addWidget(b)
+        lists.addStretch(1)
+
+        self.info = muted("", self, wrap=False)
+
+        self.tree = QTreeWidget(self)
+        self.tree.setHeaderLabels([_("Status"), _("Name"), _("Summary"), _("Version"), _("Repository")])
+        self.tree.setRootIsDecorated(False)
+        self.tree.setAlternatingRowColors(True)
+        self.tree.setUniformRowHeights(True)
+        self.tree.setSortingEnabled(True)
+        self.tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+        self.tree.currentItemChanged.connect(lambda cur, _prev: self.show_details(cur))
+        self.tree.setColumnWidth(0, 125)
+        self.tree.setColumnWidth(1, 200)
+        self.tree.setColumnWidth(2, 250)
+        self.tree.setColumnWidth(3, 150)
+
+        self.details = self._build_details()
+        split = QSplitter(Qt.Orientation.Horizontal, self)
+        split.addWidget(self.tree)
+        split.addWidget(self.details)
+        split.setStretchFactor(0, 3)
+        split.setStretchFactor(1, 2)
+
+        lay = QVBoxLayout(self)
+        lay.addLayout(top)
+        lay.addLayout(chips)
+        lay.addLayout(lists)
+        lay.addWidget(self.info)
+        lay.addWidget(split, 1)
+
+        ctx.queue.changed.connect(self.update_statuses)
+
+    # ------------------------------------------------------------ details panel
+    def _build_details(self):
+        w = QWidget(self)
+        v = QVBoxLayout(w)
+        v.setContentsMargins(8, 0, 0, 0)
+        self.d_name = heading("", 1.4)
+        self.d_summary = muted("")
+        self.d_state = QLabel("")
+        self.d_state.setWordWrap(True)
+        v.addWidget(self.d_name)
+        v.addWidget(self.d_summary)
+        v.addWidget(self.d_state)
+        btns = QHBoxLayout()
+        self.b_install = button(_("Install"), "list-add", lambda: self.queue_current("install"))
+        self.b_update = button(_("Update"), "system-software-update", lambda: self.queue_current("install"))
+        self.b_remove = button(_("Remove"), "edit-delete", lambda: self.queue_current("remove"))
+        self.b_keep = button(_("Leave as it is"), "edit-undo", self.unqueue_current)
+        self.b_lock = button(_("Lock"), "object-locked", self.lock_current)
+        for b in (self.b_install, self.b_update, self.b_remove, self.b_keep, self.b_lock):
+            btns.addWidget(b)
+        btns.addStretch(1)
+        v.addLayout(btns)
+        self.tabs = QTabWidget(w)
+        self.t_info = QTextBrowser(w)
+        self.t_info.setOpenExternalLinks(True)
+        self.t_versions = QTreeWidget(w)
+        self.t_versions.setHeaderLabels([_("Version"), _("Architecture"), _("Repository"), _("Status")])
+        self.t_versions.setRootIsDecorated(False)
+        self.t_versions.itemDoubleClicked.connect(self.install_version)
+        vers = QWidget(w)
+        vl = QVBoxLayout(vers)
+        vl.setContentsMargins(0, 0, 0, 0)
+        vl.addWidget(self.t_versions)
+        vl.addWidget(muted(_("Double-click a version to install exactly that one (it may be older).")))
+        self.t_deps = QTextBrowser(w)
+        self.t_files = QPlainTextEdit(w)
+        self.t_files.setReadOnly(True)
+        self.t_files.setFont(mono())
+        self.t_changes = QPlainTextEdit(w)
+        self.t_changes.setReadOnly(True)
+        self.t_changes.setFont(mono())
+        self.tabs.addTab(self.t_info, _("Information"))
+        self.tabs.addTab(vers, _("Versions"))
+        self.tabs.addTab(self.t_deps, _("Dependencies"))
+        self.tabs.addTab(self.t_files, _("Files"))
+        self.tabs.addTab(self.t_changes, _("Changes"))
+        v.addWidget(self.tabs, 1)
+        self._set_buttons(None)
+        return w
+
+    def _set_buttons(self, d):
+        state = self.ctx.queue.state_of(d["name"]) if d else None
+        installed = bool(d and d["installed"])
+        is_pkg = bool(d and d["kind"] == "package")
+        self.b_install.setVisible(bool(d) and not installed and state is None)
+        self.b_update.setVisible(bool(d) and d.get("updatable") and state is None)
+        self.b_remove.setVisible(installed and state is None and is_pkg)
+        self.b_keep.setVisible(state is not None)
+        self.b_lock.setVisible(bool(d) and is_pkg)
+        if d:
+            locked = d["name"] in self.locked_names
+            self.b_lock.setText(_("Unlock") if locked else _("Lock"))
+
+    # ------------------------------------------------------------ data
+    def reload(self):
+        run_async(backend.repos, on_done=self._repos_loaded)
+        run_async(backend.locks, on_done=self._locks_loaded)
+        run_async(backend.list_updates, on_done=self._updates_loaded)
+
+    def _updates_loaded(self, updates, err):
+        if err:
+            return
+        self.updates = {u["name"]: u for u in updates}
+        for i in range(self.tree.topLevelItemCount()):
+            d = self.tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+            d["updatable"] = d["name"] in self.updates
+        self.update_statuses()
+
+    def _repos_loaded(self, repos, err):
+        if err:
+            return
+        cur = self.repo.currentData()
+        self.repo.blockSignals(True)
+        self.repo.clear()
+        self.repo.addItem(_("All repositories"), "")
+        for r in sorted((r for r in repos if r["enabled"]), key=lambda r: r["name"].lower()):
+            self.repo.addItem(r["name"], r["alias"])
+        i = self.repo.findData(cur)
+        self.repo.setCurrentIndex(max(i, 0))
+        self.repo.blockSignals(False)
+
+    def _locks_loaded(self, locks, err):
+        if not err:
+            self.locked_names = {lk["name"] for lk in locks}
+            self.update_statuses()
+
+    def search(self, special=None):
+        term = self.term.text().strip()
+        if not term and not special:
+            self.term.setFocus()
+            return
+        self.search_id += 1
+        sid = self.search_id
+        opts = {k: c.isChecked() for k, c in self.chips.items()}
+        self.info.setText(_("Searching…"))
+        self.tree.clear()
+        run_async(backend.search, term, kind=self.kind.currentData(), status=self.status.currentData(),
+                  repo=self.repo.currentData() or None, special=special, **opts,
+                  on_done=lambda res, err: self._searched(sid, res, err, special))
+
+    def _searched(self, sid, results, err, special):
+        if sid != self.search_id:
+            return  # an older search finished late
+        if err:
+            self.info.setText(_("The search failed: {error}").format(error=err))
+            return
+        self.results = results
+        what = {"orphaned": _("Orphaned packages (installed, but in no repository)"),
+                "unneeded": _("Unneeded packages (nothing requires them any more)"),
+                "recommended": _("Recommended packages that are not installed"),
+                "suggested": _("Suggested packages that are not installed")}.get(special)
+        n = len(results)
+        self.info.setText((what + " · " if what else "") + _("{n} found").format(n=n))
+        self.tree.setSortingEnabled(False)
+        for d in results:
+            d["updatable"] = d["name"] in self.updates and d["installed"] is not None
+            ref = d["installed"] or d["best"] or (d["versions"][0] if d["versions"] else None)
+            it = QTreeWidgetItem(self.tree, ["", d["name"], d["summary"], ref["edition"] if ref else "",
+                                             ref["repo"] if ref else ""])
+            it.setData(0, Qt.ItemDataRole.UserRole, d)
+            if len(d["versions"]) > 1:
+                it.setToolTip(3, _("{n} versions available").format(n=len(d["versions"])))
+            self._paint_status(it, d)
+        self.tree.setSortingEnabled(True)
+        if n:
+            self.tree.setCurrentItem(self.tree.topLevelItem(0))
+
+    def update_statuses(self):
+        for i in range(self.tree.topLevelItemCount()):
+            it = self.tree.topLevelItem(i)
+            self._paint_status(it, it.data(0, Qt.ItemDataRole.UserRole))
+        if self.current:
+            self._set_buttons(self.current)
+            self._show_state(self.current)
+
+    def _status_text(self, d):
+        q = self.ctx.queue.state_of(d["name"])
+        if q == "install":
+            return (_("Will be updated") if d["installed"] else _("Will be installed")), "#27ae60", "list-add"
+        if q == "remove":
+            return _("Will be removed"), "#da4453", "list-remove"
+        if d["name"] in self.locked_names:
+            return _("Locked"), None, "object-locked"
+        if d.get("updatable"):
+            return _("Update available"), "#1d99f3", "update-low"
+        if d["installed"]:
+            return _("Installed"), None, "checkmark"
+        return _("Not installed"), None, ""
+
+    def _paint_status(self, it, d):
+        text, color, ic = self._status_text(d)
+        it.setText(0, text)
+        it.setIcon(0, icon(ic) if ic else icon())
+        brush = QBrush(QColor(color)) if color else QBrush()
+        it.setForeground(0, brush)
+        f = it.font(0)
+        f.setBold(bool(color and color != "#1d99f3"))
+        it.setFont(0, f)
+
+    # ------------------------------------------------------------ details
+    def show_details(self, item):
+        if not item:
+            return
+        d = item.data(0, Qt.ItemDataRole.UserRole)
+        self.current = d
+        self.d_name.setText(d["name"])
+        self.d_summary.setText(d["summary"])
+        self._show_state(d)
+        self._set_buttons(d)
+        self.t_versions.clear()
+        for v in sorted(d["versions"], key=lambda v: v["edition"], reverse=True):
+            st = {"installed": _("installed"), "not-installed": "", "other-version": ""}.get(v["status"], v["status"])
+            vi = QTreeWidgetItem(self.t_versions, [v["edition"], v["arch"], v["repo"], st])
+            vi.setData(0, Qt.ItemDataRole.UserRole, v)
+        for c in range(4):
+            self.t_versions.resizeColumnToContents(c)
+        self.t_info.setHtml(f"<i>{html.escape(_('Loading…'))}</i>")
+        self.t_deps.setHtml("")
+        self.t_files.setPlainText("")
+        self.t_changes.setPlainText("")
+        name, kind = d["name"], d["kind"]
+        run_async(backend.info, name, kind, on_done=lambda r, e, n=name: self._info_loaded(n, r, e))
+        run_async(backend.info_deps, name, kind, on_done=lambda r, e, n=name: self._deps_loaded(n, r, e))
+        if d["installed"] and kind == "package":
+            run_async(backend.files_of, name, on_done=lambda r, e, n=name: self._text_loaded(n, self.t_files, r))
+            run_async(backend.changelog_of, name,
+                      on_done=lambda r, e, n=name: self._text_loaded(n, self.t_changes, r))
+            run_async(backend.signature_of, name, on_done=lambda r, e, n=name: self._sig_loaded(n, r))
+        else:
+            self.t_files.setPlainText(_("The file list is shown for installed packages."))
+            self.t_changes.setPlainText(_("The changelog is shown for installed packages."))
+
+    def _show_state(self, d):
+        text, _color, _ic = self._status_text(d)
+        parts = [text]
+        if d["installed"]:
+            parts.append(_("installed {version} from {repo}").format(version=d["installed"]["edition"],
+                                                                     repo=d["installed"]["repo"]))
+        up = self.updates.get(d["name"]) if d.get("updatable") else None
+        if up:
+            parts.append(_("{version} available in {repo}").format(version=up["edition"], repo=up["repo"]))
+        self.d_state.setText(" · ".join(parts))
+
+    def _info_loaded(self, name, info, err):
+        if not self.current or self.current["name"] != name:
+            return
+        if err or not info:
+            self.t_info.setPlainText(str(err or _("No information.")))
+            return
+        rows = []
+        for key in INFO_LABELS:
+            if info.get(key):
+                val = html.escape(info[key])
+                if key == "Upstream URL":
+                    val = f'<a href="{val}">{val}</a>'
+                rows.append(f"<tr><td style='padding-right:14px;color:gray'>{html.escape(INFO_LABELS[key])}</td>"
+                            f"<td>{val}</td></tr>")
+        desc = html.escape(info.get("Description", "")).replace("\n", "<br>")
+        self.t_info.setHtml(f"<table>{''.join(rows)}</table><p>{desc}</p>")
+
+    def _deps_loaded(self, name, info, err):
+        if not self.current or self.current["name"] != name or err or not info:
+            return
+        out = []
+        for key, items in info.get("deps", {}).items():
+            if not items:
+                continue
+            out.append(f"<h4>{html.escape(DEP_LABELS.get(key, key))} ({len(items)})</h4><ul>"
+                       + "".join(f"<li><code>{html.escape(x)}</code></li>" for x in items[:400]) + "</ul>")
+        self.t_deps.setHtml("".join(out) or html.escape(_("No dependencies listed.")))
+
+    def _text_loaded(self, name, widget, text):
+        if self.current and self.current["name"] == name:
+            widget.setPlainText(text or "")
+
+    def _sig_loaded(self, name, sig):
+        if self.current and self.current["name"] == name and sig:
+            extra = _("Not signed") if sig.startswith("(none)") else _("Signed: {sig}").format(sig=sig)
+            self.d_state.setText(self.d_state.text() + "\n" + extra)
+
+    # ------------------------------------------------------------ queue
+    def queue_current(self, kind):
+        if self.current:
+            self.ctx.queue.add(Action(kind, self.current["name"]))
+
+    def unqueue_current(self):
+        if self.current:
+            for kind in ("install", "remove"):
+                for a in list(self.ctx.queue.of(kind)):
+                    if a.target.split("=")[0] == self.current["name"]:
+                        self.ctx.queue.discard_action(a)
+
+    def lock_current(self):
+        if not self.current:
+            return
+        name = self.current["name"]
+        if name in self.locked_names:
+            self.ctx.queue.add(Action("unlock", name))
+        else:
+            self.ctx.queue.add(Action("lock", name))
+
+    def install_version(self, item, _col):
+        if not self.current:
+            return
+        v = item.data(0, Qt.ItemDataRole.UserRole)
+        if v["status"] == "installed":
+            return
+        target = f"{self.current['name']}={v['edition']}"
+        old = bool(self.current["installed"] and backend.vercmp(v["edition"], self.current["installed"]["edition"]) < 0)
+        self.ctx.queue.add(Action("install", target, oldpackage=old, repo=v["repo"]))

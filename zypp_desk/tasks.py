@@ -17,11 +17,13 @@ class _Job(QRunnable):
 
     def run(self):
         try:
-            result = self.fn(*self.args, **self.kwargs)
+            result, error = self.fn(*self.args, **self.kwargs), None
         except Exception as exc:  # reported to the caller, never raised in the thread
-            self.signals.done.emit(None, exc)
-        else:
-            self.signals.done.emit(result, None)
+            result, error = None, exc
+        try:
+            self.signals.done.emit(result, error)
+        except RuntimeError:
+            pass  # the window was closed while the query was still running
 
 
 def run_async(fn, *args, on_done, **kwargs):

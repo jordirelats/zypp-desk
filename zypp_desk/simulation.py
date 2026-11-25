@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, Q
 
 from .i18n import _, ngettext
 
+PROMPT_CONTINUE, PROMPT_DEP_RESOLVE, PROMPT_LICENSE = 0, 1, 10
+
 CATEGORIES = [
     ("to-install", _("Will be installed")),
     ("to-upgrade", _("Will be upgraded")),
@@ -29,9 +31,11 @@ def human_size(n):
         return ""
     sign = "-" if n < 0 else ""
     n = abs(n)
+    from PySide6.QtCore import QLocale
+    loc = QLocale()
     for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
         if n < 1024 or unit == "TiB":
-            return f"{sign}{n:.1f} {unit}" if unit != "B" else f"{sign}{int(n)} B"
+            return f"{sign}{loc.toString(n, 'f', 1)} {unit}" if unit != "B" else f"{sign}{int(n)} B"
         n /= 1024
 
 
@@ -54,10 +58,24 @@ def parse_dry_run(text):
         res["messages"].append((kind, t))
         if kind == "error":
             res["problems"].append(t)
+    # Prompt ids come from 'zypper --promptids'. 0 is the ordinary "Continue?" before committing,
+    # which a dry run always shows: it is not a problem.
     for p in root.iter("prompt"):
+        try:
+            pid = int(p.get("id", "-1"))
+        except ValueError:
+            pid = -1
+        if pid == PROMPT_CONTINUE:
+            continue
         desc = " ".join((x.text or "").strip() for x in p.iter("text")) or (p.text or "").strip()
         opts = [o.get("desc") or o.get("value") or "" for o in p.iter("option")]
-        if desc:
+        if pid == PROMPT_DEP_RESOLVE:
+            detail = [t for k, t in res["messages"] if re.match(r"^\s*(Problem|Solution|\d+:)", t)]
+            res["problems"].append("\n".join(detail + [desc]).strip() or desc)
+        elif pid == PROMPT_LICENSE:
+            res["problems"].append(_("A license must be accepted. Turn on “Accept licenses without asking” in "
+                                     "Settings, or install it from a terminal.") + "\n" + desc)
+        elif desc:
             res["problems"].append(desc + (("\n  " + "\n  ".join(o for o in opts if o)) if opts else ""))
     for s in root.iter("solverproblem") if hasattr(root, "iter") else []:
         res["problems"].append(ET.tostring(s, encoding="unicode", method="text").strip())
@@ -78,6 +96,26 @@ def parse_dry_run(text):
     elif not res["problems"]:
         res["ok"] = True  # nothing to do
     return res
+
+
+def summary_lines(result):
+    """A plain-text summary of a dry run, for the terminal panel."""
+    lines = []
+    for key, label in CATEGORIES:
+        items = result["groups"].get(key, [])
+        if items:
+            names = ", ".join(f"{i['name']} {i['edition']}" for i in items[:40])
+            more = "" if len(items) <= 40 else " …"
+            lines.append(f"{label} ({len(items)}): {names}{more}")
+    if result["download"]:
+        lines.append(_("Download: {size}").format(size=human_size(result["download"])))
+    if result["disk"]:
+        lines.append(_("Disk: {size}").format(size=human_size(result["disk"])))
+    for p in result["problems"]:
+        lines.append(_("Problem: {text}").format(text=p))
+    if not lines:
+        lines.append(_("Nothing to do."))
+    return lines
 
 
 class SimulationDialog(QDialog):

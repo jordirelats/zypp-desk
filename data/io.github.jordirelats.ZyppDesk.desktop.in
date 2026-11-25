@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Zypp Desk
+GenericName=Package Manager
+GenericName[ca]=Gestor de paquets
+Comment=Every zypper feature in a window
+Comment[ca]=Totes les funcions de zypper en una finestra
+Exec=@EXEC@
+Icon=package-x-generic
+Terminal=false
+Categories=System;PackageManager;Settings;Qt;
+Keywords=zypper;package;rpm;repository;update;openSUSE;
+Keywords[ca]=zypper;paquet;rpm;repositori;actualització;openSUSE;
+StartupNotify=true

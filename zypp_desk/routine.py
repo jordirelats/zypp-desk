@@ -64,8 +64,9 @@ def describe(step):
         return _("Refresh the repositories")
     if sub in ("dup", "dist-upgrade"):
         if "-d" in a or "--download-only" in a:
-            return _("Download everything") + (_(" and accept the licenses") if "-l" in a or
-                                                 "--auto-agree-with-licenses" in a else "")
+            if "-l" in a or "--auto-agree-with-licenses" in a:
+                return _("Download everything and accept the licenses")
+            return _("Download everything")
         return _("Upgrade the system")
     if sub in ("up", "update"):
         return _("Update packages")

@@ -6,8 +6,10 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: early development.** The first version is being written now. It is not ready for
-> everyday use yet.
+> **Status: 0.1, early development.** Searching, package details, the change queue with
+> simulation, routines, repositories, locks, services, languages, history and maintenance work.
+> Still missing: a Flatpak section, choosing among zypper's proposed solutions to a conflict
+> inside the window, and editing `zypp.conf`. Expect rough edges.
 
 ## Ideas behind it
 
