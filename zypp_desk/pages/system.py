@@ -22,55 +22,6 @@ def simple_tree(headers, parent):
     return t
 
 
-# ============================================================ home
-class HomePage(Page):
-    key = "home"
-    title = _("Home")
-    icon_name = "go-home"
-
-    def __init__(self, ctx, parent=None):
-        super().__init__(ctx, parent)
-        lay = QVBoxLayout(self)
-        self.product = heading("", 1.5)
-        lay.addWidget(self.product)
-        self.facts = QLabel("", self)
-        self.facts.setWordWrap(True)
-        self.facts.setTextFormat(Qt.TextFormat.RichText)
-        lay.addWidget(self.facts)
-        row = QHBoxLayout()
-        row.addWidget(button(_("Run my update routine"), "system-software-update",
-                             lambda: self.ctx.go("updates", run_routine=True), primary=True))
-        row.addWidget(button(_("Search packages"), "edit-find", lambda: self.ctx.go("packages")))
-        row.addWidget(button(_("Repositories"), "repository", lambda: self.ctx.go("repos")))
-        row.addStretch(1)
-        lay.addLayout(row)
-        lay.addWidget(muted(_("Every change goes to the queue at the bottom of the window. You can simulate it "
-                              "and then apply it at once; the exact zypper command is always shown, and the "
-                              "terminal panel shows zypper's own output.")))
-        lay.addStretch(1)
-
-    def reload(self):
-        self.facts.setText(_("Loading…"))
-        run_async(backend.system_info, on_done=self._loaded)
-
-    def _loaded(self, info, err):
-        if err:
-            self.facts.setText(str(err))
-            return
-        self.product.setText(info["product"] or "openSUSE")
-        lock = info["zypp_lock"]
-        items = [
-            _("Architecture: {arch}").format(arch=info["arch"]),
-            _("Repositories: {n} enabled of {total}").format(n=info["repos_enabled"], total=info["repos_total"]),
-            _("Locks: {n}").format(n=info["locks"]),
-            (_("<b>A restart is needed</b> (zypper needs-rebooting)") if info["needs_reboot"]
-             else _("No restart is needed")),
-            (_("The package manager is in use by: {proc}").format(proc=lock) if lock
-             else _("The package manager is free")),
-        ]
-        self.facts.setText("<ul>" + "".join(f"<li>{x}</li>" for x in items) + "</ul>")
-
-
 # ============================================================ locks
 class LocksPage(Page):
     key = "locks"

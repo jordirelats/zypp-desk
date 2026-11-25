@@ -43,8 +43,7 @@ def button(text, icon_name=None, slot=None, primary=False, parent=None):
     if slot:
         b.clicked.connect(slot)
     if primary:
-        b.setDefault(True)
-        b.setAutoDefault(True)
+        b.setProperty("primary", True)
     return b
 
 
@@ -118,9 +117,8 @@ class Card(QFrame):
         super().__init__(parent)
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setObjectName("card")
-        self.setStyleSheet("#card { border: 1px solid palette(mid); border-radius: 5px; }")
         self.lay = QVBoxLayout(self)
-        self.lay.setContentsMargins(12, 10, 12, 10)
+        self.lay.setContentsMargins(16, 12, 16, 14)
         if title:
             self.lay.addWidget(heading(title, 1.0))
 

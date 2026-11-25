@@ -23,6 +23,8 @@ class Action:
 
     def describe(self):
         k, t = self.kind, self.target
+        if k == "install" and self.opts.get("package"):
+            return _("Install {name} from the downloaded file {file}").format(name=self.opts["package"], file=t)
         if k == "install":
             return _("Install {name}").format(name=t)
         if k == "remove":
@@ -98,7 +100,7 @@ class TxQueue(QObject):
 
     def state_of(self, name):
         for a in self.actions:
-            if a.kind in PKG_KINDS and a.target.split("=")[0] == name:
+            if a.kind in PKG_KINDS and (a.opts.get("package") or a.target.split("=")[0]) == name:
                 return a.kind
         return None
 
@@ -127,6 +129,8 @@ class TxQueue(QObject):
             args = ["install"]
             if any(a.opts.get("oldpackage") for a in inst):
                 args.append("--oldpackage")
+            if any(a.opts.get("allow_unsigned") for a in inst):
+                args.append("--allow-unsigned-rpm")
             if self.settings.get("apply_no_recommends"):
                 args.append("--no-recommends")
             if self.settings.get("apply_accept_licenses"):

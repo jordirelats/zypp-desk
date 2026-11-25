@@ -3,12 +3,14 @@
 
 import html
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTabWidget, QTextBrowser,
                                QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend
+from .. import appicons, backend
+from ..style import BLUE, GREEN, RED, dot
+from PySide6.QtGui import QIcon
 from ..i18n import _
 from ..tasks import run_async
 from ..txqueue import Action
@@ -38,6 +40,8 @@ class PackagesPage(Page):
         self.search_id = 0
         self.locked_names = set()
         self.updates = {}
+        self.desktop = {}
+        self._icons = {}
 
         self.term = QLineEdit(self)
         self.term.setPlaceholderText(_("Search packages, for example vlc"))
@@ -89,6 +93,7 @@ class PackagesPage(Page):
         self.tree.setRootIsDecorated(False)
         self.tree.setAlternatingRowColors(True)
         self.tree.setUniformRowHeights(True)
+        self.tree.setIconSize(QSize(22, 22))
         self.tree.setSortingEnabled(True)
         self.tree.sortByColumn(1, Qt.SortOrder.AscendingOrder)
         self.tree.currentItemChanged.connect(lambda cur, _prev: self.show_details(cur))
@@ -122,9 +127,16 @@ class PackagesPage(Page):
         self.d_summary = muted("")
         self.d_state = QLabel("")
         self.d_state.setWordWrap(True)
-        v.addWidget(self.d_name)
-        v.addWidget(self.d_summary)
-        v.addWidget(self.d_state)
+        self.d_icon = QLabel(w)
+        self.d_icon.setFixedSize(60, 60)
+        top = QHBoxLayout()
+        top.addWidget(self.d_icon, 0, Qt.AlignmentFlag.AlignTop)
+        names = QVBoxLayout()
+        names.addWidget(self.d_name)
+        names.addWidget(self.d_summary)
+        names.addWidget(self.d_state)
+        top.addLayout(names, 1)
+        v.addLayout(top)
         btns = QHBoxLayout()
         self.b_install = button(_("Install"), "list-add", lambda: self.queue_current("install"))
         self.b_update = button(_("Update"), "system-software-update", lambda: self.queue_current("install"))
@@ -243,12 +255,46 @@ class PackagesPage(Page):
             it = QTreeWidgetItem(self.tree, ["", d["name"], d["summary"], ref["edition"] if ref else "",
                                              ref["repo"] if ref else ""])
             it.setData(0, Qt.ItemDataRole.UserRole, d)
+            it.setIcon(1, self.pkg_icon(d))
             if len(d["versions"]) > 1:
                 it.setToolTip(3, _("{n} versions available").format(n=len(d["versions"])))
             self._paint_status(it, d)
         self.tree.setSortingEnabled(True)
         if n:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
+        names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]
+        if names:
+            run_async(appicons.desktop_icons, names, on_done=self._desktop_icons_loaded)
+
+    def _desktop_icons_loaded(self, icons, err):
+        if icons:
+            self.desktop.update(icons)
+            self.refresh_icons()
+
+    def pkg_icon(self, d):
+        name = d["name"]
+        if name in self._icons:
+            return self._icons[name]
+        ic = QIcon()
+        found = self.ctx.icon_catalog.get(name)
+        if found and found[0] == "file":
+            ic = QIcon(found[1])
+        elif found and found[0] == "theme":
+            ic = QIcon.fromTheme(found[1])
+        if ic.isNull() and name in self.desktop:
+            ic = QIcon.fromTheme(self.desktop[name])
+        if ic.isNull():
+            generic = "application-x-sharedlib" if name.startswith("lib") else "package-x-generic"
+            return icon(generic, "package-x-generic")  # not cached: a better icon may appear later
+        self._icons[name] = ic
+        return ic
+
+    def refresh_icons(self):
+        for i in range(self.tree.topLevelItemCount()):
+            it = self.tree.topLevelItem(i)
+            it.setIcon(1, self.pkg_icon(it.data(0, Qt.ItemDataRole.UserRole)))
+        if self.current:
+            self.d_icon.setPixmap(self.pkg_icon(self.current).pixmap(56, 56))
 
     def update_statuses(self):
         for i in range(self.tree.topLevelItemCount()):
@@ -275,7 +321,8 @@ class PackagesPage(Page):
     def _paint_status(self, it, d):
         text, color, ic = self._status_text(d)
         it.setText(0, text)
-        it.setIcon(0, icon(ic) if ic else icon())
+        dots = {"checkmark": GREEN, "update-low": BLUE, "list-add": GREEN, "list-remove": RED}
+        it.setIcon(0, dot(dots[ic]) if ic in dots else (icon(ic) if ic else QIcon()))
         brush = QBrush(QColor(color)) if color else QBrush()
         it.setForeground(0, brush)
         f = it.font(0)
@@ -289,6 +336,7 @@ class PackagesPage(Page):
         d = item.data(0, Qt.ItemDataRole.UserRole)
         self.current = d
         self.d_name.setText(d["name"])
+        self.d_icon.setPixmap(self.pkg_icon(d).pixmap(56, 56))
         self.d_summary.setText(d["summary"])
         self._show_state(d)
         self._set_buttons(d)

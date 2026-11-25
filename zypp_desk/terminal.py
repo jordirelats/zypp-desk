@@ -10,8 +10,10 @@ import time
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPlainTextEdit, QToolButton, QVBoxLayout,
-                               QWidget, QApplication)
+import html
+
+from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QLabel, QPlainTextEdit, QSplitter, QTextBrowser,
+                               QToolButton, QVBoxLayout, QWidget, QApplication)
 
 from .i18n import _
 
@@ -187,7 +189,15 @@ class TerminalView(QPlainTextEdit):
 
     @staticmethod
     def _classify(line):
+        from .explain import INFO, NONE, SERIOUS, WARN, severity_of_line
         s = line.strip()
+        known = severity_of_line(s)
+        if known in (NONE, INFO):
+            return "known-" + known
+        if known == WARN:
+            return "warning"
+        if known == SERIOUS:
+            return "error"
         if ERR_RE.search(s) and not s.startswith("CommitResult"):
             return "error"
         if WARN_RE.match(s) or s.lower().startswith("warning") or "egrep: warning" in s:
@@ -203,6 +213,10 @@ class TerminalView(QPlainTextEdit):
         elif kind == "warning":
             spans.append((0, len(line), _fmt("yellow")))
             self.problem_lines += 1
+        elif kind == "known-none":
+            spans.append((0, len(line), _fmt("grey")))
+        elif kind == "known-info":
+            spans.append((0, len(line), _fmt("cyan")))
         elif s.startswith("CommitResult"):
             spans.append((0, len(line), _fmt("green" if "error 0" in s else "red")))
         elif "->" in line:
@@ -223,7 +237,7 @@ class TerminalView(QPlainTextEdit):
             c.setPosition(block.position() + start)
             c.setPosition(block.position() + start + length, QTextCursor.MoveMode.KeepAnchor)
             c.mergeCharFormat(f)
-        block.setUserState({"error": 2, "warning": 1}.get(kind, 0))
+        block.setUserState({"error": 2, "warning": 1, "known-info": 1}.get(kind, 0))
         if self.only_problems and kind == "normal":
             block.setVisible(False)
 
@@ -259,11 +273,20 @@ class TerminalPanel(QWidget):
             b = self._button(text)
             b.clicked.connect(slot)
             hb.addWidget(b)
+        self.notes = QTextBrowser(self)
+        self.notes.setOpenExternalLinks(True)
+        self.notes.setMinimumWidth(280)
+        self.notes.hide()
+        self.split = QSplitter(Qt.Orientation.Horizontal, self)
+        self.split.addWidget(self.view)
+        self.split.addWidget(self.notes)
+        self.split.setStretchFactor(0, 3)
+        self.split.setStretchFactor(1, 2)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
         lay.addWidget(bar)
-        lay.addWidget(self.view, 1)
+        lay.addWidget(self.split, 1)
 
     def _button(self, text, checkable=False):
         b = QToolButton(self)
@@ -271,6 +294,26 @@ class TerminalPanel(QWidget):
         b.setCheckable(checkable)
         b.setAutoRaise(False)
         return b
+
+    def show_explanations(self, items):
+        """The warnings of the last run, explained, next to the terminal."""
+        from .explain import severity_color, severity_label
+        if not items:
+            self.notes.hide()
+            return
+        parts = [f"<h3 style='margin:4px 0'>{html.escape(_('What the messages mean'))}</h3>"]
+        for d in items:
+            color = severity_color(d["severity"])
+            times = f" <span style='color:gray'>×{d['count']}</span>" if d["count"] > 1 else ""
+            parts.append(
+                f"<p style='margin:10px 0 2px'><span style='background-color:{color};color:white;font-weight:bold'>"
+                f"&nbsp;{html.escape(severity_label(d['severity']))}&nbsp;</span>&nbsp; <b>{html.escape(d['title'])}</b>"
+                f"{times}</p><p style='margin:2px 0'>{html.escape(d['what'])}</p>"
+                f"<p style='margin:2px 0'><b>{html.escape(_('What to do:'))}</b> {html.escape(d['todo'])}</p>"
+                f"<p style='margin:2px 0 8px;color:gray;font-family:monospace;font-size:small'>"
+                f"{html.escape(d['example'][:200])}</p>")
+        self.notes.setHtml("".join(parts))
+        self.notes.show()
 
     def set_title(self, text):
         self.title.setText(text)

@@ -28,6 +28,7 @@ def main(argv=None):
     parser.add_argument("--page", help="open this section (home, packages, updates, repos, …)")
     parser.add_argument("--search", help="search packages at start")
     parser.add_argument("--screenshot", metavar="PNG", help=argparse.SUPPRESS)  # used to build the docs
+    parser.add_argument("--screenshot-delay", type=float, default=6, help=argparse.SUPPRESS)
     args, qt_args = parser.parse_known_args(argv[1:])
 
     app = QApplication([argv[0], *qt_args])
@@ -38,6 +39,8 @@ def main(argv=None):
     if QIcon.fromTheme("package-x-generic").isNull():
         QIcon.setThemeName("breeze")
     app.setWindowIcon(app_icon())
+    from . import style
+    style.apply(app)
 
     from .mainwindow import MainWindow  # after QApplication exists
     win = MainWindow()
@@ -52,5 +55,5 @@ def main(argv=None):
         def shot():
             win.grab().save(args.screenshot)
             app.quit()
-        QTimer.singleShot(6000, shot)
+        QTimer.singleShot(int(args.screenshot_delay * 1000), shot)
     return app.exec()

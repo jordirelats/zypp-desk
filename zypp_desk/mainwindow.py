@@ -7,14 +7,16 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFrame, QHB
                                QListWidgetItem, QMainWindow, QMessageBox, QSplitter, QStackedWidget,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from . import APP_NAME, backend
+from . import APP_NAME, appicons, backend
 from .i18n import _
 from .pages.flatpak import FlatpakPage
 from .pages.packages import PackagesPage
 from .pages.repos import ReposPage
-from .pages.system import (HistoryPage, HomePage, LocalesPage, LocksPage, MaintenancePage, ServicesPage,
+from .pages.home import HomePage
+from .pages.system import (HistoryPage, LocalesPage, LocksPage, MaintenancePage, ServicesPage,
                            SettingsPage)
 from .pages.updates import UpdatesPage
+from .pages.websources import WebSourcesPage
 from .runner import Runner, helper_path
 from .settings import Settings
 from .simulation import SimulationDialog, parse_dry_run, summary_lines
@@ -25,7 +27,7 @@ from .ui import button, heading, icon, mono, muted
 
 SIDEBAR = [
     (None, ["home", "packages", "updates", "flatpak"]),
-    (_("Sources"), ["repos", "services"]),
+    (_("Sources"), ["repos", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
 ]
 
@@ -76,9 +78,10 @@ class MainWindow(QMainWindow):
         self.queue = TxQueue(self.settings, self)
         self.runner = Runner(self)
         self._on_done = None
+        self.icon_catalog = {}
 
         # ------------------------------------------------ pages
-        page_classes = [HomePage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage, LocksPage, LocalesPage,
+        page_classes = [HomePage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage, WebSourcesPage, LocksPage, LocalesPage,
                         HistoryPage, MaintenancePage, SettingsPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
@@ -93,7 +96,7 @@ class MainWindow(QMainWindow):
         self.sidebar = QListWidget(self)
         self.sidebar.setIconSize(QSize(22, 22))
         self.sidebar.setFrameShape(QFrame.Shape.NoFrame)
-        self.sidebar.setStyleSheet("QListWidget { background: transparent; } QListWidget::item { padding: 5px; }")
+        self.sidebar.setObjectName("sidebar")
         self._rows = {}
         for group, keys in SIDEBAR:
             if group:
@@ -123,11 +126,15 @@ class MainWindow(QMainWindow):
         sv.addWidget(self.term_toggle)
 
         # ------------------------------------------------ header, terminal, queue bar
-        self.page_title = heading("", 1.3)
+        self.page_title = heading("", 1.35)
+        self.page_icon = QLabel(self)
         self.actions_box = QHBoxLayout()
         header = QWidget(self)
+        header.setObjectName("pageheader")
+        header.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         hh = QHBoxLayout(header)
-        hh.setContentsMargins(12, 6, 8, 6)
+        hh.setContentsMargins(14, 8, 10, 8)
+        hh.addWidget(self.page_icon)
         hh.addWidget(self.page_title, 1)
         hh.addLayout(self.actions_box)
 
@@ -149,7 +156,7 @@ class MainWindow(QMainWindow):
         self.b_sim = button(_("Simulate"), "media-playback-start", self.simulate_queue)
         self.b_apply = button(_("Apply"), "dialog-ok-apply", self.apply_queue, primary=True)
         qbar = QFrame(self)
-        qbar.setFrameShape(QFrame.Shape.StyledPanel)
+        qbar.setObjectName("queuebar")
         qh = QHBoxLayout(qbar)
         qh.setContentsMargins(10, 6, 10, 6)
         qh.addWidget(self.q_summary)
@@ -184,6 +191,7 @@ class MainWindow(QMainWindow):
         self.status_timer.timeout.connect(self.update_status)
         self.status_timer.start(30000)
         self.update_status()
+        run_async(appicons.load_catalog, on_done=self._catalog_loaded)
         self.sidebar.setCurrentItem(self._rows["home"])
         self.terminal.view.note(_("zypper's own output appears here while it works."), "info")
         if not helper_path():
@@ -196,15 +204,28 @@ class MainWindow(QMainWindow):
             self.sidebar.setCurrentItem(self._rows[key])
         self.stack.setCurrentWidget(page)
         self.page_title.setText(page.title)
+        self.page_icon.setPixmap(icon(page.icon_name, "application-vnd.flatpak.ref", "package-x-generic").pixmap(28, 28))
         while self.actions_box.count():
             w = self.actions_box.takeAt(0).widget()
             if w:
                 w.setParent(None)
         for w in page.header_actions():
             self.actions_box.addWidget(w)
+        # the terminal is not useful on the home page until something runs
+        self.terminal.setVisible(self.term_toggle.isChecked() and (key != "home" or self.runner.busy))
         page.activated()
         if run_routine and key == "updates":
             page.run_routine()
+
+    def _catalog_loaded(self, catalog, err):
+        if catalog:
+            self.icon_catalog = catalog
+            self.pages["packages"].refresh_icons()
+
+    def set_badge(self, key, text):
+        """A number after a section's name in the sidebar (for example, new versions found)."""
+        page = self.pages[key]
+        self._rows[key].setText(f"{page.title}  ({text})" if text else page.title)
 
     def _toggle_terminal(self, on):
         self.terminal.setVisible(on)
@@ -219,10 +240,22 @@ class MainWindow(QMainWindow):
         if not any(s.capture for s in steps):
             self.term_toggle.setChecked(True)
         self.terminal.set_title(title)
+        self.terminal.notes.hide()
+        self._run_start = self.terminal.view.document().blockCount()
         self._on_done = on_done
         self._set_busy(True)
         self.runner.run(steps)
         return True
+
+    def _explain_run(self):
+        from .explain import explain
+        doc = self.terminal.view.document()
+        lines = []
+        b = doc.findBlockByNumber(max(0, getattr(self, "_run_start", 0) - 1))
+        while b.isValid():
+            lines.append(b.text())
+            b = b.next()
+        self.terminal.show_explanations(explain("\n".join(lines)))
 
     def _note(self, text, kind):
         if kind == "prompt":
@@ -233,6 +266,7 @@ class MainWindow(QMainWindow):
     def _finished(self, ok):
         self._set_busy(False)
         self.terminal.view.note(_("Finished.") if ok else _("Finished with errors."), "ok" if ok else "error")
+        self._explain_run()
         cb, self._on_done = self._on_done, None
         if cb:
             cb(ok)
