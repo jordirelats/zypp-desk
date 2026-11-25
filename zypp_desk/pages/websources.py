@@ -833,7 +833,7 @@ class WebSourcesPage(Page):
 
     def _start_download(self, s, f):
         view = self.ctx.terminal.view
-        self.ctx.term_toggle.setChecked(True)
+        self.ctx.show_terminal()
         self.ctx.terminal.set_title(_("Download {file}").format(file=f.get("asset") or s["package"]))
         view.prompt(f"$ curl -LO {f['url']}")
         view.note(_("Downloading {size}…").format(size=fmt_size(f["size"])) if f.get("size") else _("Downloading…"),

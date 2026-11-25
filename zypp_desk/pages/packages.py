@@ -1,14 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Packages: search with every zypper option, the package card, and adding changes to the queue."""
 
-import html
-import re
-from functools import cmp_to_key
 
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QBrush
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTabWidget, QTextBrowser,
-                               QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import appicons, backend
 from ..style import BLUE, GREEN, RED, dot
@@ -16,25 +13,11 @@ from PySide6.QtGui import QIcon
 from ..i18n import _, ngettext
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Chip, Page, button, heading, icon, mono, muted
+from ..ui import Chip, Page, button, icon, muted
+from .pkgdetails import PackageDetails
 
 KIND_LABELS = [("package", _("Packages")), ("pattern", _("Patterns")), ("patch", _("Patches")),
                ("product", _("Products")), ("srcpackage", _("Source packages"))]
-# zypper info prints these keys in English (it runs with LC_ALL=C); these are their labels.
-INFO_LABELS = {"Repository": _("Repository"), "Version": _("Version"), "Arch": _("Architecture"),
-               "Vendor": _("Vendor"), "Installed Size": _("Installed size"), "Status": _("Status"),
-               "Source package": _("Source package"), "Upstream URL": _("Web site"), "License": _("License")}
-DEP_LABELS = {"Provides": _("Provides"), "Requires": _("Requires"), "Recommends": _("Recommends"),
-              "Suggests": _("Suggests"), "Conflicts": _("Conflicts"), "Obsoletes": _("Obsoletes"),
-              "Supplements": _("Supplements")}
-def status_label(text):
-    """zypper info's Status field (in English, LC_ALL=C), in the user's language."""
-    m = re.match(r"out-of-date \(version (.+) installed\)", text)
-    if m:
-        return _("an update is available (installed: {version})").format(version=m.group(1))
-    return {"up-to-date": _("up to date"), "not installed": _("not installed")}.get(text, text)
-
-
 STATUS_LABELS = [("all", _("Any status")), ("installed", _("Installed")), ("not-installed", _("Not installed"))]
 
 
@@ -46,7 +29,6 @@ class PackagesPage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         self.results = []
-        self.current = None
         self.search_id = 0
         self.locked_names = set()
         self.updates = {}
@@ -127,7 +109,7 @@ class PackagesPage(Page):
         self.tree.setColumnWidth(2, 250)
         self.tree.setColumnWidth(3, 150)
 
-        self.details = self._build_details()
+        self.details = PackageDetails(self, ctx, self)
         split = QSplitter(Qt.Orientation.Horizontal, self)
         split.addWidget(self.tree)
         split.addWidget(self.details)
@@ -153,76 +135,6 @@ class PackagesPage(Page):
         self._details_timer.timeout.connect(lambda: self._load_details(self.tree.currentItem()))
         self._statuses_stale = False
         self._dots = {}
-
-    # ------------------------------------------------------------ details panel
-    def _build_details(self):
-        w = QWidget(self)
-        v = QVBoxLayout(w)
-        v.setContentsMargins(8, 0, 0, 0)
-        self.d_name = heading("", 1.4)
-        self.d_summary = muted("")
-        self.d_state = QLabel("")
-        self.d_state.setWordWrap(True)
-        self.d_icon = QLabel(w)
-        self.d_icon.setFixedSize(60, 60)
-        top = QHBoxLayout()
-        top.addWidget(self.d_icon, 0, Qt.AlignmentFlag.AlignTop)
-        names = QVBoxLayout()
-        names.addWidget(self.d_name)
-        names.addWidget(self.d_summary)
-        names.addWidget(self.d_state)
-        top.addLayout(names, 1)
-        v.addLayout(top)
-        btns = QHBoxLayout()
-        self.b_install = button(_("Install"), "list-add", lambda: self.queue_current("install"))
-        self.b_update = button(_("Update"), "system-software-update", lambda: self.queue_current("install"))
-        self.b_remove = button(_("Remove"), "edit-delete", lambda: self.queue_current("remove"))
-        self.b_keep = button(_("Leave as it is"), "edit-undo", self.unqueue_current)
-        self.b_lock = button(_("Lock"), "object-locked", self.lock_current)
-        for b in (self.b_install, self.b_update, self.b_remove, self.b_keep, self.b_lock):
-            btns.addWidget(b)
-        btns.addStretch(1)
-        v.addLayout(btns)
-        self.tabs = QTabWidget(w)
-        self.t_info = QTextBrowser(w)
-        self.t_info.setOpenExternalLinks(True)
-        self.t_versions = QTreeWidget(w)
-        self.t_versions.setHeaderLabels([_("Version"), _("Architecture"), _("Repository"), _("Status")])
-        self.t_versions.setRootIsDecorated(False)
-        self.t_versions.itemDoubleClicked.connect(self.install_version)
-        vers = QWidget(w)
-        vl = QVBoxLayout(vers)
-        vl.setContentsMargins(0, 0, 0, 0)
-        vl.addWidget(self.t_versions)
-        vl.addWidget(muted(_("Double-click a version to install exactly that one (it may be older).")))
-        self.t_deps = QTextBrowser(w)
-        self.t_files = QPlainTextEdit(w)
-        self.t_files.setReadOnly(True)
-        self.t_files.setFont(mono())
-        self.t_changes = QPlainTextEdit(w)
-        self.t_changes.setReadOnly(True)
-        self.t_changes.setFont(mono())
-        self.tabs.addTab(self.t_info, _("Information"))
-        self.tabs.addTab(vers, _("Versions"))
-        self.tabs.addTab(self.t_deps, _("Dependencies"))
-        self.tabs.addTab(self.t_files, _("Files"))
-        self.tabs.addTab(self.t_changes, _("Changes"))
-        v.addWidget(self.tabs, 1)
-        self._set_buttons(None)
-        return w
-
-    def _set_buttons(self, d):
-        state = self.ctx.queue.state_of(d["name"]) if d else None
-        installed = bool(d and d["installed"])
-        is_pkg = bool(d and d["kind"] == "package")
-        self.b_install.setVisible(bool(d) and not installed and state is None and d["kind"] != "srcpackage")
-        self.b_update.setVisible(bool(d) and self._updatable(d) and state is None)
-        self.b_remove.setVisible(installed and state is None and is_pkg)
-        self.b_keep.setVisible(state is not None)
-        self.b_lock.setVisible(bool(d) and is_pkg)
-        if d:
-            locked = d["name"] in self.locked_names
-            self.b_lock.setText(_("Unlock") if locked else _("Lock"))
 
     # ------------------------------------------------------------ data
     def reload(self):
@@ -318,7 +230,7 @@ class PackagesPage(Page):
         if n:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
         else:
-            self._clear_details()
+            self.details.clear()
         names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]
         if names:
             run_async(appicons.desktop_icons, names, on_done=self._desktop_icons_loaded)
@@ -350,8 +262,7 @@ class PackagesPage(Page):
         for i in range(self.tree.topLevelItemCount()):
             it = self.tree.topLevelItem(i)
             it.setIcon(1, self.pkg_icon(it.data(0, Qt.ItemDataRole.UserRole)))
-        if self.current:
-            self.d_icon.setPixmap(self.pkg_icon(self.current).pixmap(56, 56))
+        self.details.refresh_icon()
 
     def _queue_changed(self):
         if self.isVisible():
@@ -369,23 +280,10 @@ class PackagesPage(Page):
         for i in range(self.tree.topLevelItemCount()):
             it = self.tree.topLevelItem(i)
             self._paint_status(it, it.data(0, Qt.ItemDataRole.UserRole))
-        if self.current:
-            self._set_buttons(self.current)
-            self._show_state(self.current)
+        self.details.refresh()
 
     def _status_text(self, d):
-        q = self.ctx.queue.state_of(d["name"])
-        if q == "install":
-            return (_("Will be updated") if d["installed"] else _("Will be installed")), "#27ae60", "list-add"
-        if q == "remove":
-            return _("Will be removed"), "#da4453", "list-remove"
-        if d["name"] in self.locked_names:
-            return _("Locked"), None, "object-locked"
-        if self._updatable(d):
-            return _("Update available"), "#1d99f3", "update-low"
-        if d["installed"]:
-            return _("Installed"), None, "checkmark"
-        return _("Not installed"), None, ""
+        return self.details.status_text(d)
 
     def _paint_status(self, it, d):
         text, color, ic = self._status_text(d)
@@ -404,138 +302,16 @@ class PackagesPage(Page):
         it.setFont(0, f)
 
     # ------------------------------------------------------------ details
-    def _clear_details(self):
-        self.current = None
-        self.d_name.setText("")
-        self.d_icon.clear()
-        self.d_summary.setText("")
-        self.d_state.setText("")
-        self.t_versions.clear()
-        for w in (self.t_info, self.t_deps):
-            w.setHtml("")
-        for w in (self.t_files, self.t_changes):
-            w.setPlainText("")
-
     def show_details(self, item):
         if not item:
             return
         self._details_timer.start()  # the queries wait until the selection stops moving
 
     def _load_details(self, item):
-        if not item:
-            return
-        d = item.data(0, Qt.ItemDataRole.UserRole)
-        if not d:
-            return
-        self.current = d
-        self.d_name.setText(d["name"])
-        self.d_icon.setPixmap(self.pkg_icon(d).pixmap(56, 56))
-        self.d_summary.setText(d["summary"])
-        self._show_state(d)
-        self._set_buttons(d)
-        self.t_versions.clear()
-        for v in sorted(d["versions"], key=cmp_to_key(lambda a, b: backend.vercmp(a["edition"], b["edition"])),
-                        reverse=True):
-            st = {"installed": _("installed"), "not-installed": "", "other-version": ""}.get(v["status"], v["status"])
-            vi = QTreeWidgetItem(self.t_versions, [v["edition"], v["arch"], v["repo"], st])
-            vi.setData(0, Qt.ItemDataRole.UserRole, v)
-        for c in range(4):
-            self.t_versions.resizeColumnToContents(c)
-        self.t_info.setHtml(f"<i>{html.escape(_('Loading…'))}</i>")
-        self.t_deps.setHtml("")
-        self.t_files.setPlainText("")
-        self.t_changes.setPlainText("")
-        name, kind = d["name"], d["kind"]
-        run_async(backend.info, name, kind, on_done=lambda r, e, n=name: self._info_loaded(n, r, e))
-        run_async(backend.info_deps, name, kind, on_done=lambda r, e, n=name: self._deps_loaded(n, r, e))
-        if d["installed"] and kind == "package":
-            run_async(backend.files_of, name, on_done=lambda r, e, n=name: self._text_loaded(n, self.t_files, r))
-            run_async(backend.changelog_of, name,
-                      on_done=lambda r, e, n=name: self._text_loaded(n, self.t_changes, r))
-            run_async(backend.signature_of, name, on_done=lambda r, e, n=name: self._sig_loaded(n, r))
-        else:
-            self.t_files.setPlainText(_("The file list is shown for installed packages."))
-            self.t_changes.setPlainText(_("The changelog is shown for installed packages."))
+        d = item.data(0, Qt.ItemDataRole.UserRole) if item else None
+        if d:
+            self.details.load(d)
 
-    def _show_state(self, d):
-        text, _color, _ic = self._status_text(d)
-        parts = [text]
-        if d["installed"]:
-            parts.append(_("installed {version} from {repo}").format(version=d["installed"]["edition"],
-                                                                     repo=d["installed"]["repo"]))
-        up = self.updates.get(d["name"]) if self._updatable(d) else None
-        if up:
-            parts.append(_("{version} available in {repo}").format(version=up["edition"], repo=up["repo"]))
-        self.d_state.setText(" · ".join(parts))
-
-    def _info_loaded(self, name, info, err):
-        if not self.current or self.current["name"] != name:
-            return
-        if err or not info:
-            self.t_info.setPlainText(str(err or _("No information.")))
-            return
-        rows = []
-        for key in INFO_LABELS:
-            if info.get(key):
-                val = html.escape(status_label(info[key]) if key == "Status" else info[key])
-                if key == "Upstream URL":
-                    val = f'<a href="{val}">{val}</a>'
-                rows.append(f"<tr><td style='padding-right:14px;color:gray'>{html.escape(INFO_LABELS[key])}</td>"
-                            f"<td>{val}</td></tr>")
-        desc = html.escape(info.get("Description", "")).replace("\n", "<br>")
-        self.t_info.setHtml(f"<table>{''.join(rows)}</table><p>{desc}</p>")
-
-    def _deps_loaded(self, name, info, err):
-        if not self.current or self.current["name"] != name or err or not info:
-            return
-        out = []
-        for key, items in info.get("deps", {}).items():
-            if not items:
-                continue
-            out.append(f"<h4>{html.escape(DEP_LABELS.get(key, key))} ({len(items)})</h4><ul>"
-                       + "".join(f"<li><code>{html.escape(x)}</code></li>" for x in items[:400]) + "</ul>")
-        self.t_deps.setHtml("".join(out) or html.escape(_("No dependencies listed.")))
-
-    def _text_loaded(self, name, widget, text):
-        if self.current and self.current["name"] == name:
-            widget.setPlainText(text or "")
-
-    def _sig_loaded(self, name, sig):
-        if self.current and self.current["name"] == name and sig:
-            extra = _("Not signed") if sig.startswith("(none)") else _("Signed: {sig}").format(sig=sig)
-            self.d_state.setText(self.d_state.text() + "\n" + extra)
-
-    # ------------------------------------------------------------ queue
-    def queue_current(self, kind):
-        d = self.current
-        if not d:
-            return
-        # patterns, patches and products are installed as "pattern:name"
-        target = d["name"] if d["kind"] == "package" else f"{d['kind']}:{d['name']}"
-        self.ctx.queue.add(Action(kind, target, package=d["name"]))
-
-    def unqueue_current(self):
-        if self.current:
-            for kind in ("install", "remove"):
-                for a in list(self.ctx.queue.of(kind)):
-                    if (a.opts.get("package") or a.target.split("=")[0]) == self.current["name"]:
-                        self.ctx.queue.discard_action(a)
-
-    def lock_current(self):
-        if not self.current:
-            return
-        name = self.current["name"]
-        if name in self.locked_names:
-            self.ctx.queue.add(Action("unlock", name))
-        else:
-            self.ctx.queue.add(Action("lock", name))
-
-    def install_version(self, item, _col):
-        if not self.current:
-            return
-        v = item.data(0, Qt.ItemDataRole.UserRole)
-        if v["status"] == "installed":
-            return
-        target = f"{self.current['name']}={v['edition']}"
-        old = bool(self.current["installed"] and backend.vercmp(v["edition"], self.current["installed"]["edition"]) < 0)
-        self.ctx.queue.add(Action("install", target, oldpackage=old, repo=v["repo"], package=self.current["name"]))
+    @property
+    def current(self):
+        return self.details.current

@@ -85,6 +85,7 @@ class MainWindow(QMainWindow):
         self.queue = TxQueue(self.settings, self)
         self.runner = Runner(self)
         self._on_done = None
+        self._terminal_used = False
         self.icon_catalog = {}
 
         # ------------------------------------------------ pages
@@ -233,8 +234,8 @@ class MainWindow(QMainWindow):
                 w.setParent(None)
         for w in page.header_actions():
             self.actions_box.addWidget(w)
-        # the terminal is not useful on the home page until something runs
-        self.terminal.setVisible(self.term_toggle.isChecked() and (key != "home" or self.runner.busy))
+        # an empty terminal only takes room: it appears the first time something runs, and then stays
+        self.terminal.setVisible(self.term_toggle.isChecked() and (self.runner.busy or self._terminal_used))
         page.activated()
         if run_routine and key == "updates":
             page.run_routine()
@@ -249,7 +250,15 @@ class MainWindow(QMainWindow):
         page = self.pages[key]
         self._rows[key].setText(f"{page.title}  ({text})" if text else page.title)
 
+    def show_terminal(self):
+        """Bring the terminal in (a download or a run writes there)."""
+        self._terminal_used = True
+        self.term_toggle.setChecked(True)
+        self.terminal.setVisible(True)
+
     def _toggle_terminal(self, on):
+        if on:
+            self._terminal_used = True  # asked for: show it, even empty
         self.terminal.setVisible(on)
         self.settings["show_terminal"] = on
         self.settings.save()
@@ -259,8 +268,10 @@ class MainWindow(QMainWindow):
         if self.runner.busy:
             QMessageBox.information(self, APP_NAME, _("Wait until the current command finishes."))
             return False
+        self._terminal_used = True
         if not any(s.capture for s in steps):
             self.term_toggle.setChecked(True)
+        self.terminal.setVisible(self.term_toggle.isChecked())
         self.terminal.set_title(title)
         self.terminal.notes.hide()
         self._run_start = self.terminal.view.document().blockCount()

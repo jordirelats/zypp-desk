@@ -15,6 +15,7 @@ zypp_desk/pages/findrepo.py
 zypp_desk/pages/flatpak.py
 zypp_desk/pages/home.py
 zypp_desk/pages/packages.py
+zypp_desk/pages/pkgdetails.py
 zypp_desk/pages/repos.py
 zypp_desk/pages/system.py
 zypp_desk/pages/updates.py
