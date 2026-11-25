@@ -68,11 +68,20 @@ remembered for a few minutes.
 ## Running from the source tree
 
 ```bash
-./install.sh      # installs the helper and the polkit action (asks for the root password once)
+./install.sh      # installs the helper, the polkit action and the refresh timer (asks for the root password once)
 ./zypp-desk
 ```
 
-`./uninstall.sh` removes what `install.sh` installed.
+Run `./install.sh` again after each update of the source folder (`git pull`): the window comes from
+the folder, but the root helper and the timer are copies, and a newer window needs the helper of
+its own version.
+
+`./uninstall.sh` removes what `install.sh` installed, and says what stays (your settings, the
+`zypp.conf` settings you chose). Do not mix a source install with the `zypp-desk` package:
+`install.sh` stops when the package is installed, so run `./uninstall.sh` before installing it.
+
+To open `.rpm` files with Zypp Desk when you double-click them, use the button in Settings
+(nothing changes your defaults by itself).
 
 ## Building the RPM
 

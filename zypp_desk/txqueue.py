@@ -5,6 +5,7 @@ Nothing is changed until the queue is applied. The queue turns itself into the e
 commands it will run, so the window can always show them.
 """
 
+import re
 import shlex
 
 from contextlib import contextmanager
@@ -15,6 +16,34 @@ from .i18n import _, ngettext
 from .runner import Step, rpm_major
 
 PKG_KINDS = ("install", "remove")
+# What zypper accepts before a ':' as the kind of a solvable ('pattern:kde'). Anything else before a ':' is the
+# alias of a repository ('packman:vlc': vlc from that repository).
+SOLVABLE_KINDS = ("package", "patch", "pattern", "product", "srcpackage", "application")
+# A repository whose address changes is added again under its alias plus this, then takes the old one's alias.
+# The change-address dialog writes its .repo file with the section [<alias>-zdnew].
+REPO_URL_TEMP_SUFFIX = "-zdnew"
+
+
+def is_file_target(target, opts=None):
+    """True for the install of a downloaded file (a path or an .rpm address), not of a package from a
+    repository."""
+    return (target.startswith("/") or target.endswith(".rpm") or "://" in target
+            or bool((opts or {}).get("sha256")))
+
+
+def pkg_ident(action):
+    """What an install or a removal is about, as zypper's solver names it: 'vlc' for 'vlc', 'vlc=3.0',
+    'packman:vlc' (vlc from that repository) or a downloaded vlc file; 'pattern:kde' for a pattern."""
+    t = action.target
+    if is_file_target(t, action.opts):
+        return action.opts.get("package") or t
+    t = re.split(r"[<>=]", t, maxsplit=1)[0].strip()
+    head, sep, rest = t.partition(":")
+    if sep and head in SOLVABLE_KINDS:
+        return rest if head == "package" else t
+    if sep and "(" not in t:  # 'alias:name' (an alias may have ':' too); not a capability like 'perl(A::B)'
+        return t.rpartition(":")[2]
+    return t
 
 
 class Action:
@@ -25,8 +54,9 @@ class Action:
 
     def describe(self):
         k, t = self.kind, self.target
-        if k == "install" and self.opts.get("package"):
-            return _("Install {name} from the downloaded file {file}").format(name=self.opts["package"], file=t)
+        if k == "install" and is_file_target(t, self.opts):
+            return _("Install {name} from the downloaded file {file}").format(name=self.opts.get("package") or t,
+                                                                             file=t)
         if k == "install":
             return _("Install {name}").format(name=t)
         if k == "remove":
@@ -108,7 +138,10 @@ def installation_label(inst):
 
 
 def _key(action):
-    """What an action is about: the package name for 'vlc', 'vlc=3.0' or 'pattern:devel_basis'."""
+    """What an action is about: the package for 'vlc', 'vlc=3.0' or 'packman:vlc', 'pattern:devel_basis' for that
+    pattern, the target of the other kinds."""
+    if action.kind in PKG_KINDS:
+        return pkg_ident(action)
     return action.opts.get("package") or action.target.split("=")[0]
 
 
@@ -144,7 +177,9 @@ class TxQueue(QObject):
     def add(self, action):
         if action.kind == "repo-modify":
             for a in self.actions:
-                if a.kind == "repo-url" and a.target == action.target:  # the re-added repository takes it
+                # the repository added again at its new address takes the change with its other settings; one
+                # added from a .repo file cannot: the change runs after it, as a change of its own
+                if a.kind == "repo-url" and a.target == action.target and not a.opts.get("repo_file"):
                     a.opts.update(action.opts)
                     self._changed()
                     return
@@ -157,8 +192,8 @@ class TxQueue(QObject):
                     "locale-add": "locale-remove", "locale-remove": "locale-add",
                     "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install",
                     "key-import": "key-remove", "key-remove": "key-import"}.get(action.kind)
-        if action.kind == "repo-url":  # a new address replaces a pending change of the same repository
-            opposite = "repo-modify"
+        if action.kind == "repo-url" and not action.opts.get("repo_file"):
+            opposite = "repo-modify"  # a new address replaces a pending change: its settings carry it
         key = _key(action)
         self.actions = [a for a in self.actions if not (_key(a) == key and a.kind in (action.kind, opposite))]
         self.actions.append(action)
@@ -182,8 +217,8 @@ class TxQueue(QObject):
 
     def state_of(self, name):
         for a in self.actions:
-            if a.kind in PKG_KINDS and (a.opts.get("package") or a.target.split("=")[0]) == name:
-                return a.kind
+            if a.kind in PKG_KINDS and name in (a.opts.get("package") or a.target.split("=")[0], pkg_ident(a)):
+                return a.kind  # also 'packman:vlc' (queued from Search online) for vlc
         return None
 
     def flatpak_state(self, app):
@@ -212,29 +247,43 @@ class TxQueue(QObject):
         return [a for a in self.of("install") if ":" in a.target and a.target.split(":", 1)[0] in new_aliases]
 
     def package_args(self, dry_run=False):
-        """The zypper commands for packages: removals first ('zypper remove' resolves what depends on them,
-        as when you remove a package alone), then installs. Each one is a list of arguments."""
+        """The zypper commands for packages, each one a list of arguments. The dry run (simulation) is the same
+        transaction as the real one.
+
+        - Installs and removals go together, as one transaction: 'zypper install -- new '!old''. zypper
+          resolves them at once, so a new package that conflicts with one leaving is fine. In this form a
+          removal does not take away what depends on the package: zypper looks for something else that
+          provides it, and stops with a problem when nothing does. (zypp.conf's solver.cleandepsOnRemove
+          applies to these removals: 'install' has no --no-clean-deps.)
+        - Removals alone: 'zypper remove --no-clean-deps', which also takes away what depends on them (the
+          Remove window shows it), and nothing else even when zypp.conf says to clean dependencies.
+        - Removals with "Also remove what only it needed" go first, on their own: only 'zypper remove' has
+          --clean-deps.
+        '--' before the names: no name is read as an option."""
         skip = self.not_simulable() if dry_run else []
-        inst = [a for a in self.of("install") if a not in skip]
+        every_inst = self.of("install")
+        inst = [a for a in every_inst if a not in skip]
+        rem = [a.target for a in self.of("remove") if not a.opts.get("clean_deps")]
+        clean = [a.target for a in self.of("remove") if a.opts.get("clean_deps")]
+        dry = ["--dry-run"] if dry_run else []
         out = []
-        for clean in (False, True):  # 'remove --clean-deps' also takes away what only these packages needed
-            rem = [a.target for a in self.of("remove") if bool(a.opts.get("clean_deps")) == clean]
-            if rem:
-                out.append(["remove", *(["--clean-deps"] if clean else []), *(["--dry-run"] if dry_run else []),
-                            "--", *rem])
-        if inst:
-            args = ["install"]
-            if any(a.opts.get("oldpackage") for a in inst):
-                args.append("--oldpackage")
-            if any(a.opts.get("allow_unsigned") for a in inst):
-                args.append("--allow-unsigned-rpm")
-            if self.settings.get("apply_no_recommends"):
-                args.append("--no-recommends")
-            if self.settings.get("apply_accept_licenses"):
-                args.append("--auto-agree-with-licenses")
-            if dry_run:
-                args.append("--dry-run")
-            out.append(args + ["--"] + [a.target for a in inst])  # '--': no name is read as an option
+        if clean:
+            out.append(["remove", "--clean-deps", *dry, "--", *clean])
+        if every_inst:  # also when the dry run leaves the installs out: the real run is an install
+            names = [a.target for a in inst] + ["!" + r for r in rem]
+            if names:
+                args = ["install"]
+                if any(a.opts.get("oldpackage") for a in inst):
+                    args.append("--oldpackage")
+                if any(a.opts.get("allow_unsigned") for a in inst):
+                    args.append("--allow-unsigned-rpm")
+                if self.settings.get("apply_no_recommends"):
+                    args.append("--no-recommends")
+                if self.settings.get("apply_accept_licenses"):
+                    args.append("--auto-agree-with-licenses")
+                out.append(args + dry + ["--"] + names)
+        elif rem:
+            out.append(["remove", "--no-clean-deps", *dry, "--", *rem])
         return out
 
     def steps(self):
@@ -247,11 +296,18 @@ class TxQueue(QObject):
             st = a.opts.get("settings") or {}
             out.append(Step("zypp-conf", [f"{k}={v}" for k, v in st.items()] if st else ["--reset"]))
         for a in self.of("repo-url"):
-            # zypper cannot change an address: the repository is removed and added again with its settings
-            out.append(Step("zypper", ["-n", "removerepo", a.target]))
-            out.append(Step("zypper", ["-n", *_addrepo_args(a.opts), a.opts["url"], a.target]))
+            # zypper cannot change an address. The repository is added again first, under a temporary alias,
+            # with all its settings: if the new address is refused, the old repository is still there. Then
+            # the old one goes and the new one takes its alias. '--' before every alias and address.
+            temp = a.target + REPO_URL_TEMP_SUFFIX
+            if a.opts.get("repo_file"):  # every setting, also the key (gpgkey=), in a .repo file
+                out.append(Step("zypper", ["-n", "addrepo", "--", a.opts["repo_file"]]))
+            else:
+                out.append(Step("zypper", ["-n", *_addrepo_args(a.opts, a.target), "--", a.opts["url"], temp]))
+            out.append(Step("zypper", ["-n", "removerepo", "--", a.target]))
+            out.append(Step("zypper", ["-n", "renamerepo", "--", temp, a.target]))
         for a in self.of("repo-add"):
-            out.append(Step("zypper", ["-n", *_addrepo_args(a.opts, a.target), a.opts["url"], a.target]))
+            out.append(Step("zypper", ["-n", *_addrepo_args(a.opts, a.target), "--", a.opts["url"], a.target]))
         for a in self.of("repo-modify"):
             args = ["modifyrepo"]
             o = a.opts
@@ -265,10 +321,10 @@ class TxQueue(QObject):
                 args += ["--priority", str(o["priority"])]
             if "name" in o:
                 args += ["--name", o["name"]]
-            out.append(Step("zypper", ["-n", *args, a.target]))
+            out.append(Step("zypper", ["-n", *args, "--", a.target]))
         rr = [a.target for a in self.of("repo-remove")]
         if rr:
-            out.append(Step("zypper", ["-n", "removerepo", *rr]))
+            out.append(Step("zypper", ["-n", "removerepo", "--", *rr]))
         for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
             groups = {}
             for a in self.of(kind):
@@ -281,14 +337,16 @@ class TxQueue(QObject):
         for kind, sub in (("locale-add", "addlocale"), ("locale-remove", "removelocale")):
             codes = [a.target for a in self.of(kind)]
             if codes:
-                out.append(Step("zypper", ["-n", sub, *codes]))
+                out.append(Step("zypper", ["-n", sub, "--", *codes]))
         out += self.flatpak_steps()
         for a in self.of("key-remove"):
             nvr = a.opts.get("nvr") or ""
             key = nvr[len("gpg-pubkey-"):] if nvr.startswith("gpg-pubkey-") and rpm_major() < 6 else a.target
             out.append(Step("key-remove", [a.target], shown=f"rpmkeys --delete {key}"))
         for a in self.of("firmware"):
-            out.append(Step("fwupdmgr", ["update", a.target, "--assume-yes", "--no-reboot-check"]))
+            # --no-unreported-check: --assume-yes would otherwise say yes to sending reports of earlier updates
+            out.append(Step("fwupdmgr", ["update", a.target, "--assume-yes", "--no-reboot-check",
+                                         "--no-unreported-check"]))
         for i, s in enumerate(out):
             s.cond = "always" if i == 0 else "success"
         return out
@@ -311,7 +369,7 @@ class TxQueue(QObject):
         return out
 
     def simulation_steps(self):
-        """Dry runs of the package commands (each one is simulated on its own)."""
+        """Dry runs of the package commands: the same transactions that Apply runs (see package_args)."""
         return [Step("zypper", ["--xmlout", "-n", *pkg], lang="C", capture=True, cond="always")
                 for pkg in self.package_args(dry_run=True)]
 

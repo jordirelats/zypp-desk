@@ -5,8 +5,8 @@
 
 ';' runs the next command anyway, '&&' only if the previous one worked. Only zypper, flatpak and
 fwupdmgr commands are accepted. A leading 'sudo' is dropped: the app asks for the password itself.
-zypper gets -n (no questions), flatpak -y and 'fwupdmgr update' --assume-yes --no-reboot-check when
-they are missing: nobody can answer in the middle.
+zypper gets -n (no questions), flatpak -y and 'fwupdmgr update' --assume-yes --no-reboot-check
+--no-unreported-check when they are missing: nobody can answer in the middle.
 
 The routine editor works on "items", one per command (to_items / from_items):
 
@@ -113,6 +113,8 @@ def _make_step(words, cond):
                 args.append("--assume-yes")
             if "--no-reboot-check" not in args:
                 args.append("--no-reboot-check")
+            if "--no-unreported-check" not in args:  # else --assume-yes says yes to sending update reports
+                args.append("--no-unreported-check")
     return Step(words[0], args, cond=cond, strict=True)  # '&&' as in a shell: only exit code 0 goes on
 
 
@@ -125,36 +127,49 @@ def _has_non_interactive(args):
     return False
 
 
+def kind_title(kind):
+    """The name of a kind of step: the same in the routine editor and in the routine band of Updates."""
+    return {
+        "refresh": _("Refresh the repositories"),
+        "download": _("Download the updates without installing"),
+        "dup": _("Update the system (dup)"),
+        "update": _("Update the packages (update)"),
+        "flatpak": _("Update the Flatpak apps"),
+        "firmware": _("Update the firmware"),
+        "restart-check": _("Check what must be restarted"),
+        "purge-kernels": _("Remove old kernels"),
+        "custom": _("Own command"),
+    }[kind]
+
+
 def describe(step):
-    """A short human title for a routine step."""
+    """A short human title for a routine step (the names of the routine editor; downloading, shorter)."""
     a = step.args
     if step.program == "flatpak":
         if "update" in a:
-            return _("Update Flatpak apps")
+            return kind_title("flatpak")
         return _("Flatpak")
     if step.program == "fwupdmgr":
         if "update" in a:
-            return _("Update the firmware")
+            return kind_title("firmware")
         if "refresh" in a:
             return _("Look for new firmware")
         return "fwupdmgr"
     sub = next((x for x in a if not x.startswith("-")), "")
     if sub in ("ref", "refresh"):
-        return _("Refresh the repositories")
+        return kind_title("refresh")
     if sub in ("dup", "dist-upgrade"):
-        if "-d" in a or "--download-only" in a:
-            if "-l" in a or "--auto-agree-with-licenses" in a:
-                return _("Download everything and accept the licenses")
-            return _("Download everything")
-        return _("Upgrade the system")
+        if "-d" in a or "--download-only" in a or "--download=only" in a:
+            return _("Download the updates")
+        return kind_title("dup")
     if sub in ("up", "update"):
-        return _("Update packages")
+        return kind_title("update")
     if sub == "patch":
         return _("Install patches")
     if sub == "ps":
-        return _("Check what must be restarted")
+        return kind_title("restart-check")
     if sub == "purge-kernels":
-        return _("Remove old kernels")
+        return kind_title("purge-kernels")
     return "zypper " + sub
 
 
@@ -275,7 +290,8 @@ def _known_kind(words):
     if prog == "zypper":
         return _zypper_kind(args)
     if prog in ("flatpak", "fwupdmgr"):
-        allowed = {"-y", "--assumeyes"} if prog == "flatpak" else {"-y", "--assume-yes", "--no-reboot-check"}
+        allowed = ({"-y", "--assumeyes"} if prog == "flatpak" else
+                   {"-y", "--assume-yes", "--no-reboot-check", "--no-unreported-check"})
         flags = [a for a in args if a.startswith("-")]
         if ([a for a in args if not a.startswith("-")] == ["update"] and set(flags) <= allowed
                 and len(set(flags)) == len(flags)):

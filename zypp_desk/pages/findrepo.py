@@ -2,27 +2,25 @@
 """Find software on line: openSUSE Build Service, Fedora COPR and Flathub.
 
 Type a program name and see who publishes it, with how much each source can be trusted. The
-buttons only put changes in the queue (add a repository, install a package or a Flatpak app);
-nothing runs until Apply. The only thing that runs at once, after its own question, is importing
-the signing key of a repository that was just queued, so zypper can read it.
+buttons only put changes in the queue (add a repository, install a package or a Flatpak app, import
+the signing key of a repository that was just queued, after its own question); nothing runs until
+Apply. The queue imports keys first, so zypper already trusts the key when it adds the repository.
 """
 
 import html
-import subprocess
 
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QTabWidget, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, flatpak, online
+from .. import backend, flatpak, keys, online
 from ..explain import SERIOUS, WARN, severity_label
 from ..i18n import _, ngettext
-from ..runner import Step
 from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
-from ..txqueue import Action
-from ..ui import ask, button, error_box, icon, muted, plain
+from ..txqueue import Action, pkg_ident
+from ..ui import ask, button, icon, muted, plain
 
 TRUST = {
     online.OFFICIAL: (GREEN, _("Official"), _("Official Tumbleweed package"),
@@ -57,13 +55,6 @@ def trust_of(row, kind):
         color, title, text = COPR_TUMBLEWEED
         return color, _("Tumbleweed build"), title, text
     return TRUST[row["trust"]]
-
-
-def _rpm_has_key(fingerprint):
-    """Whether rpm already trusts this key (its packages are called gpg-pubkey-<last 8 hex digits>)."""
-    p = subprocess.run(["rpm", "-q", "gpg-pubkey", "--qf", "%{VERSION}\n"], capture_output=True, text=True,
-                       env=backend.ENV_C)
-    return fingerprint[-8:].lower() in {v.strip().lower() for v in p.stdout.splitlines()}
 
 
 class ResultPanel(QWidget):
@@ -461,11 +452,12 @@ class FindRepoDialog(QDialog):
             self._offer_key(r["key_url"], alias, r["project"], packages_only=True)
 
     def _install(self, name, target):
-        """Queue the install of a package, replacing a queued install of the same package from elsewhere."""
+        """Queue the install of a package, replacing a queued install of the same package from elsewhere.
+        package= is the name: the rest of the window (Packages, solutions) finds 'alias:name' by it."""
         for a in list(self.ctx.queue.of("install")):
-            if a.target == name or a.target.endswith(":" + name):
+            if pkg_ident(a) == name or a.opts.get("package") == name:
                 self.ctx.queue.discard_action(a)
-        self.ctx.queue.add(Action("install", target))
+        self.ctx.queue.add(Action("install", target, package=name))
 
     def _free_alias(self, alias):
         used = {r["alias"] for r in self.repos} | {a.target for a in self.ctx.queue.of("repo-add")}
@@ -475,19 +467,18 @@ class FindRepoDialog(QDialog):
         return alias
 
     def _offer_key(self, url, alias, project, packages_only=False):
-        """zypper -n refuses a repository whose key it does not know: offer to import it now."""
-        run_async(lambda: self._key_info(url, alias),
-                  on_done=lambda res, err: self._key_ready(res, err, project, packages_only, alias))
+        """zypper -n refuses a repository whose key it does not know: offer to put its import in the queue too."""
+        run_async(self._key_info, url, on_done=lambda res, err: self._key_ready(res, err, project, packages_only, alias))
 
     @staticmethod
-    def _key_info(url, alias):
-        k = online.fetch_key(url, alias)
-        k["known"] = _rpm_has_key(k["fingerprint"])
+    def _key_info(url):
+        k = online.fetch_key(url)  # read with a throwaway gpg home; gpg's own copy kept for the queue
+        k["known"] = k["fingerprint"] in keys.installed_keys()
         return k
 
     def _key_ready(self, k, err, project, packages_only=False, alias=None):
-        # Only while the dialog is open and the repository is still waiting in the queue: importing a key
-        # for a repository that was taken out again would make rpm trust it for nothing.
+        # Only while the dialog is open and the repository is still waiting in the queue: a key for a repository
+        # that was taken out again would make rpm trust it for nothing.
         if self._closed:
             return
         if alias and not any(a.target == alias for a in self.ctx.queue.of("repo-add")):
@@ -496,29 +487,38 @@ class FindRepoDialog(QDialog):
             self.notice.setText(self.notice.text() + " " + _("Its signing key could not be read ({error}): zypper "
                                                              "will ask about it when it refreshes.").format(error=err))
             return
-        if k["known"]:
-            return
         fpr = k["fingerprint"]
-        nice = " ".join(fpr[i:i + 4] for i in range(0, len(fpr), 4))
+        if k["known"] or self.ctx.queue.key_state(fpr) == "key-import":
+            return
         box = QMessageBox(self)
         box.setWindowTitle(_("Import a signing key"))
         if packages_only:
-            box.setText(_("The packages of {project} are signed with this key. Import it now, so that they can be "
-                          "checked? It asks for the administrator password. From then on, rpm trusts every package "
-                          "signed with this key.").format(project=project))
+            box.setText(_("The packages of {project} are signed with this key. Add its import to the queue, so that "
+                          "they can be checked? From then on, rpm trusts every package signed with this key.").format(
+                project=project))
         else:
-            box.setText(_("zypper must trust the signing key of {project} before it can read the repository. Import "
-                          "it now? It asks for the administrator password. From then on, rpm trusts every package "
-                          "signed with this key.").format(project=project))
-        box.setInformativeText(_("Fingerprint: {fpr}").format(fpr=nice) + ("\n\n" + _("Name in the key: {uid}").format(
-            uid=k["uids"][0]) if k["uids"] else ""))
+            box.setText(_("zypper must trust the signing key of {project} before it can read the repository. Add its "
+                          "import to the queue? From then on, rpm trusts every package signed with this key.").format(
+                project=project))
+        info = _("Fingerprint: {fpr}").format(fpr=keys.nice_fpr(fpr))
+        if k["uids"]:
+            info += "\n\n" + _("Name in the key: {uid}").format(uid=k["uids"][0])
+        if k.get("revoked") or k.get("expired"):
+            info += "\n\n" + (_("Its owner revoked this key: it must not be used.") if k.get("revoked") else
+                               _("This key has expired."))
+        box.setInformativeText(info + "\n\n" + _("It is imported first when you apply the queue, before the "
+                                                  "repository is added. Nothing changes until then."))
         plain(box)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if box.exec() != QMessageBox.StandardButton.Yes:
+        if k.get("revoked"):
+            box.button(QMessageBox.StandardButton.Yes).setEnabled(False)
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+        answer = box.exec()
+        box.deleteLater()
+        if answer != QMessageBox.StandardButton.Yes:
             return
-        if not self.ctx.run([Step("rpm-import", [k["path"], fpr])], _("Import a signing key")):
-            error_box(self, _("Import a signing key"), _("Wait until the current command finishes, then add the "
-                                                         "repository again to import its key."))
+        self.ctx.queue.add(Action("key-import", fpr, path=k["path"], name=k.get("name") or project))
+        self._queued(self.notice.text() + " " + _("Its signing key too."))
 
     def flathub_install(self):
         r = self.flathub.current()

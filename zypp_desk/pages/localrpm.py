@@ -122,9 +122,14 @@ class _CommandView(QPlainTextEdit):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.document().setDocumentMargin(0)
         self.setFixedHeight(self.fontMetrics().lineSpacing() + 8)
+        # a new text (the other windows change it as you type): fit it once it is laid out
+        self.textChanged.connect(lambda: QTimer.singleShot(0, self, self._fit))
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
+        self._fit()
+
+    def _fit(self):
         lines = max(1, int(self.document().documentLayout().documentSize().height()))  # lines, in this layout
         h = self.fontMetrics().lineSpacing() * lines + 8
         if h != self.height():
@@ -224,6 +229,9 @@ class LocalRpmDialog(QDialog):
                 self.items.append({"path": p, "info": None, "error": None, "obs": None, "obs_check": None,
                                    "key_queued": False, "busy": False})
         self.multi = len(self.items) > 1
+        # freed when it closes (the window opens it with exec() and keeps no reference); answers that arrive later
+        # see _closed and do nothing
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setWindowTitle(ngettext("Install a downloaded package", "Install downloaded packages", len(self.items)))
         self.setWindowIcon(icon("application-x-rpm", "package-x-generic"))
 
@@ -485,6 +493,9 @@ class LocalRpmDialog(QDialog):
         self.b_sim.setEnabled(ok)
         self.b_cancel.setText(_("Cancel") if ready or reading else _("Close"))
         if self.multi:
+            n = len(ready)
+            self.b_add.setText(_("Add all to the queue") if not n or n == len(self.items) else
+                               ngettext("Add the {n} that can go", "Add the {n} that can go", n).format(n=n))
             if reading:
                 self.summary.setText(_("Reading the files…"))
             else:
@@ -549,7 +560,9 @@ class LocalRpmDialog(QDialog):
         plain(box)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
-        return box.exec() == QMessageBox.StandardButton.Yes
+        answer = box.exec()
+        box.deleteLater()
+        return answer == QMessageBox.StandardButton.Yes
 
     # ------------------------------------------------------------ OBS repository and key
     def _repo_with_url(self, url):
@@ -587,8 +600,8 @@ class LocalRpmDialog(QDialog):
             from .keys import open_import_dialog
         except ImportError:
             info_box(self, _("Import a signing key"), _(
-                "This version of Zypp Desk cannot import a key from here yet. Import it in Repositories → More → "
-                "Import a signing key…, with this address:") + "\n\n" + obs["key_url"])
+                "This version of Zypp Desk cannot import a key from here yet. Import it in Signing keys → Import a "
+                "key…, with this address:") + "\n\n" + obs["key_url"])
             return
         # the fingerprint read from the project's repository, already compared with the key that signed the file:
         # the import window compares it again with the key it downloads
@@ -838,8 +851,7 @@ class LocalRpmDialog(QDialog):
                                           "document-import", lambda: self.import_key(it)))
                 else:
                     text += " " + _("Get the key from the official web site of whoever made it, check its fingerprint "
-                                    "there and import it (Repositories → More → Import a signing key…). Then press "
-                                    "Check again.")
+                                    "there and import it (Signing keys → Import a key…). Then press Check again.")
                 notes.append(_Note(ORANGE, "security-medium|dialog-warning",
                                    _("It is signed, but you do not have the key ({key})").format(key=key8), text,
                                    buttons + [again]))

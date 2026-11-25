@@ -27,6 +27,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.error
@@ -219,12 +220,31 @@ def _get_json(url):
         with _http_lock:
             cache = _http_cache()
             cache[url] = {"etag": etag, "data": data}
-            path = _http_cache_path()
-            path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(cache), encoding="utf-8")
-            tmp.replace(path)
+            _save_http_cache(cache)
     return data
+
+
+def _save_http_cache(cache):
+    """Write the cache through a temporary file of its own: the window and the tray icon (two processes) may
+    write at the same moment, and neither must lose the file or read half of it. A cache that cannot be
+    written only means asking GitHub again next time."""
+    path = _http_cache_path()
+    tmp = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".github-cache-", suffix=".tmp", dir=path.parent)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh)
+        os.replace(tmp, path)
+        tmp = None
+    except OSError:
+        pass
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
 
 
 def _head(url):

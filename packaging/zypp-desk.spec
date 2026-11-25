@@ -9,13 +9,14 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.4.0
+Version:        0.4.1
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
 URL:            https://github.com/jordirelats/zypp-desk
-Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
-Source1:        %{name}-rpmlintrc
+# git archive of the released commit (tools/build-rpm.sh; on OBS the obs_scm service makes it): the releases
+# are not tagged on GitHub, so there is no download address
+Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 BuildRequires:  AppStream
 BuildRequires:  desktop-file-utils
@@ -108,6 +109,11 @@ done
 
 %post
 %service_add_post %{name}-refresh.service %{name}-refresh.timer
+# A new installation: the preset has turned the timer on, but it would only start at the next boot. Start it now
+# (it waits for the zypp lock of this installation; systemctl does nothing in a chroot or an image build).
+if [ "$1" -eq 1 ] && [ -d /run/systemd/system ] && systemctl -q is-enabled %{name}-refresh.timer 2>/dev/null; then
+  systemctl start %{name}-refresh.timer >/dev/null 2>&1 || :
+fi
 
 %preun
 %service_del_preun %{name}-refresh.service %{name}-refresh.timer

@@ -9,7 +9,9 @@ from PySide6.QtWidgets import (QButtonGroup, QDialog, QFrame, QHBoxLayout, QLabe
                                QRadioButton, QSizePolicy, QStyle, QToolButton, QVBoxLayout, QWidget)
 
 from ..i18n import _, ngettext
+from ..runner import Step
 from ..style import BLUE, GREEN
+from ..txqueue import PKG_KINDS, SOLVABLE_KINDS, Action, TxQueue, pkg_ident
 from ..ui import button, heading, hline, icon, mono, muted
 
 CSS = f"""
@@ -45,20 +47,128 @@ def _link(text, parent=None):
     return b
 
 
-def queue_lines(sol):
-    """What a solution does to the queue, one line each: 'To the queue: zypper addlock vlc'."""
-    lines = [_("To the queue: {command}").format(command=c) for c in sol.get("commands", [])]
-    for a in sol.get("actions", []):
-        if isinstance(a, dict) and a.get("kind") == "discard":
-            cmd = ("zypper remove " if a.get("of") == "remove" else "zypper install ") + a["target"]
-            lines.append(_("Out of the queue: {command}").format(command=cmd))
+def _kind_name(target):
+    """'pattern:kde' → ('pattern', 'kde'); 'vlc' → ('package', 'vlc')."""
+    kind, colon, name = target.partition(":")
+    return (kind, name) if colon and kind in SOLVABLE_KINDS and name else ("package", target)
+
+
+def _copy(a):
+    return Action(a.kind, a.target, **a.opts)
+
+
+def solution_plan(solutions, now=False):
+    """What the chosen solutions do, exactly as Zypp Desk carries them out (mainwindow.apply_solutions).
+
+    Returns (steps, add, discard):
+    - steps: runner.Steps that run at once, in this order: unlocks, locks and, with now=True, one
+      'zypper install' with the installs and the removals as '!name' (one transaction: if something still
+      needs a package to remove, zypper refuses and changes nothing, instead of removing that too).
+    - add: with now=False, the install and remove Actions that go to the queue.
+    - discard: with now=False, the {kind: 'discard', target, of} dicts whose queued install or removal leaves
+      the queue.
+    Locks and unlocks always run at once: a simulation only knows the locks that exist. With now=True (the dup)
+    there is no queue: "do not install X" and "keep X" become a lock, so that zypper leaves X as it is."""
+    locks, unlocks, pkgs, add, discard = {}, {}, [], [], []
+    for sol in solutions:
+        for a in sol.get("actions") or []:
+            if isinstance(a, dict):
+                if a.get("kind") != "discard":
+                    continue
+                if now:
+                    typ, name = _kind_name(a["target"])
+                    locks.setdefault(typ, []).append(name)
+                else:
+                    discard.append(a)
+            elif a.kind in ("lock", "unlock"):
+                (locks if a.kind == "lock" else unlocks).setdefault(a.opts.get("type", "package"), []).append(
+                    a.target)
+            elif a.kind in ("install", "remove"):
+                (pkgs if now else add).append(a)
+    steps = []
+    # An unlock must name the lock exactly as it was written (a version range, a repository, a kind), or zypper
+    # removes nothing: look the locks up (only when there is something to unlock; zypper locks is quick).
+    existing = []
+    if unlocks:
+        try:
+            from .. import backend
+            existing = backend.locks()
+        except Exception:  # zypper could not tell: unlock by name, the Locks page reports it if nothing went
+            existing = []
+    by_place = {}
+    for typ, names in unlocks.items():
+        for name in dict.fromkeys(names):
+            found = [lk for lk in existing if lk["name"] == name and lk.get("type", "package") == typ]
+            for lk in found or [{"spec": name, "repo": ""}]:
+                by_place.setdefault((typ, lk.get("repo") or ""), []).append(lk["spec"])
+    for (typ, repo), specs in by_place.items():
+        steps.append(Step("zypper", ["-n", "removelock", *([] if typ == "package" else ["-t", typ]),
+                                     *(["-r", repo] if repo else []), "--", *dict.fromkeys(specs)]))
+    for typ, names in locks.items():
+        steps.append(Step("zypper", ["-n", "addlock", *([] if typ == "package" else ["-t", typ]), "--",
+                                     *dict.fromkeys(names)]))
+    if pkgs:
+        args = ["-n", "install", *(["--oldpackage"] if any(a.opts.get("oldpackage") for a in pkgs) else []), "--"]
+        steps.append(Step("zypper", args + list(dict.fromkeys(
+            ("!" + a.target) if a.kind == "remove" else a.target for a in pkgs))))
+    for i, st in enumerate(steps):
+        st.cond = "always" if i == 0 else "success"
+    return steps, add, discard
+
+
+def queued_matches(queue, d):
+    """The queued installs or removals that a "discard" {target, of} takes out of the queue (as
+    mainwindow.apply_solutions does: 'pattern:kde' only matches the pattern, 'packman:vlc' matches vlc)."""
+    if queue is None:
+        return []
+    want = pkg_ident(Action("install", d.get("target") or ""))
+    kinds = (d["of"],) if d.get("of") else PKG_KINDS
+    return [x for x in queue.of(*kinds) if pkg_ident(x) == want]
+
+
+def queue_lines(sol, now=False, queue=None):
+    """What a solution does, one line per command, exactly as it will run:
+    'Runs now: zypper -n addlock -- vlc', 'To the queue: zypper -n install -- fighter '!codecs'',
+    'Out of the queue: zypper -n install -- fighter'.
+
+    queue: the window's TxQueue, if known. 'To the queue' then shows the package command that the queue will
+    run with this solution in it (the queue's own code, with the user's settings: installs and removals go
+    together as one transaction); 'Out of the queue', the queued command that leaves."""
+    steps, add, discard = solution_plan([sol], now)
+    lines = [_("Runs now: {command}").format(command=st.display()) for st in steps]
+    settings = getattr(queue, "settings", None) or {}
+    if add:
+        q = TxQueue(settings)
+        with q.batch():
+            for a in (queue.of(*PKG_KINDS) if queue is not None else []) + add:
+                q.add(_copy(a))
+        mine = {a.target for a in add} | {"!" + a.target for a in add}
+        lines += [_("To the queue: {command}").format(command=st.display()) for st in q.steps()
+                  if mine & set(st.args)]
+    for d in discard:
+        leaving = queued_matches(queue, d) or [Action(d.get("of") or "install", d["target"])]
+        for a in leaving:
+            q = TxQueue(settings)
+            q.add(_copy(a))
+            lines += [_("Out of the queue: {command}").format(command=st.display()) for st in q.steps()]
     return lines
+
+
+def _find_queue(widget):
+    """The main window's queue, from a dialog's parents (None when there is none, as in tests)."""
+    w = widget
+    while w is not None:
+        q = getattr(w, "queue", None)
+        if q is not None and hasattr(q, "of"):
+            return q
+        w = w.parentWidget()
+    return None
 
 
 class SolutionCard(QFrame):
     """One solution: a radio button, the text in bold (and 'recommended'), what it means, and the commands."""
 
-    def __init__(self, sol, group, parent=None):
+    def __init__(self, sol, group, parent=None, now=False, queue=None):
         super().__init__(parent)
         self.setObjectName("solution")
         self.sol = sol
@@ -88,9 +198,10 @@ class SolutionCard(QFrame):
             top.addWidget(pill, 0, Qt.AlignmentFlag.AlignTop)
         top.addStretch(1)
         v.addLayout(top)
-        if sol.get("detail"):
-            v.addWidget(_plain(sol["detail"], self))
-        lines = queue_lines(sol)
+        detail = (sol.get("detail_now") if now else None) or sol.get("detail")
+        if detail:
+            v.addWidget(_plain(detail, self))
+        lines = queue_lines(sol, now, queue)
         if lines:
             cmd = _plain("\n".join(lines), self)
             cmd.setFont(mono())
@@ -117,11 +228,16 @@ class ProblemDialog(QDialog):
     """The problems a simulation found, one at a time, each with the solutions that can be chosen here.
 
     items: simulation.problem_items(). After exec() returns Accepted, chosen() gives one solution per problem
-    that has any (the dicts from items, with their 'actions')."""
+    that has any (the dicts from items, with their 'actions'); solution_plan(dlg.chosen(), now) says what to do.
+    now: True when what is chosen runs at once (the dup: there is no queue), False when installs and removals
+    go to the queue (locks and unlocks run at once in both cases). Each solution shows its exact commands."""
 
-    def __init__(self, items, parent=None, apply_label=None, note=None):
+    def __init__(self, items, parent=None, apply_label=None, note=None, *, now=False):
         super().__init__(parent)
         self.items = list(items)
+        self.now = now
+        self.queue = None if now else _find_queue(parent)
+        self.apply_label = apply_label
         self.setWindowTitle(_("Choose a solution"))
         self.setStyleSheet(CSS)
         self.setMinimumWidth(660)
@@ -226,7 +342,7 @@ class ProblemDialog(QDialog):
             group.setExclusive(True)
             cards = {}
             for sol in sorted(good, key=lambda s: not s.get("recommended")):  # the recommended one first
-                card = SolutionCard(sol, group, page)
+                card = SolutionCard(sol, group, page, now=self.now, queue=self.queue)
                 cards[card.radio] = sol
                 v.addWidget(card)
                 if sol.get("recommended"):
@@ -243,8 +359,13 @@ class ProblemDialog(QDialog):
                          "again: if this problem is still there, its solutions will appear.")
             v.addWidget(muted(text, page))
         if bad:
-            more = _link(ngettext("{n} more option that cannot be chosen here",
-                                  "{n} more options that cannot be chosen here", len(bad)).format(n=len(bad)), page)
+            if good:
+                more = _link(ngettext("{n} more option that cannot be chosen here",
+                                      "{n} more options that cannot be chosen here", len(bad)).format(n=len(bad)),
+                             page)
+            else:
+                more = _link(ngettext("Show zypper's solution", "Show zypper's {n} solutions", len(bad)).format(
+                    n=len(bad)), page)
             v.addWidget(more)
             box = QFrame(page)
             box.setObjectName("cannot")
@@ -307,6 +428,18 @@ class ProblemDialog(QDialog):
     def _update_apply(self):
         groups = [g for g in self.groups if g]
         self.apply.setEnabled(bool(groups) and all(g.checkedButton() is not None for g, _c in groups))
+        if self.apply_label or not self.chosen():
+            return
+        steps, add, discard = solution_plan(self.chosen(), self.now)
+        if steps and not (add or discard):
+            text = _("Do it now and simulate again")
+        elif steps:
+            text = _("Go ahead and simulate again")  # some of it runs now, the rest changes the queue
+        elif add and not discard:
+            text = _("Add to the queue and simulate again")
+        else:
+            text = _("Change the queue and simulate again")  # something leaves the queue
+        self.apply.setText(text)
 
     def chosen(self):
         """The chosen solution of every problem that has solutions, in the order of the problems."""

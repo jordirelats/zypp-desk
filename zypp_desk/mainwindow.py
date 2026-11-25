@@ -1,19 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The main window: sidebar, page header, pages, terminal panel and the queue bar."""
 
-import html
 import os
 import shutil
 
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QListWidget,
                                QScrollArea, QSizePolicy,
                                QListWidgetItem, QMainWindow, QMessageBox, QSplitter, QStackedWidget,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from . import APP_NAME, appicons, backend, websources
-from .i18n import _
+from . import APP_NAME, VERSION, appicons, backend, websources
+from .i18n import _, ngettext
 from .pages.apps import AppsPage
 from .pages.flatpak import FlatpakPage
 from .pages.keys import KeysPage
@@ -24,12 +23,12 @@ from .pages.history import HistoryPage
 from .pages.system import LocalesPage, LocksPage, MaintenancePage, ServicesPage, SettingsPage
 from .pages.updates import UpdatesPage
 from .pages.websources import WebSourcesPage
-from .runner import Runner, Step, helper_path
+from .runner import Runner, helper_path, helper_version
 from .settings import Settings
 from .simulation import SimulationDialog, merge_results, parse_dry_run, summary_lines
 from .tasks import run_async
 from .terminal import TerminalPanel
-from .txqueue import Action, TxQueue
+from .txqueue import Action, TxQueue, pkg_ident
 from .ui import ask, button, error_box, heading, icon, info_box, mono, muted
 
 SIDEBAR = [
@@ -37,6 +36,49 @@ SIDEBAR = [
     (_("Sources"), ["repos", "keys", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
 ]
+
+
+class ElidedLabel(QLabel):
+    """One line of plain text that shortens itself with "…" to the width the layout gives it, also after the
+    window changes size. It asks for its whole text (at most `cap` pixels wide) but can be narrower, so a long
+    text never makes the window wider."""
+
+    def __init__(self, parent=None, cap=None):
+        super().__init__(parent)
+        self._full = ""
+        self._cap = cap
+        self.setTextFormat(Qt.TextFormat.PlainText)  # names from repositories and files are never markup
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+
+    def set_full_text(self, text):
+        self._full = text or ""
+        self.updateGeometry()
+        self._elide()
+
+    def full_text(self):
+        return self._full
+
+    def sizeHint(self):
+        m = self.contentsMargins()
+        w = self.fontMetrics().horizontalAdvance(self._full) + m.left() + m.right() + 2 * self.margin() + 2
+        if self._cap:
+            w = min(w, self._cap)
+        return QSize(w, super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        m = self.contentsMargins()
+        w = self.fontMetrics().horizontalAdvance("……") + m.left() + m.right() + 2 * self.margin()
+        return QSize(min(w, self.sizeHint().width()), super().minimumSizeHint().height())
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._elide()
+
+    def _elide(self):
+        room = max(0, self.contentsRect().width() - 2 * self.margin())
+        shown = self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, room)
+        if shown != self.text():
+            super().setText(shown)
 
 
 class QueueDialog(QDialog):
@@ -52,6 +94,7 @@ class QueueDialog(QDialog):
         lay.addWidget(self.tree, 1)
         self.cmd = QLabel(self)
         self.cmd.setFont(mono())
+        self.cmd.setTextFormat(Qt.TextFormat.PlainText)  # repository names and paths are never markup
         self.cmd.setWordWrap(True)
         self.cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.cmd)
@@ -88,6 +131,8 @@ class MainWindow(QMainWindow):
         self.queue = TxQueue(self.settings, self)
         self.runner = Runner(self)
         self._on_done = None
+        self._starting = False  # inside self.runner.run(): a run that ends at once is answered a moment later
+        self._finish_pending = False
         self._terminal_used = False
         self.icon_catalog = {}
 
@@ -169,13 +214,17 @@ class MainWindow(QMainWindow):
         self.terminal.hide_requested.connect(lambda: self.term_toggle.setChecked(False))
         self.terminal.setVisible(self.settings["show_terminal"])
 
-        self.q_summary = QLabel(self)
-        # never wider than this: a long summary (German, many changes) is shortened instead of widening the window
-        self.q_summary.setMaximumWidth(380)
-        self.q_cmd = QLabel(self)
+        self.q_title = QLabel(_("Queue"), self)
+        f = self.q_title.font()
+        f.setBold(True)
+        self.q_title.setFont(f)
+        # a long summary (German, many changes) is shortened with "…" instead of widening the window
+        self.q_summary = ElidedLabel(self, cap=300)
+        self.q_cmd = ElidedLabel(self)
         self.q_cmd.setFont(mono())
         self.q_cmd.setStyleSheet("background: #2a2e32; color: #e6e9ec; border-radius: 4px; padding: 4px 8px;")
-        self.q_cmd.setMinimumWidth(200)
+        self.q_cmd.setMinimumWidth(240)  # the summary gives way first: the command is what matters
+        self.q_cmd.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.b_review = button(_("Review"), "view-list-details", self.review_queue)
         self.b_clear = button(_("Clear"), "edit-clear", self.queue.clear)
         self.b_sim = button(_("Simulate"), "media-playback-start", lambda: self.simulate_queue())
@@ -184,6 +233,7 @@ class MainWindow(QMainWindow):
         qbar.setObjectName("queuebar")
         qh = QHBoxLayout(qbar)
         qh.setContentsMargins(10, 6, 10, 6)
+        qh.addWidget(self.q_title)
         qh.addWidget(self.q_summary)
         qh.addWidget(self.q_cmd, 1)
         for b in (self.b_review, self.b_clear, self.b_sim, self.b_apply):
@@ -222,6 +272,8 @@ class MainWindow(QMainWindow):
         self.terminal.view.note(_("zypper's own output appears here while it works."), "info")
         if not helper_path():
             QTimer.singleShot(400, self._warn_no_helper)
+        elif helper_version() != VERSION:
+            QTimer.singleShot(400, self._warn_old_helper)
 
     # ------------------------------------------------ navigation
     def go(self, key, run_routine=False):
@@ -272,7 +324,9 @@ class MainWindow(QMainWindow):
         except ImportError as e:
             error_box(self, APP_NAME, _("This part is not available: {error}").format(error=e))
             return
-        LocalRpmDialog(self, paths, self).exec()
+        dlg = LocalRpmDialog(self, paths, self)
+        dlg.exec()
+        dlg.deleteLater()
 
     def _catalog_loaded(self, catalog, err):
         if catalog:
@@ -299,7 +353,9 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------ running
     def run(self, steps, title, on_done=None):
-        if self.runner.busy:
+        """Run the steps now, with their output in the terminal. on_done(ok) is called when they end, always
+        after run() has returned (also when they end at once, for example without the helper)."""
+        if self.runner.busy or self._finish_pending:
             QMessageBox.information(self, APP_NAME, _("Wait until the current command finishes."))
             return False
         self._terminal_used = True
@@ -311,7 +367,11 @@ class MainWindow(QMainWindow):
         self._run_start = self.terminal.view.document().blockCount()
         self._on_done = on_done
         self._set_busy(True)
-        self.runner.run(steps)
+        self._starting = True
+        try:
+            self.runner.run(steps)
+        finally:
+            self._starting = False
         return True
 
     def _explain_run(self):
@@ -334,13 +394,27 @@ class MainWindow(QMainWindow):
             self.terminal.view.note(text, kind)
 
     def _finished(self, ok):
+        if self._starting:
+            # it ended inside run(): the caller has not seen run() return yet, so it hears about it later
+            self._finish_pending = True
+            QTimer.singleShot(0, lambda: self._finished_later(ok))
+            return
         self._set_busy(False)
-        self.terminal.view.note(_("Finished.") if ok else _("Finished with errors."), "ok" if ok else "error")
+        if ok:
+            self.terminal.view.note(_("Finished."), "ok")
+        elif self.runner.stopped:
+            self.terminal.view.note(_("Stopped as you asked: the steps after it did not run."), "info")
+        else:
+            self.terminal.view.note(_("Finished with errors."), "error")
         self._explain_run()
         cb, self._on_done = self._on_done, None
         if cb:
             cb(ok)
         self.update_status()
+
+    def _finished_later(self, ok):
+        self._finish_pending = False
+        self._finished(ok)
 
     def _set_busy(self, busy):
         for b in (self.b_sim, self.b_apply, self.b_clear):
@@ -353,30 +427,19 @@ class MainWindow(QMainWindow):
     def _queue_changed(self):
         n = len(self.queue)
         parts = self.queue.summary()
-        rest = " · ".join(parts) if parts else _("empty")
-        fm_s = QFontMetrics(self.q_summary.font())
-        room = 380 - fm_s.horizontalAdvance(_("Queue") + "    ") - 8
-        self.q_summary.setText("<b>" + html.escape(_("Queue")) + "</b>  "
-                               + html.escape(fm_s.elidedText(rest, Qt.TextElideMode.ElideRight, room)))
+        self.q_summary.set_full_text(" · ".join(parts) if parts else _("empty"))
         self.q_summary.setToolTip(" · ".join(parts))
         preview = self.queue.preview() or _("Nothing to do yet: choose packages, locks or repository changes.")
-        fm = QFontMetrics(self.q_cmd.font())
-        self.q_cmd.setText(fm.elidedText(preview, Qt.TextElideMode.ElideRight, max(200, self.q_cmd.width() - 16)))
-        self.q_cmd.setToolTip(preview)
+        self.q_cmd.set_full_text(preview)  # shortened with "…" to the width it gets, also after a resize
+        self.q_cmd.setToolTip(preview)  # a tool tip that looks like markup would be shown as markup: never is
         busy = self.runner.busy
         for b in (self.b_review, self.b_clear, self.b_sim, self.b_apply):
             b.setEnabled(n > 0 and not busy)
 
-    def showEvent(self, ev):
-        super().showEvent(ev)
-        QTimer.singleShot(0, self._queue_changed)
-
-    def resizeEvent(self, ev):
-        super().resizeEvent(ev)
-        self._queue_changed()
-
     def review_queue(self):
-        QueueDialog(self.queue, self).exec()
+        dlg = QueueDialog(self.queue, self)
+        dlg.exec()
+        dlg.deleteLater()
 
     def simulate_queue(self):
         # what is simulated and shown is what will be applied: a snapshot of the queue at this moment
@@ -405,61 +468,53 @@ class MainWindow(QMainWindow):
                                problem_note=_("A lock or an unlock you choose runs at once (a simulation only knows "
                                               "the locks that exist); the rest goes to the queue."))
         rc = dlg.exec()
+        chosen = getattr(dlg, "chosen", None) or []
+        dlg.deleteLater()
         if rc == QDialog.DialogCode.Accepted:
             self.apply_queue(confirm=False, expected=snapshot)
         elif rc == getattr(SimulationDialog, "RESOLVE", 2):
-            self.apply_solutions(getattr(dlg, "chosen", None) or [], then=self.simulate_queue)
+            self.apply_solutions(chosen, then=self.simulate_queue)
 
     def apply_solutions(self, solutions, then=None, now=False):
         """What Jordi chose for each problem of a simulation, then `then` (simulate again).
 
-        Queue simulation (now=False): removals and installs join the queue, a "discard" takes an install or a
+        Queue simulation (now=False): installs and removals join the queue, a "discard" takes an install or a
         removal out of it, and locks and unlocks run at once, because a dry run only knows the locks that exist.
-        Dup simulation (now=True): there is no queue to edit, so everything runs at once (a discarded install
-        becomes a lock: zypper must not install it)."""
-        def pkg(a):
-            return a.opts.get("package") or a.target.split("=")[0]
-        run_now = []
+        Dup simulation (now=True): there is no queue to edit, so everything runs at once: installs and removals
+        as one 'zypper install -- new '!old'' (zypper refuses, and changes nothing, if something installed still
+        needs a package to remove), and "do not install X" or "keep X" become a lock of X.
+        pages/problems.solution_plan makes the commands, the same ones the problem window shows."""
+        from .pages.problems import solution_plan
+        steps, add, discard = solution_plan(solutions, now)
         with self.queue.batch():
-            for sol in solutions:
-                for a in sol.get("actions") or []:
-                    if isinstance(a, dict):
-                        if a.get("kind") != "discard":
-                            continue
-                        if now:
-                            if a.get("of", "install") == "install":
-                                run_now.append(Action("lock", a["target"]))
-                            continue
-                        kinds = (a["of"],) if a.get("of") else ("install", "remove")
-                        for x in list(self.queue.of(*kinds)):
-                            if pkg(x) == a.get("target"):
-                                self.queue.discard_action(x)
-                    elif a.kind in ("lock", "unlock") or (now and a.kind in ("remove", "install")):
-                        run_now.append(a)
-                    else:
-                        self.queue.add(a)
-        steps = []
-        for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
-            groups = {}
-            for a in run_now:
-                if a.kind == kind:
-                    groups.setdefault(a.opts.get("type", "package"), []).append(a.target)
-            for typ, names in groups.items():
-                steps.append(Step("zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]), "--", *names]))
-        for a in run_now:
-            if a.kind in ("remove", "install"):
-                steps.append(Step("zypper", ["-n", a.kind, *(["--oldpackage"] if a.opts.get("oldpackage") else []),
-                                             "--", a.target]))
-        if steps:
-            text = "\n".join(s.display() for s in steps)
-            locks = any(a.kind == "lock" for a in run_now)
-            if not ask(self, _("Choose a solution"), _("These commands run now, before simulating again:") + "\n\n"
-                       + text + ("\n\n" + _("You can unlock it later in Locks.") if locks else "")):
-                return
-            for i, st in enumerate(steps):
-                st.cond = "always" if i == 0 else "success"
-            self.run(steps, _("Choose a solution"), on_done=lambda ok: ok and then and then())
-        elif then:
+            for a in add:
+                self.queue.add(a)
+            for d in discard:
+                # 'pattern:kde' only matches the pattern; 'packman:vlc' (queued from Search online) matches vlc
+                want = pkg_ident(Action("install", d.get("target") or ""))
+                kinds = (d["of"],) if d.get("of") else ("install", "remove")
+                for x in list(self.queue.of(*kinds)):
+                    if pkg_ident(x) == want:
+                        self.queue.discard_action(x)
+        if not steps:
+            if then:
+                then()
+            return
+        text = _("These commands run now, before simulating again:") + "\n\n" + "\n".join(s.display() for s in steps)
+        if any(a.startswith("!") for st in steps for a in st.args):
+            text += "\n\n" + _("A package written as !name is removed only if nothing installed still needs it. "
+                                "If something does, zypper stops and changes nothing.")
+        locked = sum(len(st.args) - st.args.index("--") - 1 for st in steps if "addlock" in st.args and "--" in st.args)
+        if locked:
+            text += "\n\n" + ngettext("You can unlock it later in Locks.", "You can unlock them later in Locks.",
+                                       locked)
+        if not ask(self, _("Choose a solution"), text, default_no=True):
+            return
+        self.run(steps, _("Choose a solution"), on_done=lambda ok: self._solutions_done(ok, then))
+
+    def _solutions_done(self, ok, then):
+        self.after_change()  # locks, installs or removals may have changed: the pages look again
+        if ok and then:
             then()
 
     def apply_queue(self, confirm=True, expected=None):
@@ -470,7 +525,8 @@ class MainWindow(QMainWindow):
         if expected is not None and actions != expected:
             # something joined or left the queue after the simulation (a download finished): show it and ask again
             confirm = True
-        if confirm and not ask(self, _("Apply"), _("Run these commands now?") + "\n\n" + self.queue.preview()):
+        if confirm and not ask(self, _("Apply"), _("Run these commands now?") + "\n\n" + self.queue.preview(),
+                               default_no=True):
             return
         if list(self.queue.actions) != actions:  # it changed while the question was open
             return self.apply_queue(confirm=True)
@@ -521,9 +577,14 @@ class MainWindow(QMainWindow):
                             file=a.target, folder=a.opts["move_to"], error=e), "error")
             if web:  # new versions of programs from the web: offer to throw the old ones away
                 QTimer.singleShot(800, lambda pk=set(filter(None, web)): self.pages["websources"].tidy(packages=pk))
+        self.after_change()
+
+    def after_change(self):
+        """Call after anything that may have changed the system (Apply, the routine, zypper dup, maintenance,
+        solutions run at once): the tray counts again, the page in front looks again now and the others when
+        you open them (not all at once)."""
         from . import tray
-        tray.poke("check")  # the tray icon counts again (nothing happens if there is none)
-        # the page in front looks again now; the others when you open them (not all at once)
+        tray.poke("check")  # nothing happens if there is no tray icon
         current = self.stack.currentWidget()
         for key, p in self.pages.items():
             if not p.loaded or key == "history":
@@ -547,6 +608,20 @@ class MainWindow(QMainWindow):
         lines = [_("Package manager in use by {proc}").format(proc=lock) if lock else _("Package manager free"),
                  _("Restart needed") if nr == 102 else _("No restart needed")]
         self.status_lbl.setText("\n".join(lines))
+
+    def _warn_old_helper(self):
+        """The helper is from another version than this window (updated from the source, install.sh not run
+        again): new commands would fail later with "unknown command", after the password."""
+        path = helper_path() or ""
+        found = helper_version(path) or _("older than 0.4.1")
+        if path.startswith("/usr/local/"):
+            todo = _("Run install.sh from the source folder again.")
+        else:
+            todo = _("Update the zypp-desk package.")
+        QMessageBox.warning(self, APP_NAME, _("The helper that runs zypper as root ({path}) is from another "
+                                              "version of Zypp Desk: helper {found}, window {version}. Some "
+                                              "changes will fail until both match.").format(
+                                                  path=path, found=found, version=VERSION) + "\n\n" + todo)
 
     def _warn_no_helper(self):
         QMessageBox.information(self, APP_NAME, _("The helper that runs zypper as root is not installed, so the "

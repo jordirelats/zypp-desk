@@ -2,17 +2,16 @@
 """Read the XML of a '--dry-run' and show what would change, without changing anything."""
 
 import re
-import shlex
 import xml.etree.ElementTree as ET
 
 from PySide6.QtCore import QLocale, Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout)
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QLabel, QPlainTextEdit, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout)
 
 from .i18n import _, ngettext
 from .pages.problems import ProblemDialog
 from .txqueue import Action
+from .ui import mono
 
 PROMPT_CONTINUE, PROMPT_DEP_RESOLVE, PROMPT_LICENSE = 0, 1, 10
 
@@ -63,8 +62,15 @@ _SOLVER = [
      lambda m: _("{new} cannot be installed together with the installed {old}").format(new=m[1], old=m[3])),
     (r"the installed (\S+) conflicts with '?([^'\s]+)'? provided by the to be installed (\S+)",
      lambda m: _("{new} cannot be installed together with the installed {old}").format(new=m[3], old=m[1])),
+    (r"the installed (\S+) requires '?(.+?)'?, but this requirement cannot be provided",
+     lambda m: _("The installed {pkg} needs {dep}, and after this change nothing would provide it.").format(
+         pkg=_who(m[1]), dep=plain_dep(m[2]))),
+    (r"the to be installed (\S+) requires '?(.+?)'?, but this requirement cannot be provided",
+     lambda m: _("{pkg}, which would be installed, needs {dep}, and nothing that can be installed with it "
+                 "provides it.").format(pkg=_who(m[1]), dep=plain_dep(m[2]))),
     (r"(\S+) requires (.+), but this requirement cannot be provided",
      lambda m: _("{pkg} needs {what}, which cannot be installed").format(pkg=m[1], what=m[2])),
+    (r"^Following actions will be done:?$", lambda m: _("All of these:")),
     (r"break (\S+) by ignoring some of its dependencies",
      lambda m: _("install {pkg} anyway, ignoring some of its dependencies (it may not work)").format(pkg=m[1])),
     (r"deinstallation of (\S+)", lambda m: _("remove {pkg}").format(pkg=m[1])),
@@ -77,27 +83,65 @@ _PROMPT_LINE = re.compile(r"Choose from above solutions|\[\d+(/\d+)*/[a-z?/]+\]\
 _QUESTION = re.compile(_PROMPT_LINE.pattern + r"|Choose the above solution", re.I)
 
 
+def _words(s):
+    """One line of zypper's problem text in plain words: a whole sentence we know (see _explain_problem),
+    else zypper's line with the phrases we know replaced."""
+    s = s.strip()
+    t = _explain_problem(s, [])
+    if t != s:
+        return t
+    for rx, fn in _SOLVER:
+        s = re.sub(rx, fn, s)
+    return s
+
+
+def _providers_text(kind, names):
+    """A 'deleted providers:' or 'uninstallable providers:' line of zypper, in plain words."""
+    n = len(names)
+    if kind == "deleted":
+        return ngettext("Today it comes from {list}; this change replaces or removes it.",
+                        "Today it comes from {list}; this change replaces or removes them.", n).format(
+            list=_whos(names))
+    return ngettext("{list} would provide it, but it cannot be installed together with the rest of the changes.",
+                    "{list} would provide it, but none of them can be installed together with the rest of the "
+                    "changes.", n).format(list=_whos(names))
+
+
 def plain_problem(text):
     """A solver problem with zypper's question removed and its lines said in plain words."""
     out = []
-    for line in text.splitlines():
-        if _PROMPT_LINE.search(line):
-            continue  # zypper's own question (which solution?) cannot be answered here
+    lines = [x for x in text.splitlines() if not _PROMPT_LINE.search(x)]  # zypper's question cannot be answered
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        i += 1
         s = line.strip()
-        for rx, fn in _SOLVER:
-            s = re.sub(rx, fn, s)
-        m = re.match(r"^Problem:\s*(\d+):\s*(.*)$", s)
+        if not s:
+            continue
+        m = re.match(r"^(deleted|not installable|uninstallable) providers:\s*(.*)$", s)
         if m:
-            s = _("Problem {n}: {text}").format(n=m[1], text=m[2])
-        elif (m := re.match(r"^Problem:\s*(.*)$", s)):
-            s = _("Problem: {text}").format(text=m[1])
-        m = re.match(r"^Solution\s+(\d+):\s*(.*)$", s)
+            names = m[2].split()
+            while i < len(lines) and lines[i][:1].isspace() and lines[i].strip() and " " not in lines[i].strip():
+                names.append(lines[i].strip())  # zypper puts each further provider on its own, indented line
+                i += 1
+            out.append("    " + _providers_text("deleted" if m[1] == "deleted" else "uninstallable", names))
+            continue
+        if s.startswith("Have you enabled all the required repositories"):
+            out.append("    " + _("Maybe a repository that it needs is missing or disabled."))
+            continue
+        m = _PROBLEM_HEAD.match(s)
         if m:
-            s = "  " + _("Possible solution {n}: {text}").format(n=m[1], text=m[2])
-        elif s and line[:1].isspace() and out:
-            s = "    " + s
-        if s:
-            out.append(s)
+            head = "" if re.match(r"^Detailed information:?\s*$", m[3]) else _words(m[3])
+            n = m[1] or m[2]
+            s = (_("Problem {n}: {text}").format(n=n, text=head) if n else
+                 _("Problem: {text}").format(text=head)).rstrip()
+        elif (m := _SOLUTION_HEAD.match(s)):
+            s = "  " + _("Possible solution {n}: {text}").format(n=m[1], text=_words(m[2]))
+        elif s.startswith("- "):
+            s = "    - " + _words(s[2:])  # zypper -v: every rule of the problem, one per line
+        else:
+            s = ("    " if line[:1].isspace() and out else "") + _words(s)
+        out.append(s)
     return "\n".join(out)
 
 
@@ -233,13 +277,9 @@ def _explain_problem(head, details):
                                   "it.")}.get(m[1], _("{pkg} needs {dep}, and nothing that can be installed "
                                                      "provides it."))
         out = out.format(pkg=pkg, dep=dep)
-        if providers["deleted"]:
-            out += " " + _("Today it comes from {list}, which this change replaces or removes, so the two cannot "
-                           "go together.").format(list=_whos(providers["deleted"]))
-        if providers["uninstallable"]:
-            out += " " + _("{list} would provide it, but cannot be installed together with the rest of the "
-                           "changes.").format(
-                list=_whos(providers["uninstallable"]))
+        for kind in ("deleted", "uninstallable"):
+            if providers[kind]:
+                out += " " + _providers_text(kind, providers[kind])
     elif (m := re.match(rf"^nothing provides '?(.+?)'? needed by the {_STATE} (\S+)$", h) or
           re.match(r"^nothing provides (.+?) needed by (?:package )?()(\S+)$", h)):
         pkg, dep = _who(m[3]), plain_dep(m[1])
@@ -301,44 +341,32 @@ def _explain_problem(head, details):
     return " ".join([out] + extra)
 
 
-def _action_command(actions):
-    """The zypper commands that the actions add to the queue, for display: ['zypper addlock vlc']."""
-    groups = {}
-    for a in actions:
-        if isinstance(a, dict):
-            continue
-        q = shlex.quote
-        if a.kind in ("lock", "unlock"):
-            typ = a.opts.get("type", "package")
-            key = ("zypper addlock" if a.kind == "lock" else "zypper removelock") + (
-                f" -t {typ}" if typ != "package" else "")
-        elif a.kind == "remove":
-            key = "zypper remove"
-        elif a.kind == "install":
-            key = "zypper install" + (" --oldpackage" if a.opts.get("oldpackage") else "")
-        else:
-            key = f"{a.kind}"
-            q = str
-        groups.setdefault(key, []).append(q(a.target))
-    return [f"{k} {' '.join(v)}" for k, v in groups.items()]
-
-
 def _part(desc):
-    """One action of a solution, from zypper's words: dict(text, detail, actions, possible)."""
+    """One action of a solution, from zypper's words: dict(text, detail, detail_now, actions, possible).
+
+    detail says what the solution means when it goes to the queue (the queue is simulated again before anything
+    changes); detail_now, when the solution runs at once (the dup, which has no queue: see
+    pages.problems.solution_plan)."""
     d = re.sub(r"\s+", " ", desc.strip())
 
-    def ok(text, detail, *actions, who=""):
-        return dict(text=text, detail=detail, actions=list(actions), possible=True, raw=desc.strip(), who=who)
+    def ok(text, detail, *actions, who="", now=None):
+        return dict(text=text, detail=detail, detail_now=now or detail, actions=list(actions), possible=True,
+                    raw=desc.strip(), who=who)
 
     def no(text, detail=None):
-        return dict(text=text, detail=detail or _("This cannot be done safely from here."), actions=[],
-                    possible=False, raw=desc.strip(), who="")
+        detail = detail or _("This cannot be done safely from here.")
+        return dict(text=text, detail=detail, detail_now=detail, actions=[], possible=False, raw=desc.strip(),
+                    who="")
 
     if (m := re.match(r"^(?:deinstallation of|do not keep) (\S+?)(?: installed)?$", d)):
         sv = split_solvable(m[1])
+        # at once it runs as 'zypper install -- !name': zypper refuses, instead of removing whatever needs it too
         return ok(_("Remove {name}").format(name=_target(sv)),
-                  _("{pkg} is uninstalled. Whatever uses it may lose some functions until you install it again.")
-                  .format(pkg=_who(m[1])), Action("remove", _target(sv)), who=_target(sv))
+                  _("{pkg} is uninstalled: whatever uses it may lose some functions. The next simulation shows "
+                    "if anything else would go too.").format(pkg=_who(m[1])),
+                  Action("remove", _target(sv)), who=_target(sv),
+                  now=_("{pkg} is uninstalled now, but only if nothing else needs it: otherwise zypper refuses "
+                        "and nothing changes. Whatever uses it may lose some functions.").format(pkg=_who(m[1])))
     if (m := re.match(r"^(keep obsolete|do not install most recent version of|do not ask to update) (\S+)$", d)) \
             or (m := re.match(r"^(keep) (\S+) (despite the inferior architecture)$", d)):
         sv = split_solvable(m[2])
@@ -357,13 +385,17 @@ def _part(desc):
         name = _target(split_solvable(m[1])) if "providing" not in d else _dep_name(m[1])
         return ok(_("Do not install {name}").format(name=name),
                   _("{name} leaves the queue; the rest goes ahead.").format(name=name),
-                  dict(kind="discard", target=name, of="install"))
+                  dict(kind="discard", target=name, of="install"),
+                  now=_("{name} is locked, so the upgrade leaves it out: it will not be installed or changed until "
+                        "you unlock it.").format(name=name))
     if (m := re.match(r"^keep (\S+)$", d)) or \
             (m := re.match(r"^do not ask to delete all solvables providing (.+)$", d)):
         name = _target(split_solvable(m[1])) if "providing" not in d else _dep_name(m[1])
         return ok(_("Do not remove {name}").format(name=name),
                   _("{name} stays installed and its removal leaves the queue; the rest goes ahead.").format(name=name),
-                  dict(kind="discard", target=name, of="remove"))
+                  dict(kind="discard", target=name, of="remove"),
+                  now=_("{name} stays installed and is locked, so the upgrade cannot remove it until you unlock "
+                        "it.").format(name=name))
     if (m := re.match(r"^remove lock to allow (removal|installation) of (\S+)$", d)):
         sv = split_solvable(m[2])
         unlock = Action("unlock", sv["name"], **({} if sv["kind"] == "package" else {"type": sv["kind"]}))
@@ -404,7 +436,7 @@ def _part(desc):
                         "anyway."), Action("install", f"{_target(sv)}={sv['edition']}", oldpackage=True))
     # the ones that cannot be chosen here: they need options that Zypp Desk does not use on purpose
     if (m := re.match(r"^break (\S+) by ignoring some of its dependencies$", d)):
-        return no(_("Install it anyway, ignoring some of the dependencies of {name}").format(
+        return no(_("Install {name} anyway, ignoring some of its dependencies").format(
             name=split_solvable(m[1])["name"]),
             _("This cannot be done safely from here: {name} might not work.").format(
                 name=split_solvable(m[1])["name"]))
@@ -413,11 +445,11 @@ def _part(desc):
     if (m := re.match(r"^install (\S+) despite the inferior architecture$", d)):
         return no(_("Install {pkg}, built for an older type of processor").format(pkg=_who(m[1])))
     if (m := re.match(r"^install (\S+) although it has been retracted$", d)):
-        return no(_("Install {pkg}, although its makers withdrew it").format(pkg=_who(m[1])))
+        return no(_("Install {pkg}, although its vendor withdrew it").format(pkg=_who(m[1])))
     if (m := re.match(r"^install (\S+) although it is blacklisted$", d)):
         return no(_("Install {pkg}, although it is blocked").format(pkg=_who(m[1])))
     if (m := re.match(r"^allow installing the PTF (\S+)$", d)):
-        return no(_("Install the special fix (PTF) {pkg}").format(pkg=_who(m[1])))
+        return no(_("Install the temporary fix (PTF) {pkg}").format(pkg=_who(m[1])))
     if d.startswith("ignore the warning of a broken system"):
         return no(_("Ignore the warning that the system would break"))
     if d == "generally ignore of some dependencies":
@@ -451,24 +483,28 @@ def _solution(number, head, more, raw):
     actions = list(actions.values())
     possible = all(s["possible"] for s in subs)
     if len(subs) == 1:
-        text, detail = subs[0]["text"], subs[0]["detail"]
+        text, detail, detail_now = subs[0]["text"], subs[0]["detail"], subs[0]["detail_now"]
     elif possible and len(actions) == 1:  # several lines for one change (a downgrade that also changes vendor)
-        text, detail = subs[0]["text"], " ".join(s["detail"] for s in subs)
+        text = subs[0]["text"]
+        detail, detail_now = " ".join(s["detail"] for s in subs), " ".join(s["detail_now"] for s in subs)
     else:
         kinds = {(a["kind"] if isinstance(a, dict) else a.kind) for a in actions}
         if possible and kinds == {"lock"}:
             text = _("Keep {list} as they are").format(list=", ".join(s["who"] for s in subs))
-            detail = _("The rest goes ahead. They stay at their versions and are locked: they will not change "
-                       "until you unlock them.")
+            detail = detail_now = _("The rest goes ahead. They stay at their versions and are locked: they will "
+                                    "not change until you unlock them.")
         elif possible and kinds == {"remove"}:
             text = _("Remove {list}").format(list=", ".join(s["who"] for s in subs))
-            detail = _("They are uninstalled. Whatever uses them may lose some functions until you install them "
-                       "again.")
+            detail = _("They are uninstalled: whatever uses them may lose some functions. The next simulation "
+                       "shows if anything else would go too.")
+            detail_now = _("They are uninstalled now, but only if nothing else needs them: otherwise zypper "
+                           "refuses and nothing changes. Whatever uses them may lose some functions.")
         else:
             text = "; ".join(s["text"] for s in subs)
             detail = " ".join(s["detail"] for s in subs if s["possible"] == possible)
-    return dict(number=number, text=text, detail=detail, raw="\n".join(raw), actions=actions if possible else [],
-                commands=_action_command(actions) if possible else [], possible=possible, recommended=False)
+            detail_now = " ".join(s["detail_now"] for s in subs if s["possible"] == possible)
+    return dict(number=number, text=text, detail=detail, detail_now=detail_now, raw="\n".join(raw),
+                actions=actions if possible else [], possible=possible, recommended=False)
 
 
 def _problem_blocks(text, strict=False):
@@ -646,8 +682,9 @@ def merge_results(results):
     return out
 
 
-def self_order(extra_steps, command):
-    return command.replace(" && ", "\n")
+def step_text(step):
+    """A command as the window shows it: a runner.Step (its exact command) or a plain string."""
+    return step.display() if hasattr(step, "display") else str(step)
 
 
 def summary_lines(result):
@@ -675,16 +712,18 @@ class SimulationDialog(QDialog):
 
     When zypper found a problem and offers solutions, "Choose a solution…" opens ProblemDialog; if a solution is
     chosen, the dialog closes with RESOLVE and self.chosen holds the chosen solutions (see problem_items()).
-    problem_label and problem_note are passed to ProblemDialog as apply_label and note."""
+    problem_label and problem_note are passed to ProblemDialog as apply_label and note, and now says whether
+    the chosen solutions run at once (True) or go to the queue (False: the queue's simulation, the default).
+    extra_steps: the commands of the queue that could not be simulated (runner.Step or strings)."""
 
     RESOLVE = 2
 
     def __init__(self, result, command, *, can_apply=True, extra_steps=(), parent=None, problem_label=None,
-                 problem_note=None):
+                 problem_note=None, now=False):
         super().__init__(parent)
-        self.result = result
+        self.sim_result = result  # not 'result': that would hide QDialog.result()
         self.chosen = []
-        self.problem_label, self.problem_note = problem_label, problem_note
+        self.problem_label, self.problem_note, self.now = problem_label, problem_note, now
         solvable = [it for it in result.get("problem_items", []) if any(s["possible"] for s in it["solutions"])]
         self.setWindowTitle(_("Simulation"))
         self.resize(900, 640)
@@ -715,13 +754,12 @@ class SimulationDialog(QDialog):
             counts.append(disk_text(result["disk"]))
         if not counts and ok:
             counts.append(_("Nothing to do."))
-        bl.addWidget(QLabel("  ·  ".join(counts), banner))
+        if counts:  # an empty line would only leave a gap
+            bl.addWidget(QLabel("  ·  ".join(counts), banner))
         cmd = QLabel(command, banner)
         cmd.setTextFormat(Qt.TextFormat.PlainText)  # package and repository names come from outside
         cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        mono = QFont("monospace")
-        mono.setStyleHint(QFont.StyleHint.Monospace)
-        cmd.setFont(mono)
+        cmd.setFont(mono())
         cmd.setWordWrap(True)
         bl.addWidget(cmd)
         lay.addWidget(banner)
@@ -760,12 +798,17 @@ class SimulationDialog(QDialog):
         tree.resizeColumnToContents(1)
         lay.addWidget(tree, 1)
 
-        if extra_steps:
-            lbl = QLabel(_("These commands are also in the queue and cannot be simulated. Everything runs in "
-                           "this order:") + "\n" + self_order(extra_steps, command), self)
-            lbl.setTextFormat(Qt.TextFormat.PlainText)
+        extra = [step_text(s) for s in extra_steps if step_text(s)]
+        if extra:  # only the ones that were not simulated; the banner shows the whole command, in order
+            lbl = QLabel(_("These commands are also in the queue, but they cannot be simulated:"), self)
             lbl.setWordWrap(True)
             lay.addWidget(lbl)
+            cmds = QLabel("\n".join(extra), self)
+            cmds.setTextFormat(Qt.TextFormat.PlainText)
+            cmds.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            cmds.setFont(mono())
+            cmds.setWordWrap(True)
+            lay.addWidget(cmds)
 
         buttons = QDialogButtonBox(self)
         self.apply_btn = buttons.addButton(_("Apply"), QDialogButtonBox.ButtonRole.AcceptRole)
@@ -784,8 +827,11 @@ class SimulationDialog(QDialog):
         lay.addWidget(buttons)
 
     def choose_solution(self):
-        dlg = ProblemDialog(self.result.get("problem_items", []), parent=self, apply_label=self.problem_label,
-                            note=self.problem_note)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.chosen = dlg.chosen()
+        dlg = ProblemDialog(self.sim_result.get("problem_items", []), parent=self, apply_label=self.problem_label,
+                            note=self.problem_note, now=self.now)
+        accepted = dlg.exec() == QDialog.DialogCode.Accepted
+        chosen = dlg.chosen() if accepted else []
+        dlg.deleteLater()  # it has a parent: without this it would live as long as the window
+        if accepted:
+            self.chosen = chosen
             self.done(self.RESOLVE)

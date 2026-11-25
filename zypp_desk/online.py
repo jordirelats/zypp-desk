@@ -25,6 +25,7 @@ import xml.etree.ElementTree as ET
 from functools import cmp_to_key
 from pathlib import Path
 
+from . import keys
 from .backend import ENV_C, vercmp
 from .i18n import _
 from .websources import USER_AGENT, https_open
@@ -333,31 +334,26 @@ def icon_file(url):
     return str(path)
 
 
-def fetch_key(url, alias):
-    """Download a repository signing key and read it with gpg (nothing is imported here).
+def fetch_key(url):
+    """Download a repository signing key and read it (nothing is imported here, and gpg never touches ~/.gnupg:
+    keys.inspect_key and keys.save_for_import use a throwaway gpg home).
 
-    Returns dict(path, fingerprint, uids). The file stays in ~/.cache/zypp-desk/keys for the helper,
-    which reads it again as root and checks that it is exactly the key with this fingerprint.
+    The same rules as the Signing keys page: a file that rpm and gpg could read differently is refused, it must hold
+    exactly one key, and the file kept for the queue (~/.cache/zypp-desk/keys/<FPR>.asc) is gpg's own copy of that
+    key, which the helper checks again as root before rpm imports it.
+
+    Returns dict(path, fingerprint, uids, name, expired, revoked).
     """
     data = _get(url, limit=MAX_KEY)
-    p = subprocess.run(["gpg", "--batch", "--with-colons", "--show-keys"], input=data, capture_output=True)
-    fprs, uids, primary = [], [], False
-    for ln in p.stdout.decode("utf-8", "replace").splitlines():
-        f = ln.split(":")
-        if f[0] == "pub":
-            primary = True
-        elif f[0] == "sub":
-            primary = False
-        elif f[0] == "fpr" and primary and len(f) > 9:
-            fprs.append(f[9])
-            primary = False
-        elif f[0] == "uid" and len(f) > 9:
-            # gpg writes ':' and other special characters as \xHH in this format
-            uids.append(re.sub(r"\\x([0-9a-fA-F]{2})", lambda m: chr(int(m.group(1), 16)), f[9]))
-    if p.returncode != 0 or len(fprs) != 1 or b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in data:
-        raise SearchError(_("The repository does not publish a single readable signing key."))
-    path = _cache_dir("keys") / (re.sub(r"[^A-Za-z0-9._-]", "_", alias) + ".asc")
-    tmp = path.with_suffix(".part")
-    tmp.write_bytes(data)
-    tmp.replace(path)
-    return {"path": str(path), "fingerprint": fprs[0], "uids": uids}
+    try:
+        found = keys.inspect_key(data)
+        if len(found) != 1:
+            raise SearchError(_("The repository does not publish a single readable signing key."))
+        k = found[0]
+        path = keys.save_for_import(data, k["fpr"])
+    except ValueError as e:
+        raise SearchError(str(e)) from e
+    except (OSError, subprocess.SubprocessError) as e:
+        raise SearchError(_("The key could not be read: {error}").format(error=e)) from e
+    return {"path": path, "fingerprint": k["fpr"], "uids": k["uids"], "name": k["name"] or k["email"],
+            "expired": k["expired"], "revoked": k["revoked"]}

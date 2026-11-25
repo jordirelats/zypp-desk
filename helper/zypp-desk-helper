@@ -25,6 +25,8 @@ import sys
 import tempfile
 
 ZYPPER = "/usr/bin/zypper"
+# The window compares this with its own version and asks to reinstall the helper when they differ.
+VERSION = "0.4.1"
 RPM = "/usr/bin/rpm"
 HISTORY = "/var/log/zypp/history"
 
@@ -75,6 +77,7 @@ ZYPP_CONF = {
 LANG_RE = re.compile(r"(C|POSIX|[A-Za-z]{2,3}(_[A-Za-z]{2})?)(\.[A-Za-z0-9-]+)?(@[A-Za-z]+)?")
 FPR_RE = re.compile(r"[0-9A-F]{40}|[0-9A-F]{64}")
 GPG = "/usr/bin/gpg"
+GPGCONF = "/usr/bin/gpgconf"
 
 
 def die(msg, code=2):
@@ -136,6 +139,7 @@ def key_fingerprints(path):
     with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-", dir="/run") as home:
         p = subprocess.run([GPG, "--batch", "--no-autostart", "--homedir", home, "--with-colons", "--show-keys",
                             path], capture_output=True, text=True, env=clean_env("C"))
+        subprocess.run([GPGCONF, "--homedir", home, "--remove-socketdir"], capture_output=True, env=clean_env("C"))
     if p.returncode != 0:
         return []  # gpg could not read it: no fingerprint, so the import is refused
     fprs, want = [], False
@@ -151,6 +155,11 @@ def key_fingerprints(path):
     return fprs
 
 
+def _gpg(home, *args, data=None):
+    return subprocess.run([GPG, "--batch", "--no-autostart", "--homedir", home, *args], input=data,
+                          capture_output=True, env=clean_env("C"))
+
+
 def rpm_import(path, expected, lang):
     if not os.path.isabs(path):
         die("the key file must be an absolute path")
@@ -164,19 +173,39 @@ def rpm_import(path, expected, lang):
         data = f.read(1024 * 1024 + 1)
     if len(data) > 1024 * 1024:
         die("the key file is too big")
-    if b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in data:
-        die("the file does not contain a PGP public key")
+    # rpm imports every "-----BEGIN PGP" block it finds anywhere in a file, gpg only those at the start of a line:
+    # a second block hidden in the middle of a line would be imported without being shown. Exactly one block.
+    if data.count(b"-----BEGIN PGP") != 1 or b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in data:
+        die("the file must contain exactly one PGP public key block")
     expected = expected.upper().replace(" ", "")
     if not FPR_RE.fullmatch(expected):
         die("invalid fingerprint")
-    with tempfile.NamedTemporaryFile(prefix="zypp-desk-key-", suffix=".asc", dir="/run") as tmp:
-        tmp.write(data)
-        tmp.flush()
-        # The user saw this fingerprint before saying yes; check that these bytes are that key, and only it.
-        fprs = key_fingerprints(tmp.name)
-        if fprs != [expected]:
-            die("the key file does not contain exactly the key that was shown (fingerprint mismatch)")
-        p = subprocess.run([RPM, "--import", tmp.name], env=clean_env(lang))
+    with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-", dir="/run") as home:
+        try:
+            src = os.path.join(home, "in.asc")
+            with open(src, "wb") as f:
+                f.write(data)
+            # The user saw this fingerprint before saying yes; these bytes must hold that key, and only it.
+            if key_fingerprints(src) != [expected]:
+                die("the key file does not contain exactly the key that was shown (fingerprint mismatch)")
+            # rpm never gets the bytes from the user: gpg reads them into an empty keyring and writes that one key out
+            # again, minimal and armored, and that is what rpm imports.
+            keyring = os.path.join(home, "ring")
+            os.mkdir(keyring, 0o700)
+            if _gpg(keyring, "--import", src).returncode != 0:
+                die("gpg could not read the key")
+            out = _gpg(keyring, "--armor", "--export-options", "export-minimal", "--export", expected)
+            if out.returncode != 0 or out.stdout.count(b"-----BEGIN PGP") != 1:
+                die("gpg could not export the key")
+            clean = os.path.join(home, "key.asc")
+            with open(clean, "wb") as f:
+                f.write(out.stdout)
+            if key_fingerprints(clean) != [expected]:
+                die("the exported key is not the key that was shown")
+            p = subprocess.run([RPM, "--import", clean], env=clean_env(lang))
+        finally:
+            for h in (home, os.path.join(home, "ring")):
+                subprocess.run([GPGCONF, "--homedir", h, "--remove-socketdir"], capture_output=True, env=clean_env("C"))
     sys.exit(p.returncode)
 
 
@@ -209,16 +238,15 @@ def key_remove(fpr, lang):
     for f in shipped:
         if fpr in key_fingerprints(f):
             die("this key is shipped by openSUSE and is not deleted from here")
-    found = [nvr for nvr, text in armored_keys() if fingerprints_of_text(text) == [fpr]]
-    if len(found) != 1:
-        die("no key with this fingerprint in the rpm keyring" if not found else "more than one key matches", 1)
-    nvr = found[0]
     ver = subprocess.run([RPM, "--version"], capture_output=True, text=True, env=clean_env("C")).stdout
     m = re.search(r"(\d+)\.", ver)
     if m and int(m.group(1)) >= 6:
-        cmd = [RPMKEYS, "--delete", fpr]  # rpm 6 names keys by fingerprint
+        cmd = [RPMKEYS, "--delete", fpr]  # rpm 6 names keys by fingerprint (and may keep them outside the database)
     else:
-        cmd = [RPMKEYS, "--delete", nvr[len("gpg-pubkey-"):]]  # rpm 4: version-release of the gpg-pubkey package
+        found = [nvr for nvr, text in armored_keys() if fingerprints_of_text(text) == [fpr]]
+        if len(found) != 1:
+            die("no key with this fingerprint in the rpm keyring" if not found else "more than one key matches", 1)
+        cmd = [RPMKEYS, "--delete", found[0][len("gpg-pubkey-"):]]  # rpm 4: version-release of the gpg-pubkey package
     print("# " + " ".join(cmd), flush=True)
     os.execve(cmd[0], cmd, clean_env(lang))
 

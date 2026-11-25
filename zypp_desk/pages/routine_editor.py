@@ -21,18 +21,7 @@ from ..ui import ask, button, heading, hline, icon, mono, muted, tool
 MIME = "application/x-zypp-desk-routine-step"
 
 
-def kind_title(kind):
-    return {
-        "refresh": _("Refresh the repositories"),
-        "download": _("Download the updates without installing"),
-        "dup": _("Update the system (dup)"),
-        "update": _("Update the packages (update)"),
-        "flatpak": _("Update the Flatpak apps"),
-        "firmware": _("Update the firmware"),
-        "restart-check": _("Check what must be restarted"),
-        "purge-kernels": _("Remove old kernels"),
-        "custom": _("Own command"),
-    }[kind]
+kind_title = routine.kind_title  # one name per kind of step, also in the routine band of Updates
 
 
 def add_title(kind):
@@ -77,7 +66,7 @@ def option_help(opt):
         "licenses": _("Some packages (drivers, fonts) ask you to accept a license. With this the answer is "
                       "yes (-l). The update steps after this one say yes too."),
         "no-recommends": _("Install only what the packages need, not what they suggest (--no-recommends)."),
-        "vendor-change": _("Let a package move to another maker, for example from openSUSE to Packman "
+        "vendor-change": _("Let a package move to another vendor, for example from openSUSE to Packman "
                            "(--allow-vendor-change)."),
         "no-refresh": _("Install just what the steps before downloaded, without looking at the lists again "
                         "(--no-refresh)."),
@@ -474,8 +463,8 @@ class RoutineEditorDialog(QDialog):
 
         preview = QFrame(steps_page)
         preview.setObjectName("preview")
-        preview.setToolTip(_("When it runs, zypper also gets -n, flatpak -y and fwupdmgr --assume-yes: nobody "
-                             "can answer questions in the middle."))
+        preview.setToolTip(_("When it runs, zypper also gets -n, flatpak -y and fwupdmgr --assume-yes "
+                             "--no-unreported-check: nobody can answer questions in the middle."))
         pv = QVBoxLayout(preview)
         pv.setContentsMargins(12, 8, 12, 10)
         pv.setSpacing(3)

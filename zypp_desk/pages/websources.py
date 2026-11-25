@@ -332,7 +332,9 @@ class TidyDialog(QDialog):
         self.tree.itemChanged.connect(lambda *_a: self._update_total())  # once the list is filled
         bb = QDialogButtonBox(self)
         self.go = bb.addButton(_("Move to the trash"), QDialogButtonBox.ButtonRole.AcceptRole)
-        bb.addButton(QDialogButtonBox.StandardButton.Cancel)
+        self.go.setAutoDefault(False)  # Enter must never throw files away: it presses Cancel
+        cancel = bb.addButton(QDialogButtonBox.StandardButton.Cancel)
+        cancel.setDefault(True)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
@@ -385,6 +387,8 @@ class WebSourcesPage(Page):
         fbar = QHBoxLayout()
         fbar.addWidget(self.folder_lbl, 1)
         fbar.addWidget(button(_("Change the folder…"), "folder-open", self.change_folder))
+        # next to the folder it tidies (in the page header it made the window wider in German and French)
+        fbar.addWidget(button(_("Tidy up old versions…"), "edit-clear-history", lambda: self.tidy()))
 
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels([_("Program"), _("Status"), _("Installed"), _("Latest"),
@@ -424,7 +428,6 @@ class WebSourcesPage(Page):
 
     def header_actions(self):
         return [tool(_("Add…"), "list-add", self.add), tool(_("Edit…"), "document-edit", self.edit),
-                tool(_("Tidy up old versions…"), "edit-clear-history", lambda: self.tidy()),
                 tool(_("Remove"), "list-remove", self.remove),
                 tool(_("Check now"), "view-refresh", lambda: self.check_all(force=True))]
 
@@ -646,8 +649,24 @@ class WebSourcesPage(Page):
             + "</table>" + advanced)
         self.get_btn.setText(_("Download it to see the version") if f.get("newer") is None and f.get("changed")
                              else _("Download, verify and add to the queue"))
-        self.get_btn.setEnabled(kind != "manual" and bool(f.get("url")) and not self.ctx.runner.busy
-                                and not self.downloading)
+        self._update_get_btn()
+
+    def _worth_downloading(self, s, f):
+        """A newer version, a changed file whose version is unknown, or a program that is not installed: an
+        up-to-date program is not downloaded again (Weasis is 160 MiB)."""
+        if not s or s.get("type", "github") == "manual" or not f or f.get("error") or not f.get("url"):
+            return False
+        return self.counts_as_new(f) or not f.get("installed")
+
+    def _update_get_btn(self):
+        s = self._current()
+        f = self.found.get(s["package"], {}) if s else {}
+        worth = self._worth_downloading(s, f)
+        self.get_btn.setEnabled(worth and not self.ctx.runner.busy and not self.downloading)
+        if s and f and not f.get("error") and f.get("url") and not worth:
+            self.get_btn.setToolTip(_("You already have the latest version."))
+        else:
+            self.get_btn.setToolTip("")
 
     # ------------------------------------------------------------ checking
     def check_all(self, force=False):
@@ -691,6 +710,7 @@ class WebSourcesPage(Page):
         dlg = SourceDialog(self.local, default_folder=self.default_folder(), package=package, parent=self)
         if dlg.exec():
             self._save_source(dlg.source())
+        dlg.deleteLater()
 
     def follow(self):
         name = self._current_name()
@@ -711,6 +731,7 @@ class WebSourcesPage(Page):
                 new.pop("seen")
             # Qt gives back copies of the stored dicts: compare by package name
             self._save_source(new, s["package"])
+        dlg.deleteLater()
 
     def remove(self):
         s = self._current()
@@ -762,10 +783,13 @@ class WebSourcesPage(Page):
             info_box(self, _("Tidy up old versions"), _("There are no old versions to throw away."))
             return
         dlg = TidyDialog(files, self)
-        if not dlg.exec():
+        accepted = dlg.exec()
+        ticked = dlg.ticked()
+        dlg.deleteLater()
+        if not accepted:
             return
         moved, failed = 0, []
-        for f in dlg.ticked():
+        for f in ticked:
             if f["state"] == "installed":
                 continue  # never the version you have
             if QFile.moveToTrash(f["path"])[0]:
@@ -804,7 +828,7 @@ class WebSourcesPage(Page):
 
     def _next_download(self):
         if self.downloading or not self._dl_queue:
-            self.get_btn.setEnabled(bool(self._current()) and not self.downloading)
+            self._update_get_btn()
             if not self.downloading and not self._dl_queue:
                 done, self._dl_finished = self._dl_finished, []
                 for fn in done:
@@ -884,7 +908,7 @@ class WebSourcesPage(Page):
             error_box(self, self.title, _(
                 "{name} {version} is signed with the key {key}, which this computer does not know yet, so zypper "
                 "would refuse to install it. Get the vendor's public key from its official web site, check the "
-                "fingerprint there, import it (Repositories → More → Import a signing key…) and download it again. "
+                "fingerprint there, import it (Signing keys → Import a key…) and download it again. "
                 "The downloaded file was deleted.").format(name=s["package"], version=res["version"], key=sig[6:]))
             return
         pinned = s.get("signer")
@@ -901,11 +925,18 @@ class WebSourcesPage(Page):
             plain(box)
             box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             box.setDefaultButton(QMessageBox.StandardButton.No)
-            if box.exec() != QMessageBox.StandardButton.Yes:
+            answer = box.exec()
+            box.deleteLater()
+            if answer != QMessageBox.StandardButton.Yes:
                 os.unlink(res["path"])
                 view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
-        if sig != "verified":
+        if sig not in ("verified", "unsigned"):
+            # anything else (a damaged or bad signature, an answer rpm never gave before) is never offered
+            os.unlink(res["path"])
+            error_box(self, self.title, _("The signature of the file does not verify: it was deleted."))
+            return
+        if sig == "unsigned":
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
             box.setWindowTitle(_("Package not verified by rpm"))
@@ -922,11 +953,14 @@ class WebSourcesPage(Page):
             box.setInformativeText(why + " " + _("Add it to the queue anyway?"))
             plain(box)
             box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            if box.exec() != QMessageBox.StandardButton.Yes:
+            box.setDefaultButton(QMessageBox.StandardButton.No)  # Enter does not accept an unchecked package
+            answer = box.exec()
+            box.deleteLater()
+            if answer != QMessageBox.StandardButton.Yes:
                 os.unlink(res["path"])
                 view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
-            allow_unsigned = sig == "unsigned"
+            allow_unsigned = True
         if sig == "verified" and res.get("signer") and res["signer"] != pinned:
             for x in self.sources:  # remember which key signs this program
                 if x["package"] == s["package"]:

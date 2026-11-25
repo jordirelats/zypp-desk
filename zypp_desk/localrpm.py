@@ -76,14 +76,27 @@ def _rpm(args):
     return subprocess.run(["rpm", *args], capture_output=True, text=True, env=ENV_C, errors="replace")
 
 
+def _text(raw: bytes):
+    """A header field as text. rpm gives the bytes as they are in the package; most are UTF-8, but older packages
+    (AutoFirma, Configurador FNMT) were written in Latin-1 / Windows-1252: 'Aplicación', not 'Aplicaci�n'."""
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("cp1252", errors="replace")
+
+
 def _header(path):
     """The fields of the file's header (no signature or digest check here: read_rpm does those itself)."""
-    p = _rpm(["-qp", "--nosignature", "--nodigest", "--qf", _QF, "--", path])
-    if p.returncode != 0 or not p.stdout.startswith("name\t"):
+    # bytes, decoded field by field (_text): one package can mix UTF-8 and Latin-1 fields
+    p = subprocess.run(["rpm", "-qp", "--nosignature", "--nodigest", "--qf", _QF, "--", path], capture_output=True,
+                       env=ENV_C)
+    if p.returncode != 0 or not p.stdout.startswith(b"name\t"):
         return None
     h = {"requires": [], "provides": [], "sigs": []}
-    for line in p.stdout.splitlines():
-        key, _sep, val = line.partition("\t")
+    for raw in p.stdout.split(b"\n"):
+        if not raw:
+            continue
+        key, _sep, val = _text(raw).partition("\t")
         if key == "req":
             f = val.split("\t")
             if len(f) == 3:
@@ -342,7 +355,7 @@ def check_obs(obs, keyid=""):
     with a key rpm does not know), is the key the project publishes the one that signed the file?
 
     Returns dict(exists: True/False/None (unknown), error, fingerprint, uids, key_matches: True/False/None,
-    key_error). The key is only read (online.fetch_key keeps it in the cache), never imported.
+    key_error). The key is only read (online.fetch_key keeps gpg's copy of it in the cache), never imported.
     """
     out = {"exists": None, "error": None, "fingerprint": None, "uids": [], "key_matches": None, "key_error": None}
     req = urllib.request.Request(obs["url"] + "repodata/repomd.xml", method="HEAD",
@@ -361,7 +374,7 @@ def check_obs(obs, keyid=""):
         return out
     if out["exists"] and keyid:
         try:
-            k = online.fetch_key(obs["key_url"], obs["alias"])
+            k = online.fetch_key(obs["key_url"])
         except (online.SearchError, OSError) as e:
             out["key_error"] = str(e)
         else:

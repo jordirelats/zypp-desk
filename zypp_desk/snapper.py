@@ -21,9 +21,11 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 SNAPPER = "/usr/bin/snapper"
 SLACK = 60          # seconds of tolerance between libzypp's lines and snapper's dates
@@ -684,3 +686,64 @@ def load(history_text, snapper_text=None):
 
 def snapper_installed():
     return os.path.exists(SNAPPER)
+
+
+# ------------------------------------------------------------------ what a snapshot of / does not hold
+# openSUSE's Btrfs layout keeps these folders in subvolumes of their own (and /home is often a partition of its
+# own): the snapshots of / do not have them, so undoing a change does not put them back.
+OWN_SUBVOLUMES = ("/opt", "/usr/local", "/srv", "/root", "/var", "/home")
+# where whole programs get installed (Chrome, Vivaldi, Brave, Edge, Zoom, Master PDF…); /var only holds their
+# logs, caches and data, and /home your own files
+PROGRAM_FOLDERS = ("/opt", "/usr/local", "/srv", "/root")
+
+
+def _mount_points(text=None):
+    if text is None:
+        try:
+            text = Path("/proc/self/mounts").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return None
+    out = set()
+    for line in text.splitlines():
+        f = line.split()
+        if len(f) >= 2:
+            out.add(f[1].replace("\\040", " "))
+    return out
+
+
+def outside_root(mounts=None):
+    """The folders of OWN_SUBVOLUMES that the snapshots of / do not hold: those mounted on their own (a
+    subvolume or a partition), or below such a folder. All of them when the mounts cannot be read."""
+    if mounts is None:
+        mounts = _mount_points()
+    if mounts is None:
+        return list(OWN_SUBVOLUMES)
+    others = [m.rstrip("/") for m in mounts if m != "/"]
+    return [d for d in OWN_SUBVOLUMES if any(d == m or d.startswith(m + "/") for m in others)]
+
+
+def files_outside(names, folders):
+    """{package: [folders]}: the installed packages among 'names' with files (not only folders) in these folders.
+    rpm, as the user. A package that is not installed (any more) is left out."""
+    names = [n for n in names if n and not n.startswith("-")]
+    folders = tuple(f.rstrip("/") + "/" for f in folders)
+    if not names or not folders:
+        return {}
+    p = subprocess.run(["rpm", "-q", "--qf", "[%{=NAME}\t%{FILENAMES}\t%{FILEMODES:perms}\n]", "--", *names],
+                       capture_output=True, text=True, env=dict(os.environ, LC_ALL="C"), stdin=subprocess.DEVNULL,
+                       timeout=300)
+    out = {}
+    for line in p.stdout.splitlines():
+        f = line.split("\t")
+        if len(f) != 3 or f[2].startswith("d"):
+            continue
+        for folder in folders:
+            if f[1].startswith(folder):
+                out.setdefault(f[0], set()).add(folder.rstrip("/"))
+    return {name: sorted(dirs) for name, dirs in sorted(out.items())}
+
+
+def outside_snapshots(names):
+    """(folders the snapshots of / do not hold, {package: [folders]} of 'names' with programs there)."""
+    folders = outside_root()
+    return folders, files_outside(names, [f for f in folders if f in PROGRAM_FOLDERS])

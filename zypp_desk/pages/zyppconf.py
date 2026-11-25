@@ -29,7 +29,8 @@ def _texts():
                                 _("They are not essential, but they complete the program.")),
         "multiversion.kernels": (_("Kernels to keep"),
                                  _("So you can start with the previous one if the new one fails.")),
-        "download.max_concurrent_connections": (_("Downloads at once"), _("Connections per file.")),
+        "download.max_concurrent_connections": (_("Connections per download"),
+                                                _("Each file comes from several mirrors at once.")),
         "download.max_download_speed": (_("Maximum download speed"), _("So updates do not fill your connection.")),
         "solver.dupAllowVendorChange": (_("Allow changing vendor when updating"),
                                         _("For example, moving VLC from openSUSE to VideoLAN.")),
@@ -185,7 +186,7 @@ class SettingRow(QWidget):
         self.expert.setVisible(spec.expert)
         if spec.expert:
             self.expert.show_as(_("experts only"), RED, _("The zypp.conf manual marks this setting "
-                                                         "«Expert Only». Leave it off unless you know why."))
+                                                         "“Expert Only”. Leave it off unless you know why."))
         top.addWidget(self.expert)
         top.addStretch(1)
         text.addLayout(top)
@@ -428,7 +429,7 @@ class ZyppConfCard(Card):
                     lines.append(_("Could not read {file}: {error}. The values here may not be the ones zypper "
                                    "uses.").format(file=path, error=text))
                 else:
-                    lines.append(_("{file}, line {n}: «{text}» is not «key = value». zypper stops with an error "
+                    lines.append(_("{file}, line {n}: “{text}” is not “key = value”. zypper stops with an error "
                                    "until it is fixed.").format(file=path, n=n, text=text))
             self.problems.setText("\n".join(lines))
         self.problems.setVisible(bool(probs))

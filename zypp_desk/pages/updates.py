@@ -4,25 +4,28 @@ and a simulation of 'zypper dup' with its options in its own window."""
 
 import html
 
-from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPen
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QListWidget, QListWidgetItem, QSplitter, QStyle, QStyledItemDelegate,
-                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QListWidget, QListWidgetItem, QStyle, QStyledItemDelegate,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout)
 
-from .. import appicons, backend, firmware, flatpak, routine, websources
+from .. import appicons, backend, firmware, flatpak, routine, websources, zyppconf
 from ..i18n import _, ngettext
 from ..txqueue import Action
 from ..runner import Step
 from ..simulation import CATEGORIES, disk_text, human_size, parse_dry_run, summary_lines
-from ..style import BLUE, GREEN, ORANGE, PURPLE
+from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
-from ..ui import Card, Page, ask, button, error_box, heading, icon, mono, muted
-from .pkgdetails import PackageDetails
+from ..ui import Card, Page, RoomSplitter, ask, button, heading, icon, mono, muted
+from .pkgdetails import PackageDetails, table
 
 FIRMWARE_COLOR = "#16a085"
 ORIGIN_COLORS = {"repo": BLUE, "flatpak": PURPLE, "web": ORANGE, "firmware": FIRMWARE_COLOR}
 ROW_ROLE = Qt.ItemDataRole.UserRole
+# a warning inside the card: a tint of orange, readable in the light and the dark theme
+WARN_HTML = ("<table width='100%' cellpadding='7' cellspacing='0' style='margin-top:8px;"
+             "background-color:rgba(246,116,0,0.16)'><tr><td>⚠ {text}</td></tr></table>")
 
 
 def is_checked(value):
@@ -166,7 +169,9 @@ class StepBox(QFrame):
         f = title.font()
         f.setBold(True)
         title.setFont(f)
+        title.setWordWrap(True)  # German titles are long: they wrap instead of widening the window
         cmd = QLabel(step.display(), self)
+        cmd.setTextFormat(Qt.TextFormat.PlainText)
         cmd.setFont(mono())
         cmd.setStyleSheet("color: palette(link);")
         cmd.setToolTip(step.display())
@@ -197,6 +202,9 @@ class UpdatesPage(Page):
     key = "updates"
     title = _("Updates")
     icon_name = "system-software-update"
+    # what the list found, each time it fills: {"total", "repo", "flatpak", "web", "firmware", "busy",
+    # "pending" (parts still looking), "errors", "flatpak_ids"}; the Home page shows the same numbers
+    counted = Signal(object)
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
@@ -219,7 +227,7 @@ class UpdatesPage(Page):
         self.dup_btn = button(_("Simulate the dup…"), "system-run", self.open_dup)
         self.dup_btn.setToolTip(_("What would 'zypper dup' do?"))
         self.stop_btn = button(_("Stop after this step"), "media-playback-pause", self.ctx.runner.stop_after_current)
-        self.stop_btn.setEnabled(False)
+        self.stop_btn.hide()  # it takes the place of Run while the routine runs
         self.run_btn = button(_("Run the routine"), "system-software-update", self.run_routine, primary=True)
         for b in (self.edit_btn, self.dup_btn, self.stop_btn, self.run_btn):
             head.addWidget(b)
@@ -244,7 +252,7 @@ class UpdatesPage(Page):
         self.up_count.hide()
         lh.addWidget(self.up_count)
         lh.addStretch(1)
-        again = button(_("Look again"), "view-refresh", self.load_updates)
+        again = button(_("Look again"), "view-refresh", lambda: self.load_updates())
         again.setToolTip(_("Since the last refresh of the repositories. On Tumbleweed your routine (zypper dup) "
                            "updates everything at once; here you can pick only some."))
         lh.addWidget(again)
@@ -277,7 +285,7 @@ class UpdatesPage(Page):
         self.locked_names = set()
         self.details = PackageDetails(self, ctx, dc)
         dc.lay.addWidget(self.details)
-        split = QSplitter(Qt.Orientation.Horizontal, self)
+        split = RoomSplitter(Qt.Orientation.Horizontal, self)
         split.addWidget(lc)
         split.addWidget(dc)
         split.setStretchFactor(0, 3)
@@ -323,24 +331,43 @@ class UpdatesPage(Page):
             self.ctx.settings["routine"] = dlg.text()
             self.ctx.settings.save()
             self.show_routine()
+        dlg.deleteLater()
+
+    def _set_running(self, running):
+        """The buttons of the routine band while it runs (Stop takes the place of Run) and after."""
+        self._running = running
+        self.run_btn.setVisible(not running)
+        self.stop_btn.setVisible(running)
+        self.stop_btn.setEnabled(running)
+        self.edit_btn.setEnabled(not running)
 
     def run_routine(self):
         if self.ctx.runner.busy:
             self.result_lbl.setText(_("Wait until the current command finishes."))
+            self.result_lbl.show()
             return
         self.show_routine()
         if not self.steps:
             return
         self.run_steps = self.steps
-        self._running = True
+        self.result_lbl.setText("")
+        self.result_lbl.hide()
+        # before ctx.run: the routine may end inside it (no helper, no password) and _routine_done
+        # must find the buttons as they are while it runs
+        self._set_running(True)
         if not self.ctx.run(self.run_steps, _("Routine: {text}").format(text=self.ctx.settings["routine"]),
                             on_done=self._routine_done):
-            self._running = False
-            return
-        self.result_lbl.setText("")
-        self.run_btn.setEnabled(False)
-        self.edit_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
+            self._set_running(False)
+
+    def _after_change(self):
+        """The system changed (the routine, a dup): the pages look again (the main window knows which)."""
+        fn = getattr(self.ctx, "after_change", None)
+        if callable(fn):
+            fn()
+        else:
+            from .. import tray
+            tray.poke("check")
+            self.reload()
 
     def _step_started(self, i):
         if getattr(self, "_running", False) and i < len(self.boxes):
@@ -358,17 +385,16 @@ class UpdatesPage(Page):
             self.boxes[i].set_state("failed", _("failed (exit code {code})").format(code=code))
 
     def _routine_done(self, ok):
-        from .. import tray
-        tray.poke("check")
-        self._running = False
-        self.run_btn.setEnabled(True)
-        self.edit_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
-        self.result_lbl.setText(_("Routine finished.") if ok else _("The routine stopped with errors: look at "
-                                                                     "the terminal."))
+        self._set_running(False)
+        if not ok and getattr(self.ctx.runner, "stopped", False):
+            self.result_lbl.setText(_("The routine was stopped: the steps after it did not run."))
+        else:
+            self.result_lbl.setText(_("Routine finished.") if ok else _("The routine stopped with errors: look "
+                                                                         "at the terminal."))
         self.result_lbl.show()
         if ok and self.ctx.settings["after_routine_check_restart"]:
             run_async(backend.processes_using_deleted_files, on_done=self._ps_done)
+        self._after_change()  # what it updated is not waiting any more: the list (and the tray) look again
 
     def _ps_done(self, ps, err):
         if err or not ps:
@@ -390,7 +416,7 @@ class UpdatesPage(Page):
         super().activated()
 
     def load_updates(self):
-        self.up_lbl.setText(_("Looking…"))
+        self._say(_("Looking…"))
         # the last answers stay on screen until the new ones arrive
         if not hasattr(self, "up_found"):
             self.up_found = {"repo": None, "flatpak": None, "web": None, "firmware": None}
@@ -424,6 +450,11 @@ class UpdatesPage(Page):
                                     where=websources.origin_text(src), changed=f.get("newer") is None))
             return out
         run_async(web, on_done=lambda res, err: self._up_part(rnd, "web", res, err))
+
+    def _say(self, text):
+        """The line under the title of the list: only when there is something to say."""
+        self.up_lbl.setText(text)
+        self.up_lbl.setVisible(bool(text))
 
     def _web_changed(self):
         if self.loaded:
@@ -484,7 +515,9 @@ class UpdatesPage(Page):
             for row in rows:
                 it = QListWidgetItem()
                 it.setData(ROW_ROLE, row)
-                it.setToolTip(row["where"] if row.get("error") else f"{row['name']} — {row['version']}")
+                # the row elides long names and versions: the tooltip has them whole
+                it.setToolTip(f"{row['name']}\n{row['where']}" if row.get("error") else
+                              "\n".join(x for x in (row["name"], row["version"], row["where"]) if x))
                 if row.get("error"):
                     it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 else:
@@ -506,16 +539,24 @@ class UpdatesPage(Page):
         busy = bool(self.up_pending)
         self.up_count.setText(str(total))
         self.up_count.setVisible(total > 0)
+        counts = {key: sum(1 for r in rows if not r.get("error")) for key, _l, rows in groups}
+        if not busy:  # the sidebar says it as in the approved mockup: "Updates (4)"
+            self.ctx.set_badge(self.key, str(total) if total else "")
+        self.counted.emit(dict(counts, total=total, busy=busy, pending=sorted(self.up_pending),
+                               errors=dict(self.up_errors),
+                               flatpak_ids=[u.get("application") for u in (f["flatpak"] or [])]))
         errors = [f"{k}: {v[:80]}" for k, v in self.up_errors.items()]
         if busy:
-            self.up_lbl.setText(_("Looking…"))
+            text = _("Looking…")
         elif total:
-            self.up_lbl.setText(ngettext("{n} update waiting.", "{n} updates waiting.", total).format(n=total))
+            text = ""  # the green number next to the title says it (a line less: the list keeps its room)
+            self.up_count.setToolTip(ngettext("{n} update waiting.", "{n} updates waiting.", total).format(n=total))
         else:
-            self.up_lbl.setText(_("Everything is up to date."))
+            text = _("Everything is up to date.")
             self.details.show_simple(_("Everything is up to date."), "", icon("checkmark", "dialog-ok"), "")
         if errors:
-            self.up_lbl.setText(self.up_lbl.text() + "  " + _("(could not look: {error})").format(error="; ".join(errors)))
+            text = (text + "  " + _("(could not look: {error})").format(error="; ".join(errors))).strip()
+        self._say(text)
         self.up_queue_btn.setEnabled(total > 0)
         self.up_sim_btn.setEnabled(total > 0)
 
@@ -551,17 +592,19 @@ class UpdatesPage(Page):
             return
         self.details.set_custom(None)
         if row.get("error"):
+            self._detail_for = None
             self.details.show_simple(row["name"], _("could not check"), self.row_icon(row), html.escape(row["where"]))
             return
         if row["kind"] == "firmware":
             self._show_firmware(row)
             return
         if row["kind"] == "flatpak":
+            self._detail_for = None
             u = row["data"]
-            info = "".join(f"<tr><td style='padding-right:14px;color:gray'>{html.escape(k)}</td><td>{html.escape(v)}</td></tr>"
-                           for k, v in ((_("Version"), u.get("version") or ""), (_("Branch"), u.get("branch") or ""),
-                                        (_("Comes from"), u.get("origin") or "")) if v)
-            self.details.show_simple(row["name"], _("Flatpak app"), self.row_icon(row), f"<table>{info}</table>")
+            e = html.escape
+            rows = [(_("New version"), f"<b>{e(u.get('version') or '')}</b>"), (_("Branch"), e(u.get("branch") or "")),
+                    (_("Comes from"), e(u.get("origin") or ""))]
+            self.details.show_simple(row["name"], _("Flatpak app"), self.row_icon(row), table(rows))
             return
         name = row["name"]
         if getattr(self, "_detail_for", None) == (row["kind"], name) and self.details.current \
@@ -572,20 +615,19 @@ class UpdatesPage(Page):
         # what is known already shows at once; the search (a few seconds) completes the card later
         old = u.get("old") or ""
         quick = {"name": name, "kind": "package", "summary": "", "versions": [], "best": None,
-                 "installed": {"edition": old, "arch": u.get("arch", ""), "repo": "…", "status": "installed"}
+                 "installed": {"edition": old, "arch": u.get("arch", ""), "repo": "", "status": "installed"}
                  if old else None}
-        extra = ""
+        overrides = {}
         if row["kind"] == "web":
-            rows = [(_("Comes from"), u["where"]),
-                    (_("New version"), u["new"] or _("the file changed: download it to see its version"))]
-            extra = ("<table>" + "".join(f"<tr><td style='padding-right:14px;color:gray'>{html.escape(k)}</td>"
-                                         f"<td><b>{html.escape(v)}</b></td></tr>" for k, v in rows) + "</table><hr>")
+            overrides = {"from": u["where"],
+                         "new": u["new"] or _("the file changed: download it to see its version")}
             self.details.set_custom(_("Download the new version"),
                                     lambda n=name: self.ctx.pages["websources"].get_new_versions([n]))
-        self.details.load(quick, extra_html=extra)
+        self.details.load(quick, overrides)
         run_async(backend.search, name, exact=True, on_done=lambda res, err, r=row: self._row_package(r, res, err))
 
     def _show_firmware(self, row):
+        """The approved firmware card: Information / What changes / All devices."""
         u = row["data"]
         self._detail_for = ("firmware", row["name"])
         esc = html.escape
@@ -597,23 +639,27 @@ class UpdatesPage(Page):
         rows.append((_("Installed"), esc(_("when the computer restarts, before Linux starts") if u.get("needs_reboot")
                                         else _("at once, while you work"))))
         if u.get("urgency") in ("high", "critical"):
-            rows.append((_("Urgency"), f"<b style='color:#da4453'>{esc(_('high: install it soon'))}</b>"))
-        table = "".join(f"<tr><td style='padding-right:14px;color:gray'>{k}</td><td>{v}</td></tr>" for k, v in rows)
+            rows.append((_("Urgency"), f"<b style='color:{RED}'>{esc(_('high: install it soon'))}</b>"))
+        warn = WARN_HTML.format(text=esc(_("Plug in the charger and do not switch the computer off while it "
+                                           "updates.")))
+        # the exact command the queue runs (txqueue: firmware), shown whole
+        cmd = Step("fwupdmgr", ["update", u["id"], "--assume-yes", "--no-reboot-check", "--no-unreported-check"])
+        cmd_html = f"<p style='color:gray;font-family:monospace'>{esc(cmd.display())}</p>"
+        tabs = []
         what = u.get("description") or u.get("release_summary") or ""
-        notes = (f"<p><b>{esc(_('What changes'))}</b><br>{esc(what).replace(chr(10), '<br>')}</p>" if what else "")
-        warn = (f"<p style='background:#fdf1e6;color:#7a4300;padding:6px'>⚠ "
-                f"{esc(_('Plug in the charger and do not switch the computer off while it updates.'))}</p>")
-        cmd = f"<p style='color:gray;font-family:monospace'>fwupdmgr update {esc(u['id'][:12])}…</p>"
-        devs = ""
+        if what:
+            tabs.append((_("What changes"), "<p>" + "<br>".join(esc(x) for x in what.split("\n") if x.strip()) + "</p>"))
         if getattr(self, "_fw_devices", None):
             items = "".join(f"<li>{esc(d['name'])} <span style='color:gray'>{esc(d['version'])}</span></li>"
                             for d in self._fw_devices)
-            devs = f"<p><b>{esc(_('Every device fwupd knows'))}</b></p><ul>{items}</ul>"
-        elif firmware.available() and not getattr(self, "_fw_devices_asked", False):
-            self._fw_devices_asked = True
-            run_async(firmware.devices, on_done=lambda res, err, r=row: self._fw_devices_loaded(r, res))
+            tabs.append((_("All devices"), f"<p>{esc(_('Every device fwupd knows'))}</p><ul>{items}</ul>"))
+        elif firmware.available():
+            tabs.append((_("All devices"), f"<i>{esc(_('Loading…'))}</i>"))
+            if not getattr(self, "_fw_devices_asked", False):
+                self._fw_devices_asked = True
+                run_async(firmware.devices, on_done=lambda res, err, r=row: self._fw_devices_loaded(r, res))
         self.details.show_simple(u["name"], u.get("release_summary") or u.get("vendor") or _("Firmware"),
-                                 self.row_icon(row), f"<table>{table}</table>{warn}{notes}{cmd}{devs}")
+                                 self.row_icon(row), table(rows) + warn + cmd_html, tabs)
         self.details.set_custom(_("Add it to the queue"),
                                 lambda: self.ctx.queue.add(Action("firmware", u["id"], name=u["name"],
                                                                   version=u["new_version"])))
@@ -621,7 +667,9 @@ class UpdatesPage(Page):
     def _fw_devices_loaded(self, row, res):
         self._fw_devices = res or []
         if getattr(self, "_detail_for", None) == ("firmware", row["name"]):
+            tab = self.details.tabs.currentIndex()
             self._show_firmware(row)
+            self.details.tabs.setCurrentIndex(tab)  # stay on the tab that was open
 
     def _row_package(self, row, res, err):
         if getattr(self, "_detail_for", None) != (row["kind"], row["name"]):
@@ -663,10 +711,10 @@ class UpdatesPage(Page):
                                    "{n} programs from the web are being downloaded and checked one after the "
                                    "other; each joins the queue when it is ready (look at the terminal).",
                                    len(web)).format(n=len(web))
-        self.up_lbl.setText(text.strip())  # first: the simulation below may write its own message
+        self._say(text.strip())  # first: the simulation below may write its own message
         if simulate:
             if self.ctx.runner.busy:
-                self.up_lbl.setText(_("Wait until the current command finishes."))
+                self._say(_("Wait until the current command finishes."))
                 return
             # the simulation runs once every program from the web is downloaded, checked and queued
             self.ctx.pages["websources"].get_new_versions(web, on_finished=self._simulate_queue)
@@ -675,7 +723,7 @@ class UpdatesPage(Page):
 
     def _simulate_queue(self):
         if not self.ctx.queue.actions:
-            self.up_lbl.setText(_("Nothing reached the queue, so there is nothing to simulate."))
+            self._say(_("Nothing reached the queue, so there is nothing to simulate."))
             return
         self.ctx.simulate_queue()
 
@@ -686,14 +734,24 @@ class UpdatesPage(Page):
         dlg.resize(820, 560)
         dl = QVBoxLayout(dlg)
         s = self.ctx.settings
-        self.o_vendor = QCheckBox(_("Allow vendor change (--allow-vendor-change)"), dlg)
-        self.o_vendor.setChecked(s["dup_allow_vendor_change"])
-        self.o_norec = QCheckBox(_("Do not install new recommended packages (--no-recommends)"), dlg)
+        # the same names as the options of the routine editor
+        self._vendor_conf = self._read_vendor_conf()
+        self.o_vendor = QCheckBox(_("Allow a change of vendor (--allow-vendor-change)"), dlg)
+        self.o_vendor.setToolTip(_("Let a package move to another vendor, for example from openSUSE to Packman. "
+                                   "It starts as zypp.conf says (solver.dupAllowVendorChange): the command gets an "
+                                   "option only when you choose otherwise."))
+        self.o_vendor.setChecked(self._vendor_conf)
+        self.o_norec = QCheckBox(_("Without recommended packages (--no-recommends)"), dlg)
+        self.o_norec.setToolTip(_("Install only what the packages need, not what they suggest (--no-recommends)."))
         self.o_norec.setChecked(s["dup_no_recommends"])
         self.o_down = QCheckBox(_("Allow downgrades (--allow-downgrade)"), dlg)
+        self.o_down.setToolTip(_("Let zypper install an older version when a repository only has that one "
+                                 "(--allow-downgrade)."))
         self.o_down.setChecked(s["dup_allow_downgrade"])
         self.o_from = QComboBox(dlg)
         self.o_from.addItem(_("From every enabled repository"), "")
+        self.o_from.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.o_from.setMinimumContentsLength(12)
         opts = QGridLayout()
         opts.setHorizontalSpacing(24)
         opts.addWidget(self.o_vendor, 0, 0)
@@ -703,9 +761,20 @@ class UpdatesPage(Page):
         fr.addWidget(QLabel(_("Only from:"), dlg))
         fr.addWidget(self.o_from, 1)
         opts.addLayout(fr, 1, 1)
-        for cb in (self.o_vendor, self.o_norec, self.o_down):
+        for cb in (self.o_norec, self.o_down):
             cb.toggled.connect(self._save_options)
+        for cb in (self.o_vendor, self.o_norec, self.o_down):
+            cb.toggled.connect(self._show_dup_cmd)
+        self.o_from.currentIndexChanged.connect(self._show_dup_cmd)
         dl.addLayout(opts)
+        # the exact commands the two buttons run, as they change with the options
+        self.dup_cmd = QLabel(dlg)
+        self.dup_cmd.setFont(mono())
+        self.dup_cmd.setTextFormat(Qt.TextFormat.PlainText)
+        self.dup_cmd.setWordWrap(True)
+        self.dup_cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.dup_cmd.setStyleSheet("color: palette(placeholder-text);")
+        dl.addWidget(self.dup_cmd)
         self.sim_lbl = muted(_("It asks for the administrator password. Programs from the web are not in it."), dlg)
         self.sim_lbl.setToolTip(_("zypper needs root even to simulate, and it does not know a program from the web "
                                   "until its file is downloaded: simulate those with “Simulate the ticked ones”."))
@@ -716,13 +785,33 @@ class UpdatesPage(Page):
         dl.addWidget(self.sim_tree, 1)
         bb = QHBoxLayout()
         bb.addStretch(1)
-        bb.addWidget(button(_("Run 'zypper dup' with these options"), "system-run", self.run_dup))
-        bb.addWidget(button(_("Simulate"), "media-playback-start", self.simulate_dup, primary=True))
-        bb.addWidget(button(_("Close"), "window-close", dlg.close))
+        # Enter simulates (nothing changes); the real dup needs a click, and then its question answers No to Enter
+        run_btn = button(_("Run 'zypper dup' with these options"), "system-run", self.run_dup)
+        run_btn.setAutoDefault(False)
+        sim_btn = button(_("Simulate"), "media-playback-start", self.simulate_dup, primary=True)
+        sim_btn.setDefault(True)
+        close_btn = button(_("Close"), "window-close", dlg.close)
+        close_btn.setAutoDefault(False)
+        for b in (run_btn, sim_btn, close_btn):
+            bb.addWidget(b)
         dl.addLayout(bb)
+        self._show_dup_cmd()
         return dlg
 
+    @staticmethod
+    def _read_vendor_conf():
+        """solver.dupAllowVendorChange as libzypp reads it now (zypp.conf and its drop-ins)."""
+        try:
+            return zyppconf.read_effective()["solver.dupAllowVendorChange"]["value"] == "true"
+        except Exception:  # an unreadable file: libzypp's own default
+            return False
+
     def open_dup(self):
+        if not self.dup_dialog.isVisible():
+            # as the routine and a dup in a terminal do: what zypp.conf says, unless you tick otherwise
+            self._vendor_conf = self._read_vendor_conf()
+            self.o_vendor.setChecked(self._vendor_conf)
+            self._show_dup_cmd()
         self.dup_dialog.show()
         self.dup_dialog.raise_()
         self.dup_dialog.activateWindow()
@@ -746,15 +835,17 @@ class UpdatesPage(Page):
             self.o_from.addItem(r["name"], r["alias"])
 
     def _save_options(self):
+        # the change of vendor is not kept: it starts from zypp.conf each time (see open_dup)
         s = self.ctx.settings
-        s["dup_allow_vendor_change"] = self.o_vendor.isChecked()
         s["dup_no_recommends"] = self.o_norec.isChecked()
         s["dup_allow_downgrade"] = self.o_down.isChecked()
         s.save()
 
     def dup_args(self):
         args = ["dist-upgrade"]
-        args.append("--allow-vendor-change" if self.o_vendor.isChecked() else "--no-allow-vendor-change")
+        vendor = self.o_vendor.isChecked()
+        if vendor != self._vendor_conf:  # the same as zypp.conf: no option, as in the routine
+            args.append("--allow-vendor-change" if vendor else "--no-allow-vendor-change")
         if self.o_norec.isChecked():
             args.append("--no-recommends")
         args.append("--allow-downgrade" if self.o_down.isChecked() else "--no-allow-downgrade")
@@ -762,11 +853,24 @@ class UpdatesPage(Page):
             args += ["--from", self.o_from.currentData()]
         return args
 
+    def _dup_steps(self):
+        """(simulation, real run): the commands the two buttons run, made in one place so that what the window
+        shows is exactly what runs."""
+        sim = Step("zypper", ["--xmlout", "-n", *self.dup_args(), "--dry-run"], lang="C", capture=True)
+        lic = ["--auto-agree-with-licenses"] if self.ctx.settings["apply_accept_licenses"] else []
+        run = Step("zypper", ["-n", "-v", *self.dup_args(), *lic])
+        return sim, run
+
+    def _show_dup_cmd(self, *_args):
+        sim, run = self._dup_steps()
+        self.dup_cmd.setText(_("Simulate: {command}").format(command=sim.display()) + "\n"
+                             + _("Run: {command}").format(command=run.display()))
+
     def simulate_dup(self):
         if self.ctx.runner.busy:
             self.sim_lbl.setText(_("Wait until the current command finishes."))
             return
-        st = Step("zypper", ["--xmlout", "-n", *self.dup_args(), "--dry-run"], lang="C", capture=True)
+        st, _run = self._dup_steps()
         if self.ctx.run([st], _("Simulation of zypper dup"), on_done=lambda ok: self._simulated(st)):
             self.sim_lbl.setText(_("Simulating…"))
 
@@ -818,13 +922,23 @@ class UpdatesPage(Page):
             return
         dlg = ProblemDialog(items, self.dup_dialog, apply_label=_("Do it now and simulate again"),
                             note=_("The dup is only simulated: what you choose here runs at once (with the "
-                                   "password), and then the dup is simulated again."))
-        if dlg.exec():
-            self.ctx.apply_solutions(dlg.chosen(), then=self.simulate_dup, now=True)
+                                   "password), and then the dup is simulated again."), now=True)
+        accepted = dlg.exec()
+        chosen = dlg.chosen()
+        dlg.deleteLater()
+        if accepted:
+            self.ctx.apply_solutions(chosen, then=self.simulate_dup, now=True)
 
     def run_dup(self):
-        lic = ["--auto-agree-with-licenses"] if self.ctx.settings["apply_accept_licenses"] else []
-        st = Step("zypper", ["-n", "-v", *self.dup_args(), *lic])
-        if ask(self, _("zypper dup"), _("Run this command now? It upgrades the whole system.") + "\n\n"
-               + st.display()):
-            self.ctx.run([st], _("zypper dup"))
+        _sim, st = self._dup_steps()
+        # a real dup as root: Enter answers No
+        if ask(self.dup_dialog, _("zypper dup"), _("Run this command now? It upgrades the whole system.") + "\n\n"
+               + st.display(), default_no=True):
+            self.ctx.run([st], _("zypper dup"), on_done=self._dup_done)
+
+    def _dup_done(self, ok):
+        # the simulation shown is old now
+        self.sim_tree.clear()
+        self.sim_lbl.setText(_("zypper dup finished.") if ok else _("zypper dup stopped with errors: look at the "
+                                                                    "terminal."))
+        self._after_change()

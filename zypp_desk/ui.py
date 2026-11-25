@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Small shared widgets and helpers."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QFontDatabase, QIcon
-from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QMessageBox, QPushButton, QToolButton, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLayout, QMessageBox, QPushButton, QSplitter,
+                               QToolButton, QVBoxLayout, QWidget)
 
 
 def icon(*names):
@@ -70,6 +70,78 @@ class Chip(QToolButton):
         self.setProperty("chip", True)  # the look is in style.py (QToolButton[chip="true"])
 
 
+class FlowLayout(QLayout):
+    """Widgets in a row that wraps onto the next line when there is no room (chips, the buttons of a card):
+    the window can be narrow, and German and French words are long. Hidden widgets take no room."""
+
+    def __init__(self, parent=None, spacing=6):
+        super().__init__(parent)
+        self._items = []
+        self._spacing = spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        return self._items.pop(i) if 0 <= i < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._arrange(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._arrange(rect, apply=True)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        # the widest widget: narrower than that, it would be cut
+        size = QSize()
+        for it in self._items:
+            if not it.isEmpty():
+                size = size.expandedTo(it.sizeHint())
+        return size
+
+    def _arrange(self, rect, apply):
+        x, y, line = rect.x(), rect.y(), 0
+        for it in self._items:
+            if it.isEmpty():
+                continue
+            hint = it.sizeHint()
+            if x + hint.width() > rect.right() + 1 and line > 0:
+                x, y, line = rect.x(), y + line + self._spacing, 0
+            if apply:
+                it.setGeometry(QRect(QPoint(x, y), hint))
+            x += hint.width() + self._spacing
+            line = max(line, hint.height())
+        return y + line - rect.y()
+
+
+class RoomSplitter(QSplitter):
+    """A list | card split that takes the height that is left. A page sits in a scroll area that asks it how
+    tall it would like to be: if the splitter said "as tall as the whole list", the page would scroll and the
+    buttons under the list would go below the window (a 1100×700 window with the terminal open). The list
+    scrolls by itself instead."""
+
+    def sizeHint(self):
+        s = super().sizeHint()
+        return QSize(s.width(), self.minimumSizeHint().height())
+
+
 def hline():
     f = QFrame()
     f.setFrameShape(QFrame.Shape.HLine)
@@ -88,17 +160,27 @@ def plain(box):
 def error_box(parent, title, text):
     box = QMessageBox(QMessageBox.Icon.Warning, title, text, QMessageBox.StandardButton.Ok, parent)
     plain(box).exec()
+    box.deleteLater()
 
 
 def info_box(parent, title, text):
     box = QMessageBox(QMessageBox.Icon.Information, title, text, QMessageBox.StandardButton.Ok, parent)
     plain(box).exec()
+    box.deleteLater()
 
 
-def ask(parent, title, text):
+def ask(parent, title, text, default_no=False):
+    """A yes/no question. default_no=True for every question that starts a real change as root (or throws
+    something away): then Enter answers No, and only a click (or Alt+Y) on Yes goes on."""
     box = QMessageBox(QMessageBox.Icon.Question, title, text,
                       QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, parent)
-    return plain(box).exec() == QMessageBox.StandardButton.Yes
+    if default_no:
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+    box.setEscapeButton(QMessageBox.StandardButton.No)
+    try:
+        return plain(box).exec() == QMessageBox.StandardButton.Yes
+    finally:
+        box.deleteLater()
 
 
 class Page(QWidget):

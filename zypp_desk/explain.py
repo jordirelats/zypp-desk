@@ -57,7 +57,7 @@ def _rules():
          _("A signing key has expired"),
          _("The key that guarantees a repository is out of date, so nothing from that repository can be "
            "installed or updated until the key is renewed."),
-         _("Usually the vendor publishes a renewed key: import it (Repositories → Import a signing key).")),
+         _("Usually the vendor publishes a renewed key: import it (Signing keys → Import a key…).")),
         (r"(running programs which still use files|programes en execució que encara usen fitxers)", INFO,
          _("Some open programs still use the old version"),
          _("Programs that were open during the update keep using the old files until they are closed. "
@@ -82,9 +82,9 @@ def _rules():
          _("Nothing.")),
         (r"(System management is locked|gestió del sistema està (blocada|bloquejada))", WARN,
          _("Another program is using the package manager"),
-         _("Only one program can install software at a time. Often it is Discover or PackageKit checking for "
-           "updates in the background."),
-         _("Wait a minute and try again, or close Discover.")),
+         _("Only one program at a time can use zypper. It may be Zypp Desk's own refresh in the background "
+           "(a timer refreshes the repositories every six hours), or zypper in a terminal."),
+         _("Wait a moment and try again. At the bottom left, Zypp Desk says which program is using it.")),
         (r"(Problem retrieving|Problema obtenint els fitxers|Download \(curl\) error|Error en baixar|could not be refreshed|"
          r"no s'ha pogut refrescar|No s'han pogut refrescar|Repository .* is invalid|Timeout exceeded|"
          r"Could not resolve host)", WARN,

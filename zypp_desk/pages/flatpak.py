@@ -4,7 +4,7 @@
 import html
 
 from PySide6.QtCore import QLocale, Qt
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QTextOption
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
                                QLineEdit, QSplitter, QTabWidget, QTextBrowser, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
@@ -97,10 +97,11 @@ class FlatpakPage(Page):
         self.t_inst = _tree([_("Name"), _("ID"), _("Version"), _("Branch"), _("Origin"), _("Installation"),
                              _("Size"), _("Status")], inst)
         self.t_inst.currentItemChanged.connect(lambda cur, _p: self._select("installed", cur))
+        # the switch above the list, the actions below it: one row of everything was too wide in French
+        il.addWidget(self.show_runtimes)
         ib = QHBoxLayout()
-        ib.addWidget(self.show_runtimes)
-        ib.addStretch(1)
         ib.addWidget(button(_("Update"), "system-software-update", self.queue_update))
+        ib.addStretch(1)
         self.delete_data = QCheckBox(_("Also delete its data"), self)
         ib.addWidget(self.delete_data)
         ib.addWidget(button(_("Uninstall"), "edit-delete", self.queue_uninstall))
@@ -147,10 +148,13 @@ class FlatpakPage(Page):
 
         self.details = QTextBrowser(self)
         self.details.setOpenExternalLinks(True)
+        # lines break between words only ("org.kde.Platform 6.11" is never cut in two)
+        self.details.setWordWrapMode(QTextOption.WrapMode.WordWrap)
         self.perm_btn = button(_("Show permissions"), "security-medium", self._toggle_perms)
         self.perm_btn.setCheckable(True)
         self.perm_btn.hide()
         dbox = QWidget(self)
+        dbox.setMinimumWidth(240)
         dl = QVBoxLayout(dbox)
         dl.setContentsMargins(0, 0, 0, 0)
         dl.addWidget(self.details, 1)
@@ -163,6 +167,8 @@ class FlatpakPage(Page):
         split.addWidget(dbox)
         split.setStretchFactor(0, 3)
         split.setStretchFactor(1, 2)
+        split.setSizes([560, 320])
+        split.setChildrenCollapsible(False)
         lay = QVBoxLayout(self)
         lay.addWidget(muted(_("Flatpak apps run isolated from the system and update separately from zypper. "
                               "Changes go to the same queue; flatpak asks for the password itself when the app is "
@@ -369,21 +375,30 @@ class FlatpakPage(Page):
                                   installation=self.target.currentData()))
 
     # ------------------------------------------------------------ immediate actions
+    def _changed(self, _ok=True):
+        """After a flatpak command that changed something: the pages look again (Updates and Home count the
+        Flatpak updates too)."""
+        fn = getattr(self.ctx, "after_change", None)
+        if callable(fn):
+            fn()
+        else:
+            self.reload()
+
     def remove_unused(self):
+        st = Step("flatpak", ["uninstall", "--unused", "--noninteractive", "-y"])
         if ask(self, _("Remove unused runtimes"), _("Uninstall the runtimes and extensions that no installed app "
-                                                    "uses any more?")):
-            self.ctx.run([Step("flatpak", ["uninstall", "--unused", "--noninteractive", "-y"])],
-                         _("Remove unused runtimes"), on_done=lambda ok: self.reload())
+                                                    "uses any more?") + "\n\n" + st.display(), default_no=True):
+            self.ctx.run([st], _("Remove unused runtimes"), on_done=self._changed)
 
     def add_remote(self):
         dlg = AddRemoteDialog(self)
-        if not dlg.exec():
-            return
+        accepted = dlg.exec()
         name, url, inst = dlg.name.text().strip(), dlg.url.text().strip(), dlg.inst.currentData()
-        if not name or not url:
+        dlg.deleteLater()
+        if not accepted or not name or not url:
             return
         self.ctx.run([Step("flatpak", ["remote-add", "--if-not-exists", f"--{inst}", name, url])],
-                     _("Add a Flatpak remote"), on_done=lambda ok: self.reload())
+                     _("Add a Flatpak remote"), on_done=self._changed)
 
     def _current_remote(self):
         it = self.t_rem.currentItem()
@@ -394,11 +409,33 @@ class FlatpakPage(Page):
         if r:
             flag = "--disable" if r["enabled"] else "--enable"
             self.ctx.run([Step("flatpak", ["remote-modify", flag, f"--{r['installation']}", r["name"]])],
-                         _("Change a Flatpak remote"), on_done=lambda ok: self.reload())
+                         _("Change a Flatpak remote"), on_done=self._changed)
 
     def remove_remote(self):
+        """flatpak refuses to delete a remote that installed apps or runtimes come from, unless --force: first
+        look at what comes from it, then say it and show the command."""
         r = self._current_remote()
-        if r and ask(self, _("Remove"), _("Remove the Flatpak remote {name}? Apps installed from it stay, but will "
-                                          "not get updates.").format(name=r["name"])):
-            self.ctx.run([Step("flatpak", ["remote-delete", f"--{r['installation']}", r["name"]])],
-                         _("Remove a Flatpak remote"), on_done=lambda ok: self.reload())
+        if r:
+            run_async(flatpak.installed_from, r["name"], r["installation"],
+                      on_done=lambda refs, err, r=r: self._remove_remote(r, refs or [], err))
+
+    def _remove_remote(self, r, refs, err):
+        if err:
+            error_box(self, _("Remove a Flatpak remote"), str(err))
+            return
+        args = ["remote-delete", f"--{r['installation']}"]
+        if refs:
+            apps = sorted({x["name"] or x["application"] for x in refs if x["kind"] == "app"})
+            others = sum(1 for x in refs if x["kind"] != "app")
+            what = ", ".join(apps[:12]) or ""
+            if others:
+                what = (what + ", " if what else "") + ngettext("{n} runtime", "{n} runtimes", others).format(n=others)
+            text = (_("These come from {name}: {list}.").format(name=r["name"], list=what) + "\n\n"
+                    + _("flatpak removes the remote only with --force. They stay installed, but they will get no "
+                        "more updates. Remove it anyway?"))
+            args.append("--force")
+        else:
+            text = _("Remove the Flatpak remote {name}? Nothing installed comes from it.").format(name=r["name"])
+        st = Step("flatpak", [*args, "--", r["name"]])
+        if ask(self, _("Remove a Flatpak remote"), text + "\n\n" + st.display(), default_no=True):
+            self.ctx.run([st], _("Remove a Flatpak remote"), on_done=self._changed)

@@ -2,13 +2,16 @@
 """What only one package needed: a first look at what 'zypper remove --clean-deps' would take away too.
 
 It reads the rpm database as the user (one level: the packages this one requires or recommends that nothing
-else installed requires or recommends). zypper's simulation gives the exact list.
+else installed requires or recommends). --clean-deps only removes packages that were installed as dependencies
+(zypper lists them in /var/lib/zypp/AutoInstalled), never the ones you installed yourself, so only those count.
+zypper's simulation gives the exact list.
 """
 
 import os
 import subprocess
 
 ENV = dict(os.environ, LC_ALL="C")
+AUTO_INSTALLED = "/var/lib/zypp/AutoInstalled"
 
 
 def _rpm(*args):
@@ -25,14 +28,25 @@ def size_of(name):
     return int(out[0]) if out and out[0].isdigit() else 0
 
 
-def only_needed_by(name):
-    """[(package, installed size)] of the packages that only `name` requires or recommends."""
+def auto_installed(path=AUTO_INSTALLED):
+    """The packages that zypper installed as dependencies (not asked for by you). Missing file: none."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return {x.strip() for x in f if x.strip() and not x.lstrip().startswith("#")}
+    except OSError:
+        return set()
+
+
+def only_needed_by(name, auto=None):
+    """[(package, installed size)] of the packages that only `name` requires or recommends and that were
+    installed as dependencies (auto: those names; default: read AutoInstalled)."""
     caps = _caps("-q", "--requires", name) + _caps("-q", "--recommends", name)
     if not caps:
         return []
+    auto = auto_installed() if auto is None else auto
     providers = set()
     for line in _rpm("-q", "--whatprovides", "--qf", "%{NAME}\\n", *caps):
-        if " " not in line:  # "no package provides …"
+        if " " not in line and line in auto:  # "no package provides …"; installed by you: zypper keeps it
             providers.add(line)
     providers.discard(name)
     out = []

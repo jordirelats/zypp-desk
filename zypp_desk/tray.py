@@ -47,6 +47,7 @@ WATCH_SETTLE_MS = 60_000     # after the zypp cache or the rpm database changes,
 WATCH_MIN_GAP_S = 600        # …and look at most once every ten minutes for that reason
 INTERVALS = (1, 3, 6, 12, 24)
 SOLV_DIR = "/var/cache/zypp/solv"  # rewritten when the repositories are refreshed (by the timer or anyone)
+STALE_S = 24 * 3600          # lists of the repositories older than this are shown in orange (the timer runs every 6 h)
 RPMDB_FILES = ("/usr/lib/sysimage/rpm/rpmdb.sqlite", "/usr/lib/sysimage/rpm/Packages.db",
                "/var/lib/rpm/rpmdb.sqlite", "/var/lib/rpm/Packages.db")  # written when packages change
 AUTOSTART_NAME = f"{APP_ID}.tray.desktop"
@@ -130,7 +131,8 @@ def start_detached(program, args, extra_env=None):
         env.insert(k, v)
     proc.setProcessEnvironment(env)
     proc.setStandardInputFile(QProcess.nullDevice())
-    ok, _pid = proc.startDetached()
+    r = proc.startDetached()  # (ok, pid) in older PySide6, only ok in 6.12
+    ok = bool(r[0]) if isinstance(r, tuple) else bool(r)
     if not ok:
         _log(f"could not start {program}")
     return ok
@@ -276,7 +278,7 @@ def _needs_reboot():
 
 def empty_result():
     return {"time": time.time(), "repo": None, "flatpak": None, "web": None, "firmware": None,
-            "firmware_state": "off", "reboot": None, "errors": {}}
+            "firmware_state": "off", "reboot": None, "refreshed": None, "errors": {}}
 
 
 def gather(settings):
@@ -299,6 +301,10 @@ def gather(settings):
             result["firmware_state"] = "error"
         elif result["firmware"] is None:
             result["firmware_state"] = "missing"
+    try:
+        result["refreshed"] = backend.repos_refreshed_at()  # the lists are only as new as their last refresh
+    except Exception as e:
+        _log(f"refreshed: {e}")
     result["time"] = time.time()
     return result
 
@@ -500,9 +506,40 @@ def when_text(ts, now=None):
                                                    time=t)
 
 
+def refreshed_text(ts, now=None):
+    """(text, stale) about when the repositories were last refreshed, or ("", False) when it is not known.
+    The count of updates is only as new as these lists: "Checked today" must not hide that they are old."""
+    if not ts:
+        return "", False
+    now = now or time.time()
+    d = datetime.datetime.fromtimestamp(ts)
+    today = datetime.date.fromtimestamp(now)
+    t = QLocale().toString(d.time(), QLocale.FormatType.ShortFormat)
+    if d.date() >= today:
+        text = _("Repositories refreshed today at {time}").format(time=t)
+    elif d.date() == today - datetime.timedelta(days=1):
+        text = _("Repositories refreshed yesterday at {time}").format(time=t)
+    else:
+        n = (today - d.date()).days
+        text = ngettext("Repositories refreshed {n} day ago", "Repositories refreshed {n} days ago", n).format(n=n)
+    return text, now - ts > STALE_S
+
+
+def headline(result, checking=False):
+    """(big text, colour) for the popup and the first line of the tooltip: the same words in both."""
+    c = counts(result)
+    if result is None:
+        return (_("Looking…") if checking else _("Not checked yet")), None
+    if c["total"]:
+        return ngettext("{n} update", "{n} updates", c["total"]).format(n=c["total"]), GREEN
+    if result.get("errors", {}).get("repo") or result.get("errors", {}).get("all"):
+        return _("Could not check"), ORANGE
+    return _("Everything is up to date"), GREEN
+
+
 def _part_name(k):
     return {"repo": _("the repositories"), "flatpak": _("Flatpak"), "web": _("the web"),
-            "reboot": _("restart needed"), "all": _("everything")}.get(k, k)
+            "reboot": _("whether a restart is needed"), "all": _("everything")}.get(k, k)
 
 
 def pill_text(kind, n):
@@ -626,6 +663,9 @@ class Popup(QWidget):
         names.addWidget(title)
         self.when = muted("", card)
         names.addWidget(self.when)
+        self.fresh = muted("", card)
+        self.fresh.hide()
+        names.addWidget(self.fresh)
         head.addLayout(names, 1)
         gear = QToolButton(card)
         gear.setIcon(icon("configure", "settings-configure", "preferences-system"))
@@ -711,18 +751,16 @@ class Popup(QWidget):
             self.when.setText(when_text(result.get("time")))
         self.check_btn.setEnabled(not checking)
         known = result is not None
-        if not known:
-            self.big.setText(_("Looking…") if checking else _("Not checked yet"))
-            self.big.setStyleSheet("color: palette(placeholder-text);")
-        elif c["total"]:
-            self.big.setText(ngettext("{n} update", "{n} updates", c["total"]).format(n=c["total"]))
-            self.big.setStyleSheet(f"color: {GREEN};")
-        elif result.get("errors", {}).get("repo") or result.get("errors", {}).get("all"):
-            self.big.setText(_("Could not check"))
-            self.big.setStyleSheet(f"color: {ORANGE};")
-        else:
-            self.big.setText(_("Everything is up to date"))
-            self.big.setStyleSheet(f"color: {GREEN};")
+        text, color = headline(result, checking)
+        self.big.setText(text)
+        self.big.setStyleSheet(f"color: {color};" if color else "color: palette(placeholder-text);")
+        fresh, stale = refreshed_text((result or {}).get("refreshed"))
+        self.fresh.setText(fresh)
+        self.fresh.setStyleSheet(f"color: {ORANGE};" if stale else "color: palette(placeholder-text);")
+        self.fresh.setVisible(bool(fresh))
+        # the big button runs the routine only when there is something to update: not while nothing is known
+        # yet, not when everything is up to date and not when the check failed (then: open Zypp Desk, check again)
+        self.run_btn.setVisible(known and c["total"] > 0)
         for kind, lbl in self.pills.items():
             n = c[kind]
             lbl.setText(pill_text(kind, n))
@@ -997,14 +1035,16 @@ class Tray(QObject):
         if self.last is None:
             return _("It looks for updates in a moment.")
         c = counts(self.last)
-        lines = [ngettext("{n} update", "{n} updates", c["total"]).format(n=c["total"]) if c["total"]
-                 else _("Everything is up to date")]
+        lines = [headline(self.last)[0]]
         lines.append(", ".join(pill_text(k, c[k]) for k in ("repo", "flatpak", "web")))
         if c["firmware"]:
             lines.append(pill_text("firmware", c["firmware"]))
         if self.last.get("reboot"):
             lines.append(_("Restart needed"))
         lines.append(when_text(self.last.get("time")))
+        fresh, _stale = refreshed_text(self.last.get("refreshed"))
+        if fresh:
+            lines.append(fresh)
         return "\n".join(lines)
 
     def _refresh_look(self):

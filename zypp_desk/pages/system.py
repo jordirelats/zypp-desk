@@ -1,16 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Locks, services, languages, maintenance and settings (History is in history.py)."""
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QInputDialog, QScrollArea, QTreeWidget,
+import html
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QScrollArea, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend
+from .. import APP_ID, backend
 from ..i18n import _
-from ..runner import Step
+from ..runner import Step, zypper_subcommand
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Card, Page, ask, button, error_box, muted, tool
+from ..ui import Card, Page, ask, button, error_box, heading, mono, muted, tool
 
 
 def kind_label(kind):
@@ -42,12 +48,16 @@ class LocksPage(Page):
         lay.addWidget(self.tree, 1)
         self.items = []
         ctx.queue.changed.connect(self._fill)
+        # 'zypper removelock' ends with 0 also when it found no such lock: that is a failure here
+        runner = getattr(ctx, "runner", None)
+        if runner is not None and hasattr(runner, "step_finished"):
+            runner.step_finished.connect(self._step_finished)
 
     def header_actions(self):
         return [tool(_("Lock…"), "list-add", self.add), tool(_("Unlock"), "list-remove", self.remove),
                 tool(_("Clean useless locks"), "edit-clear",
                      lambda: self.ctx.run([Step("zypper", ["cleanlocks"])], _("Clean useless locks"),
-                                          on_done=lambda ok: self.reload()))]
+                                          on_done=lambda ok: self.ctx.after_change()))]
 
     def reload(self):
         run_async(backend.locks, on_done=self._loaded)
@@ -59,18 +69,29 @@ class LocksPage(Page):
         self.items = items
         self._fill()
 
+    @staticmethod
+    def _same(action, lock):
+        """True if a queued unlock is for this lock (the same text, kind and repository)."""
+        def norm(text):
+            return "".join(text.split())
+        return (norm(action.target) == norm(lock["spec"]) and action.opts.get("type", "package") == lock["type"]
+                and action.opts.get("repo", "") == lock["repo"])
+
     def _fill(self):
         self.tree.clear()
-        names = set()
+        specs = set()
         for lk in self.items:
-            names.add(lk["name"])
-            pend = _("will be unlocked") if any(a.target == lk["name"] for a in self.ctx.queue.of("unlock")) else ""
-            it = QTreeWidgetItem(self.tree, [lk["name"], kind_label(lk["type"]), lk["repo"], pend])
-            it.setData(0, Qt.ItemDataRole.UserRole, lk["type"])
-            it.setData(1, Qt.ItemDataRole.UserRole, lk["repo"])
+            specs.add((lk["spec"], lk["type"], lk["repo"]))
+            pend = _("will be unlocked") if any(self._same(a, lk) for a in self.ctx.queue.of("unlock")) else ""
+            # the name with its version range: "tool < 2.0" (zypper finds the lock again only with it)
+            it = QTreeWidgetItem(self.tree, [lk["spec"], kind_label(lk["type"]), lk["repo"], pend])
+            it.setData(0, Qt.ItemDataRole.UserRole, lk)
+            if lk["range"]:
+                it.setToolTip(0, _("Locked only in these versions: {range}").format(range=lk["range"]))
         for a in self.ctx.queue.of("lock"):
-            if a.target not in names:
-                QTreeWidgetItem(self.tree, [a.target, kind_label("package"), "", _("will be locked")])
+            if (a.target, a.opts.get("type", "package"), a.opts.get("repo", "")) not in specs:
+                QTreeWidgetItem(self.tree, [a.target, kind_label(a.opts.get("type", "package")),
+                                            a.opts.get("repo", ""), _("will be locked")])
         self.tree.resizeColumnToContents(0)
 
     def add(self):
@@ -80,10 +101,29 @@ class LocksPage(Page):
 
     def remove(self):
         it = self.tree.currentItem()
-        if it:
-            # a lock limited to a repository is only removed with that repository named (-r)
-            self.ctx.queue.add(Action("unlock", it.text(0), type=it.data(0, Qt.ItemDataRole.UserRole) or "package",
-                                      repo=it.data(1, Qt.ItemDataRole.UserRole) or ""))
+        lk = it.data(0, Qt.ItemDataRole.UserRole) if it else None
+        if lk:
+            # zypper finds a lock only as it is written: with its version range ("tool < 2.0"), its kind (-t)
+            # and, for a lock limited to a repository, that repository (-r)
+            self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package", repo=lk["repo"] or ""))
+
+    def _step_finished(self, index, code):
+        """After each step of any run: 'zypper removelock' that removed nothing says so and ends with 0. Make it
+        a failed step, so that the run ends with errors and the unlock stays in the queue."""
+        runner = self.ctx.runner
+        try:
+            st = runner.steps[index]
+        except (AttributeError, IndexError, TypeError):
+            return
+        if code != 0 or st.program != "zypper" or zypper_subcommand(st.args) not in ("removelock", "rl"):
+            return
+        if not backend.no_lock_removed(st.output, getattr(st, "lang", None)):
+            return
+        st.state = "failed"
+        runner.last_ok = False  # the next steps that need this one to succeed ('&&') are skipped
+        runner.note.emit(_("No lock was removed: zypper found none written exactly like this. A lock can be for "
+                           "some versions only, or for one repository: unlock it in Locks, which knows how it "
+                           "is written."), "error")
 
 
 # ============================================================ services
@@ -94,7 +134,7 @@ class ServicesPage(Page):
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
-        self.tree = simple_tree([_("Name"), _("Enabled"), _("Refresh"), _("Type"), _("Repositories"),
+        self.tree = simple_tree([_("Name"), _("Enabled"), _("Auto-refresh"), _("Type"), _("Repositories"),
                                  _("Address")], self)
         lay = QVBoxLayout(self)
         lay.addWidget(muted(_("A service is a list of repositories kept up to date by its provider (openSUSE's "
@@ -104,7 +144,7 @@ class ServicesPage(Page):
     def header_actions(self):
         return [tool(_("Refresh services"), "view-refresh",
                      lambda: self.ctx.run([Step("zypper", ["-n", "-v", "refresh-services"])], _("Refresh services"),
-                                          on_done=lambda ok: self.reload())),
+                                          on_done=lambda ok: self.ctx.after_change())),
                 tool(_("Enable / disable"), "system-run", self.toggle)]
 
     def reload(self):
@@ -129,9 +169,9 @@ class ServicesPage(Page):
             return
         s = it.data(0, Qt.ItemDataRole.UserRole)
         flag = "--disable" if s["enabled"] else "--enable"
-        if ask(self, self.title, _("Run 'zypper modifyservice {flag} {alias}'?").format(flag=flag, alias=s["alias"])):
-            self.ctx.run([Step("zypper", ["modifyservice", flag, s["alias"]])], _("Change a service"),
-                         on_done=lambda ok: self.reload())
+        st = Step("zypper", ["modifyservice", flag, "--", s["alias"]])  # '--': an alias is never read as an option
+        if ask(self, self.title, _("Run '{command}'?").format(command=st.display()), default_no=True):
+            self.ctx.run([st], _("Change a service"), on_done=lambda ok: self.ctx.after_change())
 
 
 # ============================================================ languages
@@ -243,57 +283,240 @@ class MaintenancePage(Page):
         lay.addWidget(scroll)
 
     def _run(self, args, title, sim):
-        if sim and not ask(self, title, _("Run it for real? Use Simulate first to see what it would do.")):
+        if sim and not ask(self, title, _("Run it for real? Use Simulate first to see what it would do."),
+                                    default_no=True):
             return
-        self.ctx.run([Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])], title)
+        # the page in front, the others and the tray look again afterwards (old kernels gone, new packages…)
+        self.ctx.run([Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])], title,
+                     on_done=lambda ok: self.ctx.after_change())
 
 
 # ============================================================ settings
+RPM_MIME = "application/x-rpm"
+DESKTOP_ID = f"{APP_ID}.desktop"
+
+
+def _desktop_file(desktop_id):
+    """The menu entry with this id in the folders where the desktop looks for them, or None."""
+    home = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
+    dirs = [home] + [d for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":") if d]
+    for d in dirs:
+        f = Path(d) / "applications" / desktop_id
+        if f.is_file():
+            return f
+    return None
+
+
+def _desktop_name(desktop_id):
+    """The name a menu entry shows, in the user's language when it has one ('Ark'), or the id itself."""
+    f = _desktop_file(desktop_id)
+    if f is None:
+        return desktop_id
+    lang = (os.environ.get("LANGUAGE") or os.environ.get("LC_ALL") or os.environ.get("LC_MESSAGES")
+            or os.environ.get("LANG") or "").split(":")[0].split(".")[0]
+    wanted = [f"Name[{lang}]", f"Name[{lang.split('_')[0]}]", "Name"] if lang else ["Name"]
+    found, section = {}, None
+    try:
+        for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if line.startswith("["):
+                section = line
+                continue
+            if section == "[Desktop Entry]" and "=" in line:
+                k, v = line.split("=", 1)
+                found.setdefault(k.strip(), v.strip())
+    except OSError:
+        return desktop_id
+    return next((found[k] for k in wanted if found.get(k)), desktop_id)
+
+
+def rpm_opener():
+    """Which program opens .rpm files now (xdg-mime, as the user): dict(available, current, name, ours)."""
+    xdg = shutil.which("xdg-mime")
+    current = ""
+    if xdg:
+        p = subprocess.run([xdg, "query", "default", RPM_MIME], capture_output=True, text=True, timeout=30,
+                           stdin=subprocess.DEVNULL)
+        current = (p.stdout.strip().splitlines() or [""])[0].strip()
+    return dict(available=bool(xdg), current=current, name=_desktop_name(current) if current else "",
+                ours=_desktop_file(DESKTOP_ID) is not None)
+
+
+def set_rpm_opener():
+    """Make Zypp Desk open .rpm files, for this user only (xdg-mime writes ~/.config/mimeapps.list)."""
+    p = subprocess.run(["xdg-mime", "default", DESKTOP_ID, RPM_MIME], capture_output=True, text=True, timeout=60,
+                       stdin=subprocess.DEVNULL)
+    if p.returncode != 0:
+        raise RuntimeError((p.stderr or p.stdout).strip() or _("xdg-mime ended with exit code {code}.").format(
+            code=p.returncode))
+    return rpm_opener()
+
+
+class RpmFilesCard(Card):
+    """Which program opens an .rpm file you double-click (Ark, until you choose Zypp Desk here)."""
+
+    def __init__(self, parent=None):
+        super().__init__(_(".rpm files"), parent)
+        self.state = muted(_("Looking which program opens them…"), self)
+        self.state.setTextFormat(Qt.TextFormat.PlainText)  # a program's name comes from its menu entry
+        self.lay.addWidget(self.state)
+        row = QHBoxLayout()
+        self.btn = button(_("Open .rpm files with Zypp Desk"), "document-open", self._set, parent=self)
+        self.btn.setEnabled(False)
+        row.addWidget(self.btn)
+        row.addStretch(1)
+        self.lay.addLayout(row)
+        self.cmd = QLabel(f"xdg-mime default {DESKTOP_ID} {RPM_MIME}", self)
+        self.cmd.setFont(mono())
+        self.cmd.setWordWrap(True)
+        self.cmd.setTextFormat(Qt.TextFormat.PlainText)
+        self.cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.cmd.setStyleSheet("color: palette(placeholder-text);")
+        self.lay.addWidget(self.cmd)
+
+    def reload(self):
+        run_async(rpm_opener, on_done=self._shown)
+
+    def _set(self):
+        self.btn.setEnabled(False)
+        run_async(set_rpm_opener, on_done=self._done)
+
+    def _done(self, st, err):
+        if err is not None:
+            error_box(self, _(".rpm files"), _("The default could not be changed: {error}").format(error=err))
+            self.reload()
+            return
+        self._shown(st, None)
+
+    def _shown(self, st, err):
+        if err is not None or st is None:
+            self.state.setText(_("Could not find out which program opens them: {error}").format(error=err))
+            self.btn.setEnabled(False)
+            return
+        if not st["available"]:
+            self.state.setText(_("xdg-mime (the xdg-utils package) is not installed, so the program that opens "
+                                 "them cannot be chosen from here."))
+            self.btn.setEnabled(False)
+            return
+        if st["current"] == DESKTOP_ID:
+            text = _("A double click on an .rpm file opens it with Zypp Desk: it shows what is inside and can "
+                     "install it.")
+        elif st["current"]:
+            text = _("A double click on an .rpm file opens it with {program}. With Zypp Desk, you see what is "
+                     "inside, who signed it, and you can install it.").format(program=st["name"])
+        else:
+            text = _("No program is chosen to open .rpm files. With Zypp Desk, you see what is inside, who signed "
+                     "it, and you can install it.")
+        if not st["ours"]:
+            text += "\n" + _("Zypp Desk's menu entry is not installed (install.sh or the zypp-desk package adds it), "
+                             "so it cannot be chosen yet.")
+        self.state.setText(text)
+        self.btn.setEnabled(st["ours"] and st["current"] != DESKTOP_ID)
+
+
 class SettingsPage(Page):
     key = "settings"
     title = _("Settings")
     icon_name = "configure"
+    COLUMN = 800  # one width for every card (mockup funcions-v1-09), short lines
 
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         s = ctx.settings
-        lay = QVBoxLayout(self)
-        c1 = Card(_("When applying the queue"), self)
-        self.no_rec = QCheckBox(_("Do not install recommended packages (--no-recommends)"), self)
+        column = QWidget(self)
+        column.setMaximumWidth(self.COLUMN)
+        col = QVBoxLayout(column)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(10)
+
+        # ------------------------------------------------ the band: when applying the queue
+        band = Card(None, column)
+        band.lay.setContentsMargins(16, 10, 16, 10)
+        band.lay.setSpacing(4)
+        from ..tray import FlowLayout
+        flow = FlowLayout(spacing=14)
+        self.no_rec = QCheckBox(_("Without recommended packages"), band)
         self.no_rec.setChecked(s["apply_no_recommends"])
-        self.lic = QCheckBox(_("Accept licenses without asking (--auto-agree-with-licenses)"), self)
+        self.no_rec.setToolTip(_("Recommended packages add optional parts (plugins, codecs, translations). "
+                                 "Ticked, the queue installs only what is needed: --no-recommends."))
+        self.lic = QCheckBox(_("Accept licenses without asking"), band)
         self.lic.setChecked(s["apply_accept_licenses"])
-        c1.lay.addWidget(self.no_rec)
-        c1.lay.addWidget(self.lic)
-        c1.lay.addWidget(muted(_("Changes are applied without questions (-n), after you have seen the simulation. "
-                                 "If a license must be accepted and this option is off, zypper stops and nothing "
-                                 "is installed.")))
-        lay.addWidget(c1)
-        c2 = Card(_("Terminal"), self)
-        self.fold = QCheckBox(_("Fold a line repeated many times in a row into one"), self)
+        self.lic.setToolTip(_("Changes are applied without questions (-n), after you have seen the simulation. "
+                              "If a license must be accepted and this option is off, zypper stops and nothing "
+                              "is installed."))
+        title = heading(_("When applying the queue"), 1.0, band)
+        title.setMinimumHeight(self.no_rec.sizeHint().height())
+        title.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        for w in (title, self.no_rec, self.lic):
+            flow.addWidget(w)
+        band.lay.addLayout(flow)
+        bottom = QHBoxLayout()
+        self.band_cmd = QLabel(band)  # the exact options the queue adds
+        self.band_cmd.setFont(mono())
+        self.band_cmd.setWordWrap(True)
+        self.band_cmd.setTextFormat(Qt.TextFormat.PlainText)
+        self.band_cmd.setStyleSheet("color: palette(placeholder-text);")
+        bottom.addWidget(self.band_cmd, 1)
+        jump = QLabel(band)  # the other cards are further down (mockup: "Terminal · Notifications ▸")
+        jump.setTextFormat(Qt.TextFormat.RichText)
+        jump.setText(" · ".join(f'<a href="{key}">{html.escape(text)}</a>' for key, text in
+                                (("notify", _("Notifications")), ("terminal", _("Terminal")))) + " ▸")
+        jump.linkActivated.connect(self._jump)
+        bottom.addWidget(jump, 0, Qt.AlignmentFlag.AlignBottom)
+        band.lay.addLayout(bottom)
+        col.addWidget(band)
+
+        # ------------------------------------------------ the cards
+        from .zyppconf import ZyppConfCard
+        self.zconf = ZyppConfCard(ctx, column)
+        col.addWidget(self.zconf)
+        from .notifysettings import NotifyCard
+        self.notify = NotifyCard(ctx, column)
+        col.addWidget(self.notify)
+        self.terminal_card = c2 = Card(_("Terminal"), column)
+        self.fold = QCheckBox(_("Fold a line repeated many times in a row into one"), c2)
         self.fold.setChecked(s["fold_repeated_lines"])
-        self.after = QCheckBox(_("After the routine, check what must be restarted (zypper ps)"), self)
+        self.after = QCheckBox(_("After the routine, check what must be restarted (zypper ps)"), c2)
         self.after.setChecked(s["after_routine_check_restart"])
         c2.lay.addWidget(self.fold)
         c2.lay.addWidget(self.after)
-        lay.addWidget(c2)
-        from .notifysettings import NotifyCard
-        self.notify = NotifyCard(ctx, self)
-        lay.addWidget(self.notify)
-        from .zyppconf import ZyppConfCard
-        self.zconf = ZyppConfCard(ctx, self)
-        lay.addWidget(self.zconf, 0, Qt.AlignmentFlag.AlignLeft)
-        lay.addStretch(1)
+        col.addWidget(c2)
+        self.rpm = RpmFilesCard(column)
+        col.addWidget(self.rpm)
+        col.addStretch(1)
+
+        lay = QHBoxLayout(self)
+        lay.addWidget(column, 1)
+        lay.addStretch(0)
         for cb, key in ((self.no_rec, "apply_no_recommends"), (self.lic, "apply_accept_licenses"),
                         (self.fold, "fold_repeated_lines"), (self.after, "after_routine_check_restart")):
             cb.toggled.connect(lambda on, k=key: self._set(k, on))
+        self._show_band_cmd()
 
     def reload(self):
         self.notify.reload()
         self.zconf.reload()
+        self.rpm.reload()
+
+    def _show_band_cmd(self):
+        opts = (["--no-recommends"] if self.no_rec.isChecked() else []) + \
+               (["--auto-agree-with-licenses"] if self.lic.isChecked() else [])
+        self.band_cmd.setText(" ".join(["zypper", "-n", "install", *opts, "--", "…"]))
+
+    def _jump(self, key):
+        """Scroll the page so that the card is at the top (the band's links)."""
+        target = {"notify": self.notify, "terminal": self.terminal_card}.get(key)
+        sa = self.parentWidget()
+        while sa is not None and not isinstance(sa, QScrollArea):
+            sa = sa.parentWidget()
+        if target is None or sa is None or sa.widget() is None:
+            return
+        sa.verticalScrollBar().setValue(target.mapTo(sa.widget(), QPoint(0, 0)).y() - 8)
 
     def _set(self, key, value):
         self.ctx.settings[key] = value
         self.ctx.settings.save()
+        if key in ("apply_no_recommends", "apply_accept_licenses"):
+            self._show_band_cmd()
         if key == "fold_repeated_lines":
             self.ctx.terminal.view.fold = value

@@ -13,10 +13,8 @@ DEFAULTS = {
     "fold_repeated_lines": True,
     "apply_no_recommends": False,
     "apply_accept_licenses": False,
-    "dup_allow_vendor_change": False,
     "dup_no_recommends": False,
     "dup_allow_downgrade": True,
-    "dup_from_repo": "",
     "after_routine_check_restart": True,
     "web_folder": "",
     # the tray icon (tray.py) and its notifications

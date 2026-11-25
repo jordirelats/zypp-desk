@@ -9,6 +9,7 @@ zypper) run as the user.
 
 import codecs
 import os
+import re
 import shlex
 
 from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Signal
@@ -61,6 +62,21 @@ def rpm_major():
 
 def helper_path():
     return next((p for p in HELPER_PATHS if os.path.exists(p)), None)
+
+
+def helper_version(path=None):
+    """The version written in the installed helper (its line VERSION = "x.y.z"), or None when it has none
+    (helpers older than 0.4.1) or cannot be read. The file is readable by everyone."""
+    path = path or helper_path()
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read(256 * 1024)
+    except OSError:
+        return None
+    m = re.search(r"""^VERSION\s*=\s*["']([^"'\s]+)["']""", text, re.MULTILINE)
+    return m.group(1) if m else None
 
 
 def zypper_subcommand(args):
@@ -144,6 +160,8 @@ class Runner(QObject):
         self.index = -1
         self.last_ok = True
         self.stop_requested = False
+        self._user_stop = False
+        self.stopped = False  # after a run: you asked to stop, and some steps did not run
         self._decoder = None
 
     @property
@@ -157,11 +175,16 @@ class Runner(QObject):
         self.index = -1
         self.last_ok = True
         self.stop_requested = False
+        self._user_stop = False
+        self.stopped = False
         self._next()
         return True
 
     def stop_after_current(self):
+        """"Stop after this step": the step that runs now ends, the next ones do not run, and the run does not
+        count as finished well."""
         self.stop_requested = True
+        self._user_stop = True
 
     def _next(self):
         self.index += 1
@@ -169,6 +192,9 @@ class Runner(QObject):
             st = self.steps[self.index]
             if self.stop_requested:
                 st.state = "skipped"
+                if self._user_stop:
+                    self.stopped = True
+                    self.note.emit(_("Not run (stopped): {cmd}").format(cmd=st.display()), "info")
             elif st.cond == "success" and not self.last_ok:
                 st.state = "skipped"
                 self.note.emit(_("Skipped (the previous step failed): {cmd}").format(cmd=st.display()), "info")
@@ -178,7 +204,7 @@ class Runner(QObject):
             self.step_finished.emit(self.index, -1)
             self.index += 1
         ok = all(s.state in ("done", "skipped") for s in self.steps) and any(s.state == "done" for s in self.steps)
-        ok = ok and not any(s.state == "failed" for s in self.steps)
+        ok = ok and not any(s.state == "failed" for s in self.steps) and not self.stopped
         self.finished.emit(ok)
 
     def _start(self, st):
@@ -251,8 +277,8 @@ class Runner(QObject):
         st.code = code
         if st.program == "zypper" and not st.strict:
             ok = code in SUCCESS
-        elif st.program == "fwupdmgr" and not st.strict:
-            ok = code in (0, 2)  # 2: nothing to do (already up to date)
+        elif st.program == "fwupdmgr":
+            ok = code in (0, 2)  # 2: nothing to do (no new firmware); also in a routine, where '&&' wants 0
         else:
             ok = code == 0
         if st.root and code in PKEXEC_CANCELLED:
@@ -263,7 +289,8 @@ class Runner(QObject):
         self.last_ok = ok
         if not ok and code not in PKEXEC_CANCELLED:
             if st.program == "zypper":
-                self.note.emit(_("Exit code {code}: {meaning}").format(code=code, meaning=exit_meaning(code)), "error")
+                self.note.emit(_("Exit code {code}: {meaning}").format(
+                    code=code, meaning=exit_meaning(code, zypper_subcommand(st.args))), "error")
             else:  # the meanings above are zypper's; other programs (rpm-import, flatpak) print their own reason
                 self.note.emit(_("The command ended with exit code {code}.").format(code=code), "error")
         self.proc.deleteLater()
@@ -272,7 +299,25 @@ class Runner(QObject):
         self._next()
 
 
-def exit_meaning(code):
+# zypper subcommands by what they work on: some exit codes mean something else for each group
+_REFRESH = {"refresh", "ref", "refresh-services", "refs"}
+_REPOS = {"addrepo", "ar", "removerepo", "rr", "renamerepo", "nr", "modifyrepo", "mr", "addservice", "as",
+          "modifyservice", "ms", "removeservice", "rs"}
+_LOCKS = {"addlock", "al", "removelock", "rl", "cleanlocks", "cl"}
+_PACKAGES = {"install", "in", "remove", "rm", "source-install", "si", "download", "source-download"}
+
+
+def exit_meaning(code, sub=""):
+    """What zypper's exit code means, for the subcommand that ended with it (see 'man zypper', EXIT CODES)."""
+    if code == 4 and sub in _REFRESH:
+        return _("a repository could not be refreshed: it does not answer, or what it sent could not be read "
+                 "or checked")
+    if code == 4 and sub in _REPOS:
+        return _("the repositories could not be changed: zypper's message above says why")
+    if code == 4 and sub in _LOCKS:
+        return _("the locks could not be changed: zypper's message above says why")
+    if code == 104 and sub in _PACKAGES:
+        return _("a package that was asked for was not found")
     meanings = {
         1: _("unexpected error"),
         2: _("wrong syntax"),
@@ -280,7 +325,8 @@ def exit_meaning(code):
         4: _("problem reported by libzypp (dependencies, signatures…)"),
         5: _("root privileges are required"),
         6: _("no repositories are defined"),
-        7: _("the package manager is locked by another program (for example PackageKit)"),
+        7: _("another program is using zypper (perhaps Zypp Desk's own refresh in the background, or zypper in "
+             "a terminal): try again in a moment"),
         8: _("commit error: some packages could not be installed or removed"),
         100: _("updates are available"),
         101: _("security updates are available"),

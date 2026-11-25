@@ -4,10 +4,15 @@
 Description=Refresh the zypper repositories for Zypp Desk regularly
 
 [Timer]
-OnBootSec=10min
-OnUnitActiveSec=6h
-RandomizedDelaySec=15min
+# By the wall clock, at 0, 6, 12 and 18 h: a laptop that sleeps a lot still refreshes four times a day. A time
+# missed while the computer was asleep runs right after it wakes up; one missed while it was off, at the next
+# start (Persistent). The monotonic clock (OnUnitActiveSec) stops while the computer sleeps, so it is not used.
+OnCalendar=*-*-* 00/6:00:00
 Persistent=true
+# and once a little after every start
+OnBootSec=10min
+# not every computer at the same minute (the mirrors), and not right as the desktop starts
+RandomizedDelaySec=15min
 
 [Install]
 WantedBy=timers.target

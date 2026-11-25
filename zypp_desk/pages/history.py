@@ -38,11 +38,22 @@ CHANGES_ORDER = ("update", "install", "remove", "downgrade", "reinstall", "radd"
 
 
 # ------------------------------------------------------------------ words
-def group_label(kind):
-    return {"update": _("Updated"), "install": _("Installed"), "remove": _("Removed"),
-            "downgrade": _("Back to an older version"), "reinstall": _("Installed again"),
-            "radd": _("Repositories added"), "rremove": _("Repositories removed"), "ralias": _("Repositories renamed"),
-            "rurl": _("Repository addresses changed"), "rprio": _("Repository priorities changed")}.get(kind, kind)
+def group_label(kind, n):
+    """The title of a group in the list of changes of the card, with how many: 'Updated (212)'. Its own
+    words (a plural here: in Catalan 'Actualitzats', not the 'Actualitzat' of a single package elsewhere)."""
+    texts = {
+        "update": ngettext("Updated ({n})", "Updated ({n})", n),
+        "install": ngettext("Installed ({n})", "Installed ({n})", n),
+        "remove": ngettext("Removed ({n})", "Removed ({n})", n),
+        "downgrade": ngettext("Back to an older version ({n})", "Back to an older version ({n})", n),
+        "reinstall": ngettext("Installed again ({n})", "Installed again ({n})", n),
+        "radd": ngettext("Repository added ({n})", "Repositories added ({n})", n),
+        "rremove": ngettext("Repository removed ({n})", "Repositories removed ({n})", n),
+        "ralias": ngettext("Repository renamed ({n})", "Repositories renamed ({n})", n),
+        "rurl": ngettext("Repository address changed ({n})", "Repository addresses changed ({n})", n),
+        "rprio": ngettext("Repository priority changed ({n})", "Repository priorities changed ({n})", n),
+    }
+    return texts[kind].format(n=n) if kind in texts else f"{kind} ({n})"
 
 
 def join_names(names):
@@ -94,13 +105,14 @@ def describe(tx):
     installs = [c.name for c in tx.changes if c.kind == "install"]
     removes = [c.name for c in tx.changes if c.kind == "remove"]
 
+    # what happened, not a command (the same words as "Install {name}" of the queue would read as a button)
     def install_title(names):
-        return _name_title(_("Install {name}"), lambda n: ngettext("Install {name} and {n} more",
-                                                                   "Install {name} and {n} more", n), names)
+        return _name_title(_("Installed {name}"), lambda n: ngettext("Installed {name} and {n} more",
+                                                                     "Installed {name} and {n} more", n), names)
 
     def remove_title(names):
-        return _name_title(_("Remove {name}"), lambda n: ngettext("Remove {name} and {n} more",
-                                                                  "Remove {name} and {n} more", n), names)
+        return _name_title(_("Removed {name}"), lambda n: ngettext("Removed {name} and {n} more",
+                                                                   "Removed {name} and {n} more", n), names)
 
     if tx.via == "zypp-desk" and sub in ("install", "remove"):
         title, kind = _("Applied with Zypp Desk"), "zypp-desk"
@@ -121,7 +133,7 @@ def describe(tx):
     elif sub in ("modifyrepo", "renamerepo"):
         title, kind = _("Repository changed"), "repo"
     elif sub == "refresh":
-        title, kind = _("Refresh"), "repo"
+        title, kind = _("Repositories refreshed"), "repo"
     elif sub == "verify":
         title, kind = _("Dependencies fixed (verify)"), "update"
     elif sub == "inr":
@@ -543,7 +555,7 @@ class TxCard(QWidget):
                 continue
             parent = t
             if several:
-                g = QTreeWidgetItem(t, [f"{group_label(kind)} ({len(items)})", ""])
+                g = QTreeWidgetItem(t, [group_label(kind, len(items)), ""])
                 g.setFirstColumnSpanned(True)
                 g.setFont(0, bold)
                 g.setForeground(0, t.palette().placeholderText())
@@ -963,15 +975,38 @@ class HistoryPage(Page):
             return
         FilesDialog(self, pre, post, snapper.parse_status(st.output)).exec()
 
-    def undo_dialog(self, tx):
+    def undo_dialog(self, tx, folders=None, outside=None):
+        """folders: what the snapshots of / do not hold (snapper.outside_root()); outside: {package: [folders]}
+        of this change's programs with files there (snapper.outside_snapshots)."""
         pre, post = tx.pre, tx.post
         title, line, _kind = self.desc[self.txs.index(tx)]
+        folders = snapper.outside_root() if folders is None else folders
+        outside = outside or {}
+        paragraphs = [_("snapper puts the system files back as they were before this change, in snapshot #{pre}. "
+                        "The programs of this change go back to their old versions; other changes made later to "
+                        "the same files are lost.").format(pre=pre)]
+        not_home = [f for f in folders if f != "/home"]
+        if not_home:
+            paragraphs.append(ngettext(
+                "Not everything goes back: {folders} is not in the snapshots, so what this change wrote there "
+                "stays as it is now.",
+                "Not everything goes back: {folders} are not in the snapshots, so what this change wrote there "
+                "stays as it is now.", len(not_home)).format(folders=join_names(not_home)))
+        if outside:
+            names = list(outside)
+            shown = ", ".join(f"{n} ({', '.join(outside[n])})" for n in names[:10])
+            if len(names) > 10:
+                shown += " " + ngettext("and {n} more", "and {n} more", len(names) - 10).format(n=len(names) - 10)
+            paragraphs.append(ngettext(
+                "This program of the change is installed there, so it keeps its new files while rpm will say "
+                "that the old version is installed: {list}. Reinstall it afterwards, so that its files match.",
+                "These programs of the change are installed there, so they keep their new files while rpm will "
+                "say that the old versions are installed: {list}. Reinstall them afterwards, so that their files "
+                "match.", len(names)).format(list=shown))
+        paragraphs.append(_("Your own files in /home are not touched. Restarting the computer afterwards is "
+                            "recommended."))
         return ConfirmDialog(
-            self, _("Undo this change"), _("Undo “{title}”?").format(title=title),
-            [_("snapper puts the system files back as they were before this change, in snapshot #{pre}. The "
-               "programs of this change go back to their old versions; other changes made later to the same files "
-               "are lost.").format(pre=pre),
-             _("Your own files in /home are not touched. Restarting the computer afterwards is recommended.")],
+            self, _("Undo this change"), _("Undo “{title}”?").format(title=title), paragraphs,
             Step("snapper-undo", [str(pre), str(post)]).display(), _("Undo the change"), ORANGE_BUTTON,
             subtitle=f"{when_text(tx.start)} · {line}")
 
@@ -979,7 +1014,18 @@ class HistoryPage(Page):
         tx = self.card.tx
         if not tx or not (tx.pre and tx.post):
             return
-        if self.undo_dialog(tx).exec() != QDialog.DialogCode.Accepted:
+        # first, as the user: which programs of this change live in folders the snapshots do not hold (rpm -q)
+        names = sorted({c.name for c in tx.changes if c.kind != "remove"})
+        was = self.card.b_undo.isEnabled()
+        self.card.b_undo.setEnabled(False)
+        run_async(snapper.outside_snapshots, names, on_done=lambda res, err: self._undo_ask(tx, was, res, err))
+
+    def _undo_ask(self, tx, was, res, err):
+        if tx is not self.card.tx:
+            return  # another change was chosen meanwhile (and its card set the button)
+        self.card.b_undo.setEnabled(was)
+        folders, outside = res if err is None and res else (None, {})
+        if self.undo_dialog(tx, folders, outside).exec() != QDialog.DialogCode.Accepted:
             return
         pre, post = tx.pre, tx.post
         st = Step("snapper-undo", [str(pre), str(post)])

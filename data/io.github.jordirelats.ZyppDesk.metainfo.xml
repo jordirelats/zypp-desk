@@ -39,6 +39,14 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
+    <release version="0.4.1" date="2026-11-26">
+      <description>
+        <p>Fixes from a review from six points of view: safer solutions to dependency problems and dup window,
+          one transaction for removals and installs, key imports that cannot hide a second key, a refresh timer
+          that works on a laptop that suspends, repository address changes that never lose the repository, and
+          many interface and translation fixes.</p>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-11-25">
       <description>
         <p>A tray icon that tells you about updates, firmware updates through fwupd, the history with

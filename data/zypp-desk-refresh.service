@@ -13,8 +13,9 @@ Type=oneshot
 ExecStart=@REFRESH@
 Nice=10
 IOSchedulingClass=idle
-# a slow download ahead must not run for ever; the next run goes on where it stopped
-TimeoutStartSec=2h
+# the whole run: waiting for the network (1 min), the refresh, the download ahead (stopped after 30 min by the
+# script itself: the next run goes on where it stopped) and fwupd
+TimeoutStartSec=1h
 # fwupdmgr keeps what it downloads here ($CACHE_DIRECTORY)
 CacheDirectory=zypp-desk-refresh
 

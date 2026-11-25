@@ -21,8 +21,8 @@ from ..ui import Card, Page, button, error_box, heading, hline, mono, muted, pla
 GREY = "#7f8c8d"
 AMBER = "#f39c12"
 ROW_ROLE = Qt.ItemDataRole.UserRole
-MARKS = {"queued": ("new", BLUE), "repos": ("ok", GREEN), "packages": ("warn", AMBER), "opensuse": ("ok", GREEN),
-         "unused": ("bad", RED)}
+MARKS = {"queued": ("new", BLUE), "repos": ("ok", GREEN), "packages": ("warn", AMBER), "vendor": ("ok", BLUE),
+         "opensuse": ("ok", GREEN), "unused": ("bad", RED)}
 
 DANGER_CSS = (f"QPushButton {{ background: {RED}; color: white; border: 1px solid #b83845; border-radius: 7px;"
               " padding: 7px 16px; font-weight: 600; }"
@@ -42,6 +42,8 @@ def group_titles(unknown_packages=False):
         "queued": _("Will be imported"),
         "repos": _("Used by your repositories"),
         "packages": _("Sign packages you have installed"),
+        # keys nothing uses yet, but a vendor's package keeps them, or they look like a vendor's next key
+        "vendor": _("Probably needed by a vendor"),
         "opensuse": _("Shipped by openSUSE"),
         # when rpm could not tell which packages each key signed, only the repositories are sure
         "unused": _("Used by no repository") if unknown_packages else _("Used by nobody"),
@@ -339,8 +341,20 @@ class KeyDetails(QWidget):
         self.note.show()
 
     def _delete(self):
-        if self.key:
-            self.page.queue_delete([self.key])
+        k = self.key
+        if not k:
+            return
+        if k.get("group") == "vendor":  # probably still needed: only after a clear question
+            box = QMessageBox(QMessageBox.Icon.Warning, _("Delete the signing key"),
+                              _("This key is probably still needed by a vendor."),
+                              QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
+            box.setInformativeText(self.page.delete_meaning(k)[0] + "\n\n" + _("Delete it anyway?"))
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            answer = plain(box).exec()
+            box.deleteLater()
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self.page.queue_delete([k])
 
     def _keep(self):
         k = self.key
@@ -450,6 +464,9 @@ class KeysPage(Page):
         elif k["group"] == "packages":
             n = k["packages"]
             out.append((ngettext("{n} package", "{n} packages", n).format(n=n), PURPLE))
+        elif k["group"] == "vendor":
+            kind, what = k["vendor"]
+            out.append((what, GREY) if kind == "package" else (_("next key"), BLUE))
         if k.get("shipped"):
             out.append((_("kept"), GREY))
         return out
@@ -476,6 +493,25 @@ class KeysPage(Page):
                             "Deleting it removes no program, but rpm can no longer check the {n} packages it "
                             "signed, and new versions signed with this key will be refused until you import it "
                             "again.", n).format(n=n), "orange"
+        vendor = k.get("vendor")
+        if vendor and vendor[0] == "package":
+            return _("The package {package} keeps this key with its other keys, and imports it again each time it "
+                     "is updated. Deleting it removes no program, but it would come back.").format(
+                package=vendor[1]), "orange"
+        if vendor:
+            twin = vendor[1]
+            names = ", ".join(name for _a, name, _e in twin.get("repos") or [])
+            if names:
+                return ngettext("It has the same owner as the key {keyid}, which {names} uses now, and it is newer: "
+                                "vendors publish their next key before they switch to it. If you delete it, {names} "
+                                "will stop updating when they switch, until you import it again.",
+                                "It has the same owner as the key {keyid}, which {names} use now, and it is newer: "
+                                "vendors publish their next key before they switch to it. If you delete it, {names} "
+                                "will stop updating when they switch, until you import it again.",
+                                len(twin["repos"])).format(keyid=twin.get("keyid", ""), names=names), "orange"
+            return _("It has the same owner as the key {keyid}, which signed packages you have, and it is newer: "
+                     "vendors publish their next key before they switch to it. If you delete it, their next versions "
+                     "will be refused until you import it again.").format(keyid=twin.get("keyid", "")), "orange"
         text = _("Deleting it removes no program. If you ever add this repository again, zypper will ask you for "
                  "it again.")
         if n is None:
@@ -585,7 +621,9 @@ class KeysPage(Page):
                                                              "changes until you apply it."))
         box.setDetailedText("\n".join(lines))
         box.setDefaultButton(QMessageBox.StandardButton.No)
-        if plain(box).exec() == QMessageBox.StandardButton.Yes:
+        answer = plain(box).exec()
+        box.deleteLater()
+        if answer == QMessageBox.StandardButton.Yes:
             self.queue_delete(keys)
 
     def import_key(self):
@@ -734,8 +772,8 @@ class ImportKeyDialog(QDialog):
         ch.addWidget(self.cmp_mark)
         lay.addLayout(ch)
 
-        warn = plain_label(_("A key lets rpm install as root anything it signs. Import only keys of sites you "
-                             "trust."), self)
+        warn = plain_label(_("A key lets rpm install as root anything signed with it. Import only keys of sites "
+                             "you trust."), self)
         warn.setStyleSheet(NOTE_CSS["orange"])
         lay.addWidget(warn)
         lay.addWidget(hline())
@@ -846,7 +884,12 @@ class ImportKeyDialog(QDialog):
         k = found[0]
         if mode == "fpr" and k["fpr"] != keyring.normalize_fpr(value):
             raise ValueError(_("The key server sent a different key: it was not used."))
+        # what is shown and compared is the copy that goes to the queue (gpg's own copy of that key, and only it)
         res["data"] = keyring.armored(data, k["fpr"])
+        res["keys"] = found = keyring.inspect_key(res["data"])
+        if len(found) != 1 or found[0]["fpr"] != k["fpr"]:
+            raise ValueError(_("The key could not be read."))
+        k = found[0]
         res["installed"] = keyring.installed_keys().get(k["fpr"])
         try:
             res["files"] = keyring.local_files_signed_by(k["ids"] | k["fprs"], keyring.web_folders(settings))

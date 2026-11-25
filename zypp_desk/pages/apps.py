@@ -12,9 +12,9 @@ import html
 import re
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QRect, QSize, Qt, QTimer
+from PySide6.QtCore import QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPalette
-from PySide6.QtWidgets import (QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QLineEdit,
+from PySide6.QtWidgets import (QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                                QListWidget, QListWidgetItem, QScrollArea, QStackedWidget, QStyle,
                                QStyledItemDelegate, QToolButton, QVBoxLayout, QWidget)
 
@@ -23,7 +23,7 @@ from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Chip, Page, button, heading, icon, muted
+from ..ui import Chip, FlowLayout, Page, button, heading, icon, muted
 from .home import Tile
 
 TEAL = "#16a085"
@@ -130,62 +130,6 @@ def repo_label(name):
     if name.startswith("repo-"):
         return "openSUSE · " + name[5:]
     return name
-
-
-class FlowLayout(QLayout):
-    """Widgets in a row that wraps onto the next line when there is no room (the theme chips)."""
-
-    def __init__(self, parent=None, spacing=6):
-        super().__init__(parent)
-        self._items = []
-        self._spacing = spacing
-        self.setContentsMargins(0, 0, 0, 0)
-
-    def addItem(self, item):
-        self._items.append(item)
-
-    def count(self):
-        return len(self._items)
-
-    def itemAt(self, i):
-        return self._items[i] if 0 <= i < len(self._items) else None
-
-    def takeAt(self, i):
-        return self._items.pop(i) if 0 <= i < len(self._items) else None
-
-    def expandingDirections(self):
-        return Qt.Orientation(0)
-
-    def hasHeightForWidth(self):
-        return True
-
-    def heightForWidth(self, width):
-        return self._arrange(QRect(0, 0, width, 0), apply=False)
-
-    def setGeometry(self, rect):
-        super().setGeometry(rect)
-        self._arrange(rect, apply=True)
-
-    def sizeHint(self):
-        return self.minimumSize()
-
-    def minimumSize(self):
-        size = QSize()
-        for it in self._items:
-            size = size.expandedTo(it.minimumSize())
-        return size
-
-    def _arrange(self, rect, apply):
-        x, y, line = rect.x(), rect.y(), 0
-        for it in self._items:
-            hint = it.sizeHint()
-            if x + hint.width() > rect.right() + 1 and line > 0:
-                x, y, line = rect.x(), y + line + self._spacing, 0
-            if apply:
-                it.setGeometry(QRect(QPoint(x, y), hint))
-            x += hint.width() + self._spacing
-            line = max(line, hint.height())
-        return y + line - rect.y()
 
 
 # ------------------------------------------------------------------ list drawing

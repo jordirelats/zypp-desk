@@ -12,7 +12,7 @@ from PySide6.QtCore import QLocale, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from .. import tray
+from .. import backend, tray
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import GREEN, ORANGE, dot
@@ -21,6 +21,7 @@ from ..ui import Card, ask, error_box, mono, muted
 
 AHEAD_FLAG = Path("/etc/zypp-desk/download-ahead")  # read by zypp-desk-refresh, written by the helper
 TIMER = "zypp-desk-refresh.timer"
+DOWNLOAD_MINUTES = 30  # helper/zypp-desk-refresh stops the download ahead after this (DOWNLOAD_MINUTES there)
 TIMER_COMMANDS = ("zypper --non-interactive --quiet refresh",
                   "zypper --non-interactive --quiet dist-upgrade --download-only --auto-agree-with-licenses",
                   "fwupdmgr refresh --assume-yes")
@@ -87,7 +88,8 @@ def timer_state():
     return dict(installed=d.get("LoadState") == "loaded",
                 enabled=d.get("UnitFileState") in ("enabled", "enabled-runtime", "linked", "linked-runtime"),
                 active=d.get("ActiveState") == "active",
-                last=int(last[1:]) if last.startswith("@") and last[1:].isdigit() and int(last[1:]) > 0 else None)
+                last=int(last[1:]) if last.startswith("@") and last[1:].isdigit() and int(last[1:]) > 0 else None,
+                refreshed=backend.repos_refreshed_at())
 
 
 def _when(ts):
@@ -127,14 +129,13 @@ class NotifyCard(Card):
         self.ctx = ctx
         s = ctx.settings
         self.lay.setSpacing(6)
-        self.setMaximumWidth(600)  # short lines, as in the mockup: the choice next to its words
 
         self.sw_notify, row = self._switch_row(_("Tell me when there are updates"), s.get("notify_enabled", True))
         self.lay.addWidget(row)
 
         every = QWidget(self)
         h = QHBoxLayout(every)
-        h.setContentsMargins(self.sw_notify.sizeHint().width() + 10, 0, 0, 0)
+        h.setContentsMargins(self.sw_notify.minimumWidth() + 10, 0, 0, 0)  # under the words, not the switch
         h.addWidget(QLabel(_("Check every"), every))
         h.addStretch(1)
         self.interval = QComboBox(every)
@@ -163,9 +164,8 @@ class NotifyCard(Card):
         line.setStyleSheet("color: rgba(127, 140, 141, 0.35);")
         self.lay.addSpacing(4)
         self.lay.addWidget(line)
-        self.lay.addWidget(muted(_("To know what is new, the repositories must be refreshed. A system timer does "
-                                   "it as root, without asking for a password. It only refreshes: it never "
-                                   "installs anything by itself."), self))
+        self.about_timer = muted("", self)  # what the timer does (it changes with the download ahead)
+        self.lay.addWidget(self.about_timer)
         state_row = QHBoxLayout()
         state_row.setSpacing(6)
         self.timer_dot = QLabel(self)
@@ -177,6 +177,10 @@ class NotifyCard(Card):
         self.enable_cmd = self._mono("sudo systemctl enable --now " + TIMER)
         self.enable_cmd.hide()
         self.lay.addWidget(self.enable_cmd)
+        # how old the lists are: what the tray counts is only as new as this
+        self.fresh_lbl = muted("", self)
+        self.fresh_lbl.hide()
+        self.lay.addWidget(self.fresh_lbl)
         self.lay.addSpacing(2)
         self.lay.addWidget(muted(_("What the timer runs:"), self))
         self.cmd = self._mono("")
@@ -264,8 +268,11 @@ class NotifyCard(Card):
             title = _("Download the updates ahead?")
             text = _("The system timer will also download the packages of the next upgrade, without installing "
                      "them. They wait in zypper's cache (/var/cache/zypp/packages) until “Run the routine” "
-                     "installs them: a big upgrade can take a few gigabytes. On a metered connection (a phone "
-                     "hotspot) nothing is downloaded ahead.\n\nIt asks for the administrator password once.")
+                     "installs them: a big upgrade can take a few gigabytes.\n\n"
+                     "It only downloads when the computer is plugged in and the connection is not metered (a "
+                     "phone hotspot). While it downloads, the computer does not go to sleep, also when you close "
+                     "the lid: for {minutes} minutes at most, then it goes on at the next run.\n\n"
+                     "It asks for the administrator password once.").format(minutes=DOWNLOAD_MINUTES)
         else:
             title = _("Stop downloading the updates ahead?")
             text = _("What was already downloaded stays until the next upgrade uses it.\n\nIt asks for the "
@@ -284,14 +291,25 @@ class NotifyCard(Card):
 
     # ------------------------------------------------ the timer
     def _show_commands(self):
+        ahead = AHEAD_FLAG.exists()
         cmds = [TIMER_COMMANDS[0]]
-        if AHEAD_FLAG.exists():
+        if ahead:
             cmds.append(TIMER_COMMANDS[1])
         cmds.append(TIMER_COMMANDS[2])
         self.cmd.setText("\n".join(cmds))
+        if ahead:
+            self.about_timer.setText(_("To know what is new, the repositories must be refreshed. A system timer "
+                                       "does it as root, without asking for a password. It also downloads the "
+                                       "packages of the next upgrade, when the computer is plugged in. It never "
+                                       "installs anything by itself."))
+        else:
+            self.about_timer.setText(_("To know what is new, the repositories must be refreshed. A system timer "
+                                       "does it as root, without asking for a password. It only refreshes: it "
+                                       "never installs anything by itself."))
 
     def _timer_read(self, st, err):
         self.enable_cmd.hide()
+        self.fresh_lbl.hide()
         if err is not None or st is None:
             self.timer_lbl.hide()
             self.timer_dot.hide()
@@ -300,19 +318,37 @@ class NotifyCard(Card):
             color = ORANGE
             text = _("The timer is not installed on this computer yet: install.sh (or the zypp-desk package) "
                      "sets it up.")
-        elif st["enabled"] or st["active"]:
+        elif st["active"] and st["enabled"]:
             color = GREEN
             text = _("The timer is on.")
             if st["last"]:
                 text += " " + _("It last ran {when}.").format(when=_when(st["last"]))
+        elif st["active"]:  # started by hand, but it will not start again with the computer
+            color = ORANGE
+            text = _("The timer runs now, but it will not start again with the computer. To keep it on, run "
+                     "this in a terminal:")
+            self.enable_cmd.setText("sudo systemctl enable --now " + TIMER)
+            self.enable_cmd.show()
+        elif st["enabled"]:  # turned on (a new package) but not started yet: nothing is refreshed until a restart
+            color = ORANGE
+            text = _("The timer is turned on, but it has not started yet: it will at the next start of the "
+                     "computer. To start it now, run this in a terminal:")
+            self.enable_cmd.setText("sudo systemctl start " + TIMER)
+            self.enable_cmd.show()
         else:
             color = ORANGE
             text = _("The timer is installed but turned off. To turn it on, run this in a terminal:")
+            self.enable_cmd.setText("sudo systemctl enable --now " + TIMER)
             self.enable_cmd.show()
         self.timer_dot.setPixmap(dot(color).pixmap(16, 16))
         self.timer_dot.show()
         self.timer_lbl.setText(text)
         self.timer_lbl.show()
+        fresh, stale = tray.refreshed_text(st.get("refreshed"))
+        if fresh:
+            self.fresh_lbl.setText(fresh)
+            self.fresh_lbl.setStyleSheet(f"color: {ORANGE};" if stale else "color: palette(placeholder-text);")
+            self.fresh_lbl.show()
 
 
 __all__ = ["NotifyCard", "Switch", "ensure_tray", "timer_state"]

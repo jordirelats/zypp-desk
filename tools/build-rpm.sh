@@ -11,7 +11,6 @@ VERSION=$(sed -n 's/^Version: *//p' packaging/zypp-desk.spec)
 TOP="$PWD/build/rpmbuild"
 mkdir -p "$TOP/SOURCES" "$TOP/SPECS"
 git archive --format=tar.gz --prefix="zypp-desk-$VERSION/" -o "$TOP/SOURCES/zypp-desk-$VERSION.tar.gz" HEAD
-cp packaging/zypp-desk-rpmlintrc "$TOP/SOURCES/"
 cp packaging/zypp-desk.spec "$TOP/SPECS/"
 rpmbuild --define "_topdir $TOP" -ba "$TOP/SPECS/zypp-desk.spec"
 ls -la "$TOP/RPMS/noarch/"

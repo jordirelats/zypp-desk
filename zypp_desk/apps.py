@@ -130,22 +130,21 @@ def _installed_repos(repo_names):
 
     A package whose installed version no repository carries any more shows as "(System Packages)": on
     Tumbleweed that happens to every package between refreshing a new snapshot and running dup. Those
-    take the repository that carries another version of them, if there is one."""
-    root, _code = backend.xml(["search", "--installed-only", "--details", "-t", "package"])
-    out = {}
+    take the repository that carries another version of them, if there is one.
+
+    One 'zypper search --details' of every package (a few seconds), matched here: asking zypper about the
+    packages without a repository by name took minutes."""
+    root, _code = backend.xml(["search", "--details", "-t", "package"])
+    out, elsewhere = {}, {}
     for s in root.iter("solvable"):
+        name, repo = s.get("name"), s.get("repository", "")
         if s.get("status") == "installed":
-            out.setdefault(s.get("name"), s.get("repository", ""))
-    orphans = sorted(n for n, r in out.items() if r not in repo_names)
-    for i in range(0, len(orphans), 200):
-        try:
-            root, _code = backend.xml(["search", "--details", "--match-exact", "-t", "package", "--", *orphans[i:i + 200]])
-        except backend.ZypperError:
-            continue
-        for s in root.iter("solvable"):
-            name, repo = s.get("name"), s.get("repository", "")
-            if name in out and out[name] not in repo_names and repo in repo_names:
-                out[name] = repo
+            out.setdefault(name, repo)
+        elif repo in repo_names:
+            elsewhere.setdefault(name, repo)
+    for name, repo in out.items():
+        if repo not in repo_names and name in elsewhere:
+            out[name] = elsewhere[name]
     return out
 
 

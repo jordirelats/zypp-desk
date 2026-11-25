@@ -2,7 +2,7 @@
 """Home: a friendly start. A big search field and tiles that say what there is to do."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
 
 from .. import backend, flatpak, websources
 from ..i18n import _, ngettext
@@ -36,11 +36,13 @@ class Tile(QFrame):
         f = self.title.font()
         f.setBold(True)
         self.title.setFont(f)
+        self.title.setWordWrap(True)  # long words in German and French: the tile wraps, the window stays
         self.big = QLabel("…", self)
         fb = self.big.font()
         fb.setPointSizeF(fb.pointSizeF() * 1.45)
         fb.setBold(True)
         self.big.setFont(fb)
+        self.big.setWordWrap(True)
         self.big.setStyleSheet(f"color: {color};")
         self.small = muted("", self)
         v.addWidget(self.title)
@@ -80,8 +82,9 @@ class HomePage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(28, 22, 28, 18)
-        lay.setSpacing(14)
+        # room enough for a 1100×700 window with the terminal open
+        lay.setContentsMargins(22, 16, 22, 12)
+        lay.setSpacing(12)
         hello = heading(_("Hello! What would you like to do?"), 1.7)
         lay.addWidget(hello)
         self.product = muted("", self)
@@ -101,7 +104,7 @@ class HomePage(Page):
         lay.addLayout(srow)
 
         grid = QGridLayout()
-        grid.setSpacing(14)
+        grid.setSpacing(12)
         self.t_updates = Tile("system-software-update", _("System updates"), GREEN)
         self.t_updates.clicked.connect(lambda: ctx.go("updates"))
         run = button(_("Run my routine"), "media-playback-start",
@@ -134,7 +137,9 @@ class HomePage(Page):
             from .findrepo import FindRepoDialog
         except ImportError:
             return
-        FindRepoDialog(self.ctx, term=self.search.text().strip(), parent=self).exec()
+        dlg = FindRepoDialog(self.ctx, term=self.search.text().strip(), parent=self)
+        dlg.exec()
+        dlg.deleteLater()
 
     def _search(self):
         text = self.search.text().strip()
@@ -148,11 +153,19 @@ class HomePage(Page):
     # ------------------------------------------------------------ data
     def reload(self):
         run_async(backend.system_info, on_done=self._info)
-        run_async(backend.list_updates, on_done=self._updates)
+        # the numbers of updates are the ones of the Updates page (and of its entry in the sidebar): it counts,
+        # this page shows them
+        updates = self.ctx.pages["updates"]
+        if not getattr(self, "_listening", False):
+            self._listening = True
+            updates.counted.connect(self._counted)
+        self._fp_apps = None
+        self._fp_updates = None
+        updates.load_updates()
         if flatpak.available():
             def fp():
                 apps = flatpak.installed()
-                return apps, flatpak.updates(), flatpak.eol_apps(apps[:40])
+                return apps, flatpak.eol_apps(apps[:40])
             run_async(fp, on_done=self._flatpak)
         else:
             self.t_flatpak.set(_("Not installed"), _("Install Flatpak from here"))
@@ -174,22 +187,40 @@ class HomePage(Page):
                          ngettext("of {total} · {locks} lock", "of {total} · {locks} locks", info["locks"])
                          .format(total=info["repos_total"], locks=info["locks"]))
 
-    def _updates(self, ups, err):
-        if err:
-            self.t_updates.set("?", str(err)[:80])
+    def _counted(self, c):
+        """What the Updates page found: the same total as its list and its entry in the sidebar."""
+        if "flatpak" not in c.get("pending", ()):
+            self._fp_updates = c.get("flatpak", 0)
+            self._render_flatpak()
+        if c.get("busy"):
+            return  # the total shows once every part has answered
+        n = c.get("total", 0)
+        since = _("Since the last refresh. Your routine refreshes first.")
+        self.t_updates.setToolTip(since)
+        if c.get("errors") and not n:
+            self.t_updates.set("?", "; ".join(str(v) for v in c["errors"].values())[:80])
             return
-        n = len(ups)
-        if n:
-            self.t_updates.set(ngettext("{n} update", "{n} updates", n).format(n=n),
-                               _("Since the last refresh. Your routine refreshes first."), GREEN)
-        else:
-            self.t_updates.set(_("Up to date"), _("Since the last refresh. Your routine refreshes first."), GREEN)
+        if not n:
+            self.t_updates.set(_("Up to date"), since, GREEN)
+            return
+        parts = [text.format(n=c[key]) for key, text in (
+            ("repo", ngettext("{n} package", "{n} packages", c.get("repo", 0))),
+            ("flatpak", ngettext("{n} Flatpak app", "{n} Flatpak apps", c.get("flatpak", 0))),
+            ("web", ngettext("{n} program from the web", "{n} programs from the web", c.get("web", 0))),
+            ("firmware", ngettext("{n} firmware", "{n} firmware", c.get("firmware", 0)))) if c.get(key)]
+        self.t_updates.set(ngettext("{n} update", "{n} updates", n).format(n=n), " · ".join(parts), GREEN)
 
     def _flatpak(self, res, err):
         if err or not res:
             return
-        apps, ups, eol = res
-        n_up = len([u for u in ups if u["application"] in {a["application"] for a in apps}])
+        self._fp_apps = res
+        self._render_flatpak()
+
+    def _render_flatpak(self):
+        if not getattr(self, "_fp_apps", None) or not flatpak.available():
+            return
+        apps, eol = self._fp_apps
+        n_up = self._fp_updates
         if eol:
             # an app that is no longer maintained gets no security fixes: say it here, not only in Flatpak
             names = ", ".join(a["name"] for a in apps if a["application"] in eol)
@@ -198,6 +229,7 @@ class HomePage(Page):
                                         len(eol)).format(n=len(eol), names=names)[:90], BLUE, small_color=ORANGE)
             return
         self.t_flatpak.set(ngettext("{n} app", "{n} apps", len(apps)).format(n=len(apps)),
+                           _("Looking…") if n_up is None else
                            ngettext("{n} update waiting", "{n} updates waiting", n_up).format(n=n_up) if n_up
                            else _("All up to date"))
 

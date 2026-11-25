@@ -11,17 +11,17 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog,
                                QFormLayout, QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                                QMenu, QMessageBox, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, flatpak, repocheck
+from .. import backend, flatpak, repocheck, repoprio
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import GREEN, RED, dot
 from ..tasks import emit_safely, run_async
-from ..txqueue import Action
+from ..txqueue import Action, TxQueue
 from ..ui import Chip, Page, ask, button, error_box, icon, info_box, muted, plain, tool
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
@@ -88,10 +88,16 @@ class Checker(QObject):
 # ------------------------------------------------------------------ add dialog
 
 class AddRepoDialog(QDialog):
-    def __init__(self, parent=None):
+    """A repository by its address. The address and the alias are checked as they are typed, and the exact command
+    is shown; “Add to the queue” is the main button, like in the other windows."""
+
+    def __init__(self, parent=None, used=()):
         super().__init__(parent)
+        self.used = set(used)  # aliases of the repositories you have, and of those waiting in the queue
         self.setWindowTitle(_("Add a repository"))
-        form = QFormLayout(self)
+        self.setMinimumWidth(620)
+        lay = QVBoxLayout(self)
+        form = QFormLayout()
         self.url = QLineEdit(self)
         self.url.setPlaceholderText("https://download.opensuse.org/repositories/…")
         self.alias = QLineEdit(self)
@@ -111,22 +117,74 @@ class AddRepoDialog(QDialog):
         form.addRow(_("Priority (lower wins):"), self.prio)
         form.addRow("", self.auto)
         form.addRow(_("Signatures:"), self.gpg)
-        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
-        bb.accepted.connect(self._check)
-        bb.rejected.connect(self.reject)
-        form.addRow(bb)
+        lay.addLayout(form)
+        self.problem = QLabel(self)
+        self.problem.setTextFormat(Qt.TextFormat.PlainText)
+        self.problem.setWordWrap(True)
+        self.problem.setStyleSheet(f"color: {RED};")
+        lay.addWidget(self.problem)
+        self.cmd_title = muted(_("Command that will run:"), self)
+        lay.addWidget(self.cmd_title)
+        from .localrpm import _CommandView  # the exact command, wrapped anywhere (addresses have no spaces)
+        self.cmd = _CommandView("", self)
+        lay.addWidget(self.cmd)
+        btns = QHBoxLayout()
+        btns.addStretch(1)
+        cancel = button(_("Cancel"), None, self.reject)
+        cancel.setAutoDefault(False)
+        btns.addWidget(cancel)
+        self.ok = button(_("Add to the queue"), "list-add", self._check, primary=True)
+        self.ok.setDefault(True)
+        btns.addWidget(self.ok)
+        lay.addLayout(btns)
         self.url.textChanged.connect(self._guess_alias)
+        for sig in (self.url.textChanged, self.alias.textChanged, self.name.textChanged, self.prio.valueChanged,
+                    self.auto.toggled, self.gpg.currentIndexChanged):
+            sig.connect(self._update)
+        self._update()
 
     def _guess_alias(self, url):
         if not self.alias.isModified():
             tail = [p for p in url.rstrip("/").split("/") if p][-2:]
             self.alias.setText("-".join(tail).replace(":", "_")[:40])
 
+    def problem_text(self):
+        """Why it cannot go to the queue yet ('' when it can)."""
+        problem = repoprio.url_problem(self.url.text())
+        if problem:
+            return problem
+        alias = self.alias.text().strip()
+        if not alias:
+            return _("Write an alias: a short name without spaces.")
+        if any(c.isspace() for c in alias) or "/" in alias or alias.startswith((".", "-")) \
+                or any(ord(c) < 32 for c in alias):
+            return _("An alias has no spaces and no “/”, and does not start with “.” or “-”.")
+        if alias in self.used:
+            return _("There is already a repository with this alias.")
+        return ""
+
+    def _update(self, *_a):
+        problem = self.problem_text()
+        # nothing typed yet: no complaint, only the button waits
+        self.problem.setText(problem if self.url.text() else "")
+        self.problem.setVisible(bool(self.problem.text()))
+        self.ok.setEnabled(not problem)
+        self.cmd_title.setVisible(not problem)
+        self.cmd.setVisible(not problem)
+        if not problem:
+            q = TxQueue({})
+            q.actions = [self.action()]
+            self.cmd.setPlainText("\n".join(st.display() for st in q.steps()))
+        QTimer.singleShot(0, self, self._grow)  # after the command view has fitted its lines
+
+    def _grow(self):
+        """Room for the command as it gets longer (a dialog does not grow by itself once it is shown)."""
+        self.layout().activate()
+        self.resize(self.width(), max(self.height(), self.sizeHint().height()))
+
     def _check(self):
-        if not self.url.text().strip() or not self.alias.text().strip() or " " in self.alias.text().strip():
-            error_box(self, _("Add a repository"), _("The address and an alias without spaces are needed."))
-            return
-        self.accept()
+        if not self.problem_text():
+            self.accept()
 
     def action(self):
         alias = self.alias.text().strip()
@@ -357,9 +415,18 @@ class ReposPage(Page):
 
         # ---- zypper repositories: table and cards
         self.tree = QTreeWidget(self)
-        # TRANSLATORS: column headers; "Refresh" means "refreshed automatically", "Works?" whether the address answers.
-        self.tree.setHeaderLabels([_("Enabled"), _("Name"), _("Works?"), _("Priority"), _("Refresh"),
-                                   _("Keep packages"), _("Signatures"), _("Address")])
+        self.tree.setHeaderLabels([
+            _("Enabled"),
+            _("Name"),
+            # TRANSLATORS: column header: whether the address of the repository answers.
+            _("Works?"),
+            _("Priority"),
+            # TRANSLATORS: column header and checkbox: zypper refreshes this repository by itself (not a button).
+            _("Auto-refresh"),
+            # TRANSLATORS: column header: zypper keeps the packages it downloads from this repository.
+            _("Keep packages"),
+            _("Signatures"),
+            _("Address")])
         self.tree.setRootIsDecorated(False)
         self.tree.setAlternatingRowColors(True)
         self.tree.setSortingEnabled(True)
@@ -546,11 +613,26 @@ class ReposPage(Page):
                 _("packages") if r["pkg_gpgcheck"] else _("repository") if r["repo_gpgcheck"] else
                 _("on") if r["gpgcheck"] else _("off"))
 
+    def _pending(self, alias):
+        """The changes waiting in the queue for a repository: (new address, change of settings, removal), each
+        an Action or None."""
+        found = {}
+        for a in self.ctx.queue.of("repo-url", "repo-modify", "repo-remove"):
+            if a.target == alias:
+                found.setdefault(a.kind, a)
+        return found.get("repo-url"), found.get("repo-modify"), found.get("repo-remove")
+
     def _state(self, r):
-        """What the queue changes in a repository: (opts, removing, enabled, autorefresh, priority, card style)."""
-        ch = self.ctx.queue.repo_change(r["alias"])
-        o = ch.opts if ch and ch.kind == "repo-modify" else {}
-        removing = bool(ch and ch.kind == "repo-remove")
+        """What the queue changes in a repository: (opts, removing, enabled, autorefresh, priority, card style).
+
+        opts: what waits in the queue for it: the opts of a new address (repo-url: 'url' and the settings it is
+        added again with, the ones it has now), then on top a change of its settings (repo-modify), which runs
+        after the repository is added again. Both together are what the list shows."""
+        url_a, mod_a, rm_a = self._pending(r["alias"])
+        o = {k: v for k, v in url_a.opts.items() if k != "repo_file"} if url_a else {}
+        if mod_a:
+            o.update(mod_a.opts)
+        removing = rm_a is not None
         style = None
         if o or removing:
             color = RED if removing else "#1d99f3"
@@ -614,10 +696,13 @@ class ReposPage(Page):
     def propose_order(self):
         from .repotools import ProposeOrderDialog
         dlg = ProposeOrderDialog(self.repos, lambda r: self._state(r)[4], self)
-        if dlg.exec():
-            with self.ctx.queue.batch():
-                for r, prio in dlg.chosen():
-                    self._queue_change(r, "priority", prio)
+        try:
+            if dlg.exec():
+                with self.ctx.queue.batch():
+                    for r, prio in dlg.chosen():
+                        self._queue_change(r, "priority", prio)
+        finally:
+            dlg.deleteLater()
 
     def change_url(self, r=None):
         r = r or self._selected()
@@ -626,10 +711,15 @@ class ReposPage(Page):
             return
         from .repotools import ChangeUrlDialog
         dlg = ChangeUrlDialog(r, self.health.get(f"zypper:{r['alias']}"), self)
-        if dlg.exec():
-            ch = self.ctx.queue.repo_change(r["alias"])
-            pending = dict(ch.opts) if ch and ch.kind in ("repo-modify", "repo-url") else {}
-            self.ctx.queue.add(dlg.action(pending))
+        try:
+            if dlg.exec():
+                try:
+                    # a change of its settings already in the queue stays there and runs after it
+                    self.ctx.queue.add(dlg.action())
+                except (OSError, ValueError) as e:
+                    error_box(self, _("Change the address…"), str(e))
+        finally:
+            dlg.deleteLater()
 
     def _fill(self):
         self._update_priority_text()
@@ -643,24 +733,35 @@ class ReposPage(Page):
         for r in self._ordered():
             o, removing, enabled, auto, prio, style = self._state(r)
             gpg = self._gpg_text(r)
-            it = RepoItem(["", r["name"], "", "", "", "", gpg, r["url"]])
+            it = RepoItem(["", r["name"], "", "", "", "", gpg, o.get("url") or r["url"]])
             it.setData(0, Qt.ItemDataRole.UserRole, r)
             it.setCheckState(COL_ON, Qt.CheckState.Checked if enabled else Qt.CheckState.Unchecked)
             it.setCheckState(COL_AUTO, Qt.CheckState.Checked if auto else Qt.CheckState.Unchecked)
             it.setCheckState(COL_KEEP, Qt.CheckState.Checked if o.get("keeppackages", r["keeppackages"])
                              else Qt.CheckState.Unchecked)
             it.setData(COL_PRIO, Qt.ItemDataRole.DisplayRole, prio)
-            it.setToolTip(COL_NAME, r["alias"] + (f"  ({_('service')}: {r['service']})" if r["service"] else ""))
-            it.setToolTip(COL_URL, r["url"])
+            # the whole name (the column cuts long ones), and the alias zypper knows it by
+            tip = [r["name"]]
+            if r["alias"] != r["name"]:
+                tip.append(_("Alias: {alias}").format(alias=r["alias"]))
+            if r["service"]:
+                tip.append(f"{_('service')}: {r['service']}")
+            it.setToolTip(COL_NAME, "\n".join(tip))
+            it.setToolTip(COL_URL, r["url"] + (f"\n→ {o['url']}" if o.get("url") else ""))
             if o or removing:
                 f = it.font(COL_NAME)
                 f.setItalic(True)
                 f.setStrikeOut(removing)
                 it.setFont(COL_NAME, f)
                 it.setForeground(COL_NAME, QBrush(QColor(RED if removing else "#1d99f3")))
-            if not r["enabled"]:
+            if o.get("url"):  # the new address, as it will be after Apply
+                f = it.font(COL_URL)
+                f.setItalic(True)
+                it.setFont(COL_URL, f)
+                it.setForeground(COL_URL, QBrush(QColor("#1d99f3")))
+            if not r["enabled"] and not o:
                 for c in (COL_NAME, COL_URL):
-                    it.setForeground(c, QBrush(QColor("gray")) if not o else it.foreground(c))
+                    it.setForeground(c, QBrush(QColor("gray")))
             self.tree.addTopLevelItem(it)
             self.items[r["alias"]] = it
             self._show_health(r["alias"])
@@ -687,14 +788,14 @@ class ReposPage(Page):
         cards = []
         self.cards = {}
         for r in self._ordered():
-            _o, _removing, enabled, auto, prio, style = self._state(r)
+            o, _removing, enabled, auto, prio, style = self._state(r)
             card = RepoCard(r["alias"], self.grid.inner)
             facts = _("signatures: {what}").format(what=self._gpg_text(r))
-            card.set_header(r["name"], r["url"], facts, r["enabled"], style)
+            card.set_header(r["name"], o.get("url") or r["url"], facts, r["enabled"], style)
             on = QCheckBox(_("Enabled"), card)
             on.setChecked(enabled)
             on.toggled.connect(lambda v, r=r: self._queue_change(r, "enabled", v))
-            ref = QCheckBox(_("Refresh"), card)
+            ref = QCheckBox(_("Auto-refresh"), card)
             ref.setToolTip(_("Refresh it automatically"))
             ref.setChecked(auto)
             ref.toggled.connect(lambda v, r=r: self._queue_change(r, "autorefresh", v))
@@ -919,17 +1020,20 @@ class ReposPage(Page):
             self._queue_change(r, field, checked)
 
     def _queue_change(self, r, field, value):
-        ch = self.ctx.queue.repo_change(r["alias"])
-        opts = dict(ch.opts) if ch and ch.kind == "repo-modify" else {}
+        """One setting changed: the repo-modify of this repository, against the settings it has now. With a new
+        address waiting too, the repository is added again with those settings and this change runs after it."""
+        _url, mod, _rm = self._pending(r["alias"])
+        opts = dict(mod.opts) if mod else {}
         if value == r[field]:
             opts.pop(field, None)
         else:
             opts[field] = value
-        if ch and ch.kind == "repo-modify":
-            self.ctx.queue.discard_action(ch)
-        if opts:
-            self.ctx.queue.add(Action("repo-modify", r["alias"], **opts))
-        else:
+        with self.ctx.queue.batch():
+            if mod:
+                self.ctx.queue.discard_action(mod)
+            if opts:
+                self.ctx.queue.add(Action("repo-modify", r["alias"], **opts))
+        if not opts:
             QTimer.singleShot(0, self._fill)
 
     def _double_clicked(self, it, col):
@@ -937,8 +1041,7 @@ class ReposPage(Page):
             self._ask_priority(it.data(0, Qt.ItemDataRole.UserRole))
 
     def _ask_priority(self, r):
-        ch = self.ctx.queue.repo_change(r["alias"])
-        cur = (ch.opts.get("priority") if ch and ch.kind == "repo-modify" else None) or r["priority"]
+        cur = self._state(r)[4]
         val, ok = QInputDialog.getInt(self, _("Priority"), _("Priority of {name} (1–200, lower wins):")
                                       .format(name=r["name"]), int(cur), 1, 200)
         if ok:
@@ -969,44 +1072,49 @@ class ReposPage(Page):
             b_rm.setEnabled(False)
             b_rm.setToolTip(_("They belong to a service: the service would add them again."))
         plain(box).exec()
-        if box.clickedButton() is b_off:
-            for r in failing:
-                if r["enabled"]:
-                    self._queue_change(r, "enabled", False)
-        elif box.clickedButton() is b_rm:
-            for r in own:
-                self.ctx.queue.add(Action("repo-remove", r["alias"]))
+        clicked = box.clickedButton()
+        box.deleteLater()
+        if clicked is b_off:
+            with self.ctx.queue.batch():
+                for r in failing:
+                    if r["enabled"]:
+                        self._queue_change(r, "enabled", False)
+        elif clicked is b_rm:
+            with self.ctx.queue.batch():
+                for r in own:
+                    self.ctx.queue.add(Action("repo-remove", r["alias"]))
 
     def add_repo(self):
-        dlg = AddRepoDialog(self)
-        if dlg.exec():
-            self.ctx.queue.add(dlg.action())
+        used = [r["alias"] for r in self.repos] + [a.target for a in self.ctx.queue.of("repo-add")]
+        dlg = AddRepoDialog(self, used)
+        try:
+            if dlg.exec():
+                self.ctx.queue.add(dlg.action())
+        finally:
+            dlg.deleteLater()
 
     def _online_banner(self):
-        """Searching online for a repository is what people come here for most: say it big, on top."""
+        """Searching online for a repository is what people come here for most: on top, but in one line, so the
+        list keeps its room (the longer explanation is the tooltip)."""
         box = QFrame(self)
         box.setObjectName("onlinebanner")
         box.setStyleSheet("#onlinebanner { background: rgba(39, 174, 96, 0.10); border: 1px solid rgba(39, 174, 96, 0.35);"
-                          " border-radius: 12px; }")
+                          " border-radius: 10px; }")
+        box.setToolTip(_("Search the openSUSE Build Service, Fedora COPR and Flathub. Zypp Desk says how far each "
+                         "source can be trusted, and adds the repository for you."))
         h = QHBoxLayout(box)
-        h.setContentsMargins(14, 10, 14, 10)
+        h.setContentsMargins(12, 5, 6, 5)
+        h.setSpacing(10)
         ic = QLabel(box)
-        ic.setPixmap(icon("internet-services", "edit-find").pixmap(40, 40))
+        ic.setPixmap(icon("internet-services", "edit-find").pixmap(22, 22))
         h.addWidget(ic)
-        v = QVBoxLayout()
-        v.setSpacing(2)
         title = QLabel(_("Looking for a program your repositories do not have?"), box)
+        title.setWordWrap(True)  # one line; two only when the window is narrow
         f = title.font()
         f.setBold(True)
-        f.setPointSizeF(f.pointSizeF() * 1.1)
         title.setFont(f)
-        v.addWidget(title)
-        v.addWidget(muted(_("Search the openSUSE Build Service, Fedora COPR and Flathub. Zypp Desk says how far each "
-                            "source can be trusted, and adds the repository for you."), box))
-        h.addLayout(v, 1)
-        b = button(_("Search online…"), "edit-find", self.search_online, primary=True)
-        b.setMinimumHeight(38)
-        h.addWidget(b)
+        h.addWidget(title, 1)
+        h.addWidget(button(_("Search online…"), "edit-find", self.search_online, primary=True))
         return box
 
     def search_online(self):
@@ -1026,12 +1134,13 @@ class ReposPage(Page):
     def refresh_selected(self):
         r = self._selected()
         if r:
-            self.ctx.run([Step("zypper", ["-n", "-v", "refresh", r["alias"]])],
+            self.ctx.run([Step("zypper", ["-n", "-v", "refresh", "--", r["alias"]])],
                          _("Refresh {name}").format(name=r["name"]))
 
     def clean_cache(self):
         if ask(self, _("Clean the cache"), _("Delete the downloaded packages and the cached metadata of every "
-                                             "repository? They will be downloaded again when needed.")):
+                                             "repository? They will be downloaded again when needed."),
+               default_no=True):
             self.ctx.run([Step("zypper", ["clean", "--all"])], _("Clean the cache"))
 
     def import_key(self):

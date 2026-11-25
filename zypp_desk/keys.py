@@ -1,16 +1,26 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Signing keys: the keys rpm trusts, who uses each one, and reading a key before it is imported.
 
-Everything here only reads. gpg always runs with a temporary --homedir that is deleted at once, so
-~/.gnupg is never created or touched. Importing and deleting keys go through the queue and the helper
-(key-import, key-remove), which runs as root and checks the fingerprint again.
+Everything here only reads. gpg always runs with a temporary --homedir that is deleted at once (and its socket
+folder in /run/user/<uid>/gnupg with it), so ~/.gnupg is never created or touched. Importing and deleting keys go
+through the queue and the helper (key-import, key-remove), which runs as root and checks the fingerprint again.
+
+rpm and gpg do not read a key file the same way: rpm imports every "-----BEGIN PGP" block it finds anywhere in the
+file, gpg only the blocks whose header starts a line. So a file with a second block hidden in a line would show one
+key and import two. A file with more than one block, or with anything but text before its block, is refused here,
+and the file kept for the helper is never the one that was downloaded: it is the key as gpg writes it out again from
+an empty keyring (armored, minimal), checked to be exactly the key that was shown.
 
 Where the facts come from:
 - the keys: 'rpm -qa gpg-pubkey' (the armored key is the package's description), read with gpg;
 - which repository uses a key: the key that signed its metadata, from the signature zypper keeps in
   /var/cache/zypp/raw/<alias>/repodata/repomd.xml.asc (readable by everybody); it can be a subkey;
 - how many installed packages a key signed: the signature in each package header ('Key ID …');
-- the keys openSUSE ships: /usr/lib/rpm/gnupg/keys/*.asc (package openSUSE-build-key).
+- the keys openSUSE ships: /usr/lib/rpm/gnupg/keys/*.asc (package openSUSE-build-key);
+- the keys a vendor's package keeps for later (brave-keyring: the keys of its other channels):
+  /etc/pki/rpm-gpg/*, and which installed package owns each file;
+- a vendor's next key: a key nothing uses yet, with the same owner (name or e-mail) as a key in use and newer
+  than it. Vendors publish their next key before they switch to it (Vivaldi KEY12 while KEY11 signs).
 """
 
 import os
@@ -23,6 +33,7 @@ import urllib.parse
 import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import backend, websources
@@ -33,6 +44,7 @@ MAX_KEY = 1024 * 1024
 TIMEOUT = 20
 RAW_CACHE = Path("/var/cache/zypp/raw")
 SHIPPED_DIR = Path("/usr/lib/rpm/gnupg/keys")
+VENDOR_DIR = Path("/etc/pki/rpm-gpg")
 KEYSERVER = "https://keys.openpgp.org/vks/v1/by-fingerprint/{fpr}"
 FPR_RE = re.compile(r"[0-9A-F]{40}|[0-9A-F]{64}")
 _SEP = "@@ZYPP-DESK-KEY@@"
@@ -41,11 +53,29 @@ _MAX_FILES = 1000  # .rpm files looked at in the folders of programs from the we
 
 # ------------------------------------------------------------------ gpg, without a keyring of its own
 
+@contextmanager
+def gpg_home():
+    """A throwaway gpg home folder. When it goes, the socket folder gpg made for it in /run/user/<uid>/gnupg goes
+    too (gpg leaves one behind for every home folder it imported into)."""
+    with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-") as home:
+        try:
+            yield home
+        finally:
+            try:
+                subprocess.run(["gpgconf", "--homedir", home, "--remove-socketdir"], capture_output=True, env=ENV_C,
+                               timeout=20)
+            except (OSError, subprocess.SubprocessError):
+                pass
+
+
+def gpg_base(home):
+    return ["gpg", "--homedir", home, "--batch", "--no-autostart", "--no-tty"]
+
+
 def _gpg(args, data=b""):
     """Run gpg on data with a temporary home folder (nothing in ~/.gnupg). Returns (code, stdout bytes)."""
-    with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-") as home:
-        p = subprocess.run(["gpg", "--homedir", home, "--batch", "--no-autostart", "--no-tty", *args],
-                           input=data, capture_output=True, env=ENV_C, timeout=60)
+    with gpg_home() as home:
+        p = subprocess.run([*gpg_base(home), *args], input=data, capture_output=True, env=ENV_C, timeout=60)
     return p.returncode, p.stdout
 
 
@@ -117,15 +147,44 @@ def parse_colons(out):
     return [k for k in keys if k["fpr"]]
 
 
+ARMOR = b"-----BEGIN PGP"
+
+
+def check_key_file(data: bytes):
+    """Refuse a key file that rpm and gpg could read differently (see the module docstring). Binary keys (no armor)
+    are fine: rpm never gets them, only gpg's armored copy."""
+    n = data.count(ARMOR)
+    if n == 0:
+        return
+    if n > 1:
+        raise ValueError(_("The file holds more than one PGP block. Import one key at a time, from a file that "
+                           "holds only that key."))
+    start = data.index(ARMOR)
+    before = data[:start]
+    if before and not before.endswith(b"\n"):
+        raise ValueError(_("The key in this file does not start on a line of its own, so rpm could read it "
+                           "differently from what is shown here. It was not used."))
+    try:
+        text = before.decode("utf-8")
+    except UnicodeDecodeError:
+        text = None
+    # every binary OpenPGP packet has bytes that are not text (its version and algorithm are below 32)
+    if text is None or re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", text):
+        raise ValueError(_("There is unreadable data before the key: it could hide another key. It was not used."))
+    if not data.startswith(b"-----BEGIN PGP PUBLIC KEY BLOCK-----", start):
+        raise ValueError(_("This is not a public key block."))
+
+
 def inspect_key(data: bytes):
     """Read a key file (armored or binary) without importing it anywhere.
 
     Returns a list of dicts {fpr, name, email, created, expires, expired, revoked, ids, fprs, uids}, one per
     primary key in the data (an empty list when there is none). A secret key is refused: it must never be
-    shared, and rpm only needs the public one.
+    shared, and rpm only needs the public one. So is a file rpm and gpg could read differently (check_key_file).
     """
     if len(data) > MAX_KEY:
         raise ValueError(_("The file is bigger than 1 MiB: it is not a signing key."))
+    check_key_file(data)
     _code, out = _gpg(["--with-colons", "--fixed-list-mode", "--show-keys"], data)
     keys = parse_colons(out)
     if any(k["secret"] for k in keys):
@@ -134,17 +193,26 @@ def inspect_key(data: bytes):
 
 
 def armored(data: bytes, fpr):
-    """The key as text (rpm --import wants the armored form). Binary keys are converted with a throwaway keyring."""
-    if b"-----BEGIN PGP PUBLIC KEY BLOCK-----" in data:
-        return data
-    with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-") as home:
-        base = ["gpg", "--homedir", home, "--batch", "--no-autostart", "--no-tty"]
-        p = subprocess.run([*base, "--import"], input=data, capture_output=True, env=ENV_C, timeout=60)
+    """The key with this fingerprint, and only it, as gpg writes it out again from a throwaway keyring: armored
+    (rpm --import wants text) and minimal. Never the bytes that came in, so what rpm imports is what gpg read and
+    the window showed. Raises ValueError when that is not exactly one key with this fingerprint."""
+    if len(data) > MAX_KEY:
+        raise ValueError(_("The file is bigger than 1 MiB: it is not a signing key."))
+    check_key_file(data)
+    norm = normalize_fpr(fpr)
+    if not norm:
+        raise ValueError(_("A fingerprint has 40 hexadecimal digits (0-9, A-F)."))
+    with gpg_home() as home:
+        p = subprocess.run([*gpg_base(home), "--import"], input=data, capture_output=True, env=ENV_C, timeout=60)
         if p.returncode == 0:
-            p = subprocess.run([*base, "--armor", "--export", "--", fpr], capture_output=True, env=ENV_C, timeout=60)
-    if p.returncode != 0 or b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in p.stdout:
+            p = subprocess.run([*gpg_base(home), "--armor", "--export-options", "export-minimal", "--export", "--",
+                                norm], capture_output=True, env=ENV_C, timeout=60)
+    out = p.stdout if p.returncode == 0 else b""
+    if out.count(ARMOR) != 1 or b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in out:
         raise ValueError(_("The key could not be read."))
-    return p.stdout
+    if [k["fpr"] for k in inspect_key(out)] != [norm]:
+        raise ValueError(_("The key could not be read."))
+    return out
 
 
 def nice_fpr(fpr, lines=1):
@@ -296,7 +364,52 @@ def repo_signers():
     return out
 
 
-GROUPS = ("repos", "packages", "opensuse", "unused")
+def vendor_keyring():
+    """{fingerprint: package} of the keys that installed packages keep in /etc/pki/rpm-gpg (a vendor's keyring
+    package can import them again by itself, like brave-keyring)."""
+    files = sorted(f for f in VENDOR_DIR.iterdir() if f.is_file()) if VENDOR_DIR.is_dir() else []
+    if not files:
+        return {}
+    p = subprocess.run(["rpm", "-qf", "--qf", "%{NAME}\n", "--", *map(str, files)], capture_output=True, text=True,
+                       env=ENV_C, timeout=60)
+    owners = p.stdout.splitlines()
+    out = {}
+    for i, f in enumerate(files):
+        owner = owners[i].strip() if len(owners) == len(files) else ""
+        if not owner or " " in owner:  # "file … is not owned by any package"
+            continue
+        try:
+            data = f.read_bytes()[:MAX_KEY]
+        except OSError:
+            continue
+        for k in parse_colons(_gpg(["--with-colons", "--fixed-list-mode", "--show-keys"], data)[1]):
+            out.setdefault(k["fpr"], owner)
+    return out
+
+
+def _same_owner(a, b):
+    """Whether two keys belong to the same owner: the same e-mail, or the same name."""
+    ea, eb = (a.get("email") or "").strip().lower(), (b.get("email") or "").strip().lower()
+    na, nb = (a.get("name") or "").strip().lower(), (b.get("name") or "").strip().lower()
+    return bool((ea and ea == eb) or (na and na == nb))
+
+
+def _vendor_reason(k, in_use, keyring_files):
+    """Why a key nothing uses is probably still needed by a vendor, or None: ('package', name) when an installed
+    package keeps it in /etc/pki/rpm-gpg, ('next', key in use) when it is newer than a key in use of the same
+    owner."""
+    if k.get("fpr") in keyring_files:
+        return "package", keyring_files[k["fpr"]]
+    twins = [u for u in in_use if _same_owner(k, u)]
+    if not twins:
+        return None
+    twin = max(twins, key=lambda u: u.get("created") or 0)
+    if not k.get("created") or not twin.get("created") or k["created"] > twin["created"]:
+        return "next", twin
+    return None  # an older key of the same owner: replaced by the one in use
+
+
+GROUPS = ("repos", "packages", "vendor", "opensuse", "unused")
 
 
 def list_keys():
@@ -304,12 +417,14 @@ def list_keys():
 
     Each key: fpr, keyid (last 8 hex digits, upper case), ids, fprs, name, email, created, expires, expired,
     revoked, installed, nvr, repos [(alias, name, enabled)], packages (int, or None when unknown), shipped,
-    group ('repos', 'packages', 'opensuse' or 'unused') and remove_command (what the helper will run).
+    group ('repos', 'packages', 'vendor', 'opensuse' or 'unused'), vendor (for the 'vendor' group: ('package',
+    package name) or ('next', the key in use it follows)) and remove_command (what the helper will run).
     """
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         f_sigs = pool.submit(package_signers)  # the slowest (every installed package): it starts first
         f_repos = pool.submit(repo_signers)
         f_shipped = pool.submit(shipped_fingerprints)
+        f_vendor = pool.submit(vendor_keyring)
         entries = _rpm_keys()
         data = "\n".join(e[5] for e in entries).encode("utf-8", "replace")
         parsed = parse_colons(_gpg(["--with-colons", "--fixed-list-mode", "--show-keys"], data)[1]) if data else []
@@ -340,6 +455,10 @@ def list_keys():
             pkg = f_sigs.result()
         except (OSError, subprocess.SubprocessError):
             pkg = None
+        try:
+            keyring_files = f_vendor.result()
+        except (OSError, subprocess.SubprocessError):
+            keyring_files = {}
         major = rpm_major()
     for k in keys:
         k["remove_command"] = remove_command(k, major)
@@ -349,6 +468,13 @@ def list_keys():
         k["shipped"] = bool(k["fpr"]) and k["fpr"] in shipped
         k["group"] = ("repos" if k["repos"] else "packages" if k["packages"] else
                       "opensuse" if k["shipped"] else "unused")
+        k["vendor"] = None
+    in_use = [k for k in keys if k["group"] in ("repos", "packages")]
+    for k in keys:
+        if k["group"] == "unused":
+            k["vendor"] = _vendor_reason(k, in_use, keyring_files)
+            if k["vendor"]:
+                k["group"] = "vendor"
     keys.sort(key=lambda k: (GROUPS.index(k["group"]), k["name"].lower()))
     return keys
 

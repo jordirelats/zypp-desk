@@ -224,7 +224,8 @@ def _parse_info(text):
 
 
 def rpm_query(args):
-    p = subprocess.run(["rpm", *args], capture_output=True, text=True, env=ENV_C)
+    # a package's text may not be UTF-8 (AutoFirma's description is Latin-1): never fail on it
+    p = subprocess.run(["rpm", *args], capture_output=True, text=True, errors="replace", env=ENV_C)
     return p.stdout if p.returncode == 0 else ""
 
 
@@ -288,13 +289,43 @@ def services():
             for s in root.iter("service")]
 
 
+def lock_range(rng):
+    """'< 2.0', '= 1.0-1', '>= 1:3' from a <range flag="<" epoch="0" version="2.0" release=""/> of 'zypper locks'
+    ('' when the lock has none)."""
+    if rng is None or not rng.get("flag") or not rng.get("version"):
+        return ""
+    edition = rng.get("version")
+    if rng.get("release"):
+        edition += "-" + rng.get("release")
+    if rng.get("epoch") not in (None, "", "0"):
+        edition = rng.get("epoch") + ":" + edition
+    return rng.get("flag") + " " + edition
+
+
 def locks():
+    """The locks of /etc/zypp/locks. 'name' is the name (or the pattern, like vlc-*) alone; 'spec' is what
+    'zypper removelock' needs to find the lock again: the name with its version range ('tool < 2.0'). A lock
+    limited to a repository ('repo') or of another kind ('type') is only found with -r / -t as well."""
     root, _ = xml(["locks"])
     out = []
     for lk in root.iter("lock"):
-        out.append(dict(number=lk.get("number", ""), name=lk.findtext("name") or "",
+        name = lk.findtext("name") or ""
+        rng = lock_range(lk.find("range"))
+        out.append(dict(number=lk.get("number", ""), name=name, range=rng, spec=f"{name} {rng}" if rng else name,
                         type=lk.findtext("type") or "package", repo=lk.findtext("repo") or ""))
     return out
+
+
+def no_lock_removed(output, lang=None):
+    """True if zypper's output of 'removelock' says that it removed nothing (it still ends with exit code 0):
+    the lock was not written exactly that way (a version range, a repository, another kind)."""
+    texts = {"No lock has been removed."}
+    if lang:
+        import gettext
+        code = lang.split(".")[0]
+        tr = gettext.translation("zypper", languages=[code, code.split("_")[0]], fallback=True)
+        texts.add(tr.gettext("No lock has been removed."))
+    return any(t in (output or "") for t in texts)
 
 
 def locales():
@@ -358,6 +389,13 @@ def _cmd_names(pid):
     return names
 
 
+def _cmd_args(pid):
+    try:
+        return [a.decode(errors="replace") for a in Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0") if a]
+    except OSError:
+        return []
+
+
 def _parent(pid):
     try:
         for line in Path(f"/proc/{pid}/status").read_text().splitlines():
@@ -366,6 +404,18 @@ def _parent(pid):
     except (OSError, ValueError, IndexError):
         pass
     return 0
+
+
+REFRESH_UNIT = "zypp-desk-refresh.service"
+
+
+def _in_refresh_timer(pid):
+    """True if the process runs inside Zypp Desk's own refresh service (its cgroup, readable by everyone)."""
+    try:
+        text = Path(f"/proc/{pid}/cgroup").read_text(errors="replace")
+    except OSError:
+        return False
+    return any(line.rstrip().endswith("/" + REFRESH_UNIT) for line in text.splitlines())
 
 
 def zypp_lock():
@@ -385,11 +435,42 @@ def zypp_lock():
         if p <= 1:
             break
     names = _cmd_names(pid)
+    if _in_refresh_timer(pid):  # zypp-desk-refresh.timer: a few minutes every six hours
+        if "--download-only" in _cmd_args(pid):
+            return _("Zypp Desk's timer, downloading the updates ahead")
+        return _("Zypp Desk's timer, refreshing the repositories")
     holders = _lock_holders()
     for n in names:
         if n in holders:
             return holders[n]
     return names[0] if names else pid
+
+
+ZYPP_RAW_CACHE = "/var/cache/zypp/raw"
+
+
+def repos_refreshed_at(raw=ZYPP_RAW_CACHE):
+    """When the repositories were last refreshed (a Unix time), or None if it cannot be told.
+
+    Every 'zypper refresh' touches each repository's index in the raw cache, even when nothing changed
+    (repodata/repomd.xml, or 'cookie' for a plain folder or 'content' for the old SUSE format), and these files
+    are readable by everyone. The newest one is the last refresh (one that failed for a repository leaves it
+    old). The solv folder is no good for this: it changes only when a repository has something new."""
+    newest = None
+    try:
+        entries = list(os.scandir(raw))
+    except OSError:
+        return None
+    for e in entries:
+        if not e.is_dir(follow_symlinks=False):
+            continue
+        for rel in ("repodata/repomd.xml", "cookie", "content"):
+            try:
+                t = os.stat(os.path.join(e.path, rel)).st_mtime
+            except OSError:
+                continue
+            newest = t if newest is None or t > newest else newest
+    return newest
 
 
 def processes_using_deleted_files():
@@ -402,26 +483,3 @@ def processes_using_deleted_files():
             procs.append(dict(pid=cols[0], user=cols[3], command=cols[4], service=cols[5] if len(cols) > 5 else ""))
     core = "No core libraries or services have been updated" not in p.stdout
     return dict(processes=procs, core_updated=core, text=p.stdout)
-
-
-# ------------------------------------------------------------------ history (root-only file, read through the helper)
-
-def parse_history(text):
-    out = []
-    for line in text.splitlines():
-        if not line or line.startswith("#"):
-            continue
-        f = line.split("|")
-        if len(f) < 3:
-            continue
-        date, action = f[0], f[1].strip()  # libzypp pads the action ("remove ", "radd   ")
-        if action in ("install", "remove"):
-            out.append(dict(date=date, action=action, name=f[2], edition=f[3] if len(f) > 3 else "",
-                            arch=f[4] if len(f) > 4 else "", detail=f[6] if len(f) > 6 else ""))
-        elif action == "command":
-            out.append(dict(date=date, action="command", name="", edition="", arch="",
-                            detail=f[3].replace("'", "") if len(f) > 3 else ""))
-        elif action in ("radd", "rremove"):
-            out.append(dict(date=date, action=action, name=f[2], edition="", arch="",
-                            detail=f[3] if len(f) > 3 else ""))
-    return out

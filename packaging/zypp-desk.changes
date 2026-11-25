@@ -1,4 +1,29 @@
 -------------------------------------------------------------------
+Thu Nov 26 08:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.4.1, fixes from a review (security, zypper, code,
+  interface, language, packaging):
+  * Solutions chosen in the dup window run as one 'zypper install'
+    transaction that refuses instead of removing what depends on a
+    package; the dup window's default button simulates
+  * Removals and installs of the queue are simulated and applied as one
+    transaction; --no-clean-deps when not asked for
+  * Signing key import: exactly one key block, re-exported from a
+    throwaway keyring before rpm sees it; vendors' next keys are not
+    offered for deletion; Search online queues keys instead of importing
+  * Repository address changes add the new repository before removing
+    the old one and keep every setting (gpgkey included); "--" before
+    every alias
+  * The refresh timer follows the wall clock (laptops that suspend),
+    downloads ahead only on AC power, and the window says when zypper is
+    busy with it; fwupdmgr never uploads reports by itself
+  * Unlocking locks with a version range or a repository works; History
+    warns that /opt and other subvolumes are not in snapshots
+  * The window warns when the root helper is older than the app
+  * Faster Applications page, pages fit 1100x700, cleaner package card,
+    consistent counts, many wording and translation fixes
+
+-------------------------------------------------------------------
 Wed Nov 25 22:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.4.0:

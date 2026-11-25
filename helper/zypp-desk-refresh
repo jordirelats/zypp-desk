@@ -4,8 +4,10 @@
 #
 # It keeps fresh what Zypp Desk and its tray icon read as the user, so that they can tell you about updates:
 #   1. zypper refresh: the lists of packages of the repositories;
-#   2. only if /etc/zypp-desk/download-ahead exists (Zypp Desk, Settings > Notifications) and the connection is
-#      not metered: zypper dist-upgrade --download-only, the packages of the next upgrade go to zypper's cache;
+#   2. only if /etc/zypp-desk/download-ahead exists (Zypp Desk, Settings > Notifications), the computer is
+#      plugged in and the connection is not metered: zypper dist-upgrade --download-only, the packages of the
+#      next upgrade go to zypper's cache. While zypper downloads, the computer does not go to sleep (libzypp
+#      holds a sleep inhibitor), so this stops after DOWNLOAD_MINUTES; the next run goes on where it stopped;
 #   3. fwupdmgr refresh, if fwupd is installed: the list of firmware updates.
 # It never installs anything. Failures go to the journal (journalctl -u zypp-desk-refresh) and it always exits
 # with 0: the next run of the timer simply tries again.
@@ -18,6 +20,7 @@ export PATH LC_ALL ZYPP_LOCK_TIMEOUT
 
 FLAG=/etc/zypp-desk/download-ahead
 ZYPPER_EXIT_ZYPP_LOCKED=7
+DOWNLOAD_MINUTES=30
 
 log() {
   printf 'zypp-desk-refresh: %s\n' "$*" >&2
@@ -33,6 +36,17 @@ metered() {
   return 1
 }
 
+on_battery() {
+  # systemd-ac-power: 0 when plugged in (or when the computer has no battery), 1 on battery
+  command -v systemd-ac-power >/dev/null 2>&1 || return 1
+  ! systemd-ac-power
+}
+
+# Right after waking up or starting, the connection may not be there yet: wait for it a little (NetworkManager).
+if command -v nm-online >/dev/null 2>&1; then
+  nm-online -q -t 60 || log "no network connection after one minute: trying anyway"
+fi
+
 zypper --non-interactive --quiet refresh
 rc=$?
 [ "$rc" -eq 0 ] || log "zypper refresh failed (exit code $rc)"
@@ -40,12 +54,19 @@ rc=$?
 if [ -e "$FLAG" ]; then
   if [ "$rc" -eq "$ZYPPER_EXIT_ZYPP_LOCKED" ]; then
     log "zypper is busy with another program: nothing is downloaded ahead this time"
+  elif on_battery; then
+    log "on battery: nothing is downloaded ahead this time"
   elif metered; then
     log "metered connection: nothing is downloaded ahead this time"
   else
-    zypper --non-interactive --quiet dist-upgrade --download-only --auto-agree-with-licenses
+    timeout --kill-after=2m "${DOWNLOAD_MINUTES}m" \
+      zypper --non-interactive --quiet dist-upgrade --download-only --auto-agree-with-licenses
     rc=$?
-    [ "$rc" -eq 0 ] || log "zypper dist-upgrade --download-only failed (exit code $rc)"
+    if [ "$rc" -eq 124 ]; then
+      log "the download ahead took more than $DOWNLOAD_MINUTES minutes: stopped, the next run goes on"
+    elif [ "$rc" -ne 0 ]; then
+      log "zypper dist-upgrade --download-only failed (exit code $rc)"
+    fi
   fi
 fi
 

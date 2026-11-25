@@ -58,6 +58,17 @@ def installed(runtimes=False):
     return rows
 
 
+def installed_from(remote, installation):
+    """Apps and runtimes of one installation ('system' or 'user') that came from this remote, each with
+    "kind": "app" or "runtime"."""
+    out = []
+    for kind in ("app", "runtime"):
+        for r in _table(["list", f"--{installation}", f"--{kind}"], ["application", "name", "origin"]):
+            if r["origin"] == remote and r["application"]:
+                out.append(dict(r, kind=kind))
+    return out
+
+
 def updates():
     """Apps and runtimes with an update waiting, in every installation."""
     return _table(["remote-ls", "--updates"], ["application", "version", "branch", "origin"], timeout=180)

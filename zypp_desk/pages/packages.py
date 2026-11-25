@@ -3,17 +3,14 @@
 
 
 from PySide6.QtCore import QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QBrush
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTreeWidget,
-                               QTreeWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtGui import QBrush, QColor, QIcon
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget
 
 from .. import appicons, backend
-from ..style import BLUE, GREEN, RED, dot
-from PySide6.QtGui import QIcon
 from ..i18n import _, ngettext
+from ..style import BLUE, GREEN, RED, dot
 from ..tasks import run_async
-from ..txqueue import Action
-from ..ui import Chip, Page, button, icon, muted
+from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted
 from .pkgdetails import PackageDetails
 
 KIND_LABELS = [("package", _("Packages")), ("pattern", _("Patterns")), ("patch", _("Patches")),
@@ -38,6 +35,7 @@ class PackagesPage(Page):
         self.term = QLineEdit(self)
         self.term.setPlaceholderText(_("Search packages, for example vlc"))
         self.term.setClearButtonEnabled(True)
+        self.term.setMinimumWidth(150)
         self.term.returnPressed.connect(self.search)
         self.kind = QComboBox(self)
         for k, label in KIND_LABELS:
@@ -47,14 +45,21 @@ class PackagesPage(Page):
             self.status.addItem(label, k)
         self.repo = QComboBox(self)
         self.repo.addItem(_("All repositories"), "")
+        # the combos give way when the window is narrow (a long repository name, German words): the whole
+        # text is in the open list and in the tooltip
+        for combo in (self.kind, self.status, self.repo):
+            combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            combo.setMinimumContentsLength(6)
+            combo.currentTextChanged.connect(lambda text, c=combo: c.setToolTip(text))
+            combo.setToolTip(combo.currentText())
         search_btn = button(_("Search"), "edit-find", self.search)
         self.online_btn = button(_("Search online…"), "internet-services", self.search_online)
         self.online_btn.setToolTip(_("Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"))
 
         top = QHBoxLayout()
-        top.addWidget(self.term, 1)
-        for w in (self.kind, self.status, self.repo, search_btn, self.online_btn):
-            top.addWidget(w)
+        top.addWidget(self.term, 3)
+        for w, stretch in ((self.kind, 1), (self.status, 1), (self.repo, 2), (search_btn, 0), (self.online_btn, 0)):
+            top.addWidget(w, stretch)
 
         self.chips = {
             "descriptions": Chip(_("Summary and description")),
@@ -73,13 +78,15 @@ class PackagesPage(Page):
                          ("exact", _("Only the exact name, not names that contain it")),
                          ("case", _("Tell capitals and small letters apart"))):
             self.chips[key].setToolTip(tip)
-        chips = QHBoxLayout()
-        chips.addWidget(muted(_("Search in:"), wrap=False))
+        # the chips wrap onto a second line when the window is narrow
+        chips_box = QWidget(self)
+        chips = FlowLayout(chips_box)
+        chips.addWidget(self._flow_label(_("Search in:")))
         for c in self.chips.values():
             chips.addWidget(c)
-        chips.addStretch(1)
-        lists = QHBoxLayout()
-        lists.addWidget(muted(_("Lists:"), wrap=False))
+        lists_box = QWidget(self)
+        lists = FlowLayout(lists_box)
+        lists.addWidget(self._flow_label(_("Lists:")))
         tips = {"orphaned": _("Orphaned packages (installed, but in no repository)"),
                 "unneeded": _("Unneeded packages (nothing requires them any more)"),
                 "recommended": _("Recommended packages that are not installed"),
@@ -91,7 +98,6 @@ class PackagesPage(Page):
             b.setCheckable(False)
             b.clicked.connect(lambda _c=False, k=key: self.search(special=k))
             lists.addWidget(b)
-        lists.addStretch(1)
 
         self.info = muted("", self, wrap=False)
 
@@ -110,7 +116,7 @@ class PackagesPage(Page):
         self.tree.setColumnWidth(3, 150)
 
         self.details = PackageDetails(self, ctx, self)
-        split = QSplitter(Qt.Orientation.Horizontal, self)
+        split = RoomSplitter(Qt.Orientation.Horizontal, self)
         split.addWidget(self.tree)
         split.addWidget(self.details)
         split.setStretchFactor(0, 3)
@@ -118,8 +124,8 @@ class PackagesPage(Page):
 
         lay = QVBoxLayout(self)
         lay.addLayout(top)
-        lay.addLayout(chips)
-        lay.addLayout(lists)
+        lay.addWidget(chips_box)
+        lay.addWidget(lists_box)
         lay.addWidget(self.info)
         lay.addWidget(split, 1)
 
@@ -135,6 +141,17 @@ class PackagesPage(Page):
         self._details_timer.timeout.connect(lambda: self._load_details(self.tree.currentItem()))
         self._statuses_stale = False
         self._dots = {}
+
+    @staticmethod
+    def _flow_label(text):
+        """The grey word before a row of chips, as tall as a chip so it stays in line with them."""
+        lbl = muted(text, wrap=False)
+        probe = Chip("x")
+        probe.ensurePolished()
+        lbl.setMinimumHeight(probe.sizeHint().height())
+        probe.deleteLater()
+        lbl.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        return lbl
 
     # ------------------------------------------------------------ data
     def reload(self):
@@ -189,7 +206,9 @@ class PackagesPage(Page):
             from .findrepo import FindRepoDialog
         except ImportError:
             return
-        FindRepoDialog(self.ctx, term=self.term.text().strip(), parent=self).exec()
+        dlg = FindRepoDialog(self.ctx, term=self.term.text().strip(), parent=self)
+        dlg.exec()
+        dlg.deleteLater()
 
     def _searched(self, sid, results, err, special):
         if sid != self.search_id:
@@ -230,7 +249,7 @@ class PackagesPage(Page):
         if n:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
         else:
-            self.details.clear()
+            self.details.clear(_("Nothing was found."))
         names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]
         if names:
             run_async(appicons.desktop_icons, names, on_done=self._desktop_icons_loaded)
