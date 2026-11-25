@@ -18,6 +18,7 @@ class Tile(QFrame):
         super().__init__(parent)
         self.setObjectName("tile")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)  # Tab reaches it; Enter or Space opens it
         self.color = color
         h = QHBoxLayout(self)
         h.setContentsMargins(16, 14, 16, 14)
@@ -50,16 +51,25 @@ class Tile(QFrame):
         v.addStretch(1)
         h.addLayout(v, 1)
 
-    def set(self, big, small="", color=None):
+    def set(self, big, small="", color=None, small_color=None):
         self.big.setText(big)
         self.small.setText(small)
         if color:
             self.big.setStyleSheet(f"color: {color};")
+        # a warning in the small line shows in its colour; otherwise the usual grey
+        self.small.setStyleSheet(f"color: {small_color}; font-weight: 600;" if small_color
+                                 else "color: palette(placeholder-text);")
 
     def mouseReleaseEvent(self, ev):
         if ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mouseReleaseEvent(ev)
+
+    def keyPressEvent(self, ev):
+        if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.clicked.emit()
+            return
+        super().keyPressEvent(ev)
 
 
 class HomePage(Page):
@@ -82,7 +92,13 @@ class HomePage(Page):
         self.search.setPlaceholderText(_("Search programs to install, for example krita or vlc…"))
         self.search.addAction(icon("edit-find"), QLineEdit.ActionPosition.LeadingPosition)
         self.search.returnPressed.connect(self._search)
-        lay.addWidget(self.search)
+        srow = QHBoxLayout()
+        srow.addWidget(self.search, 1)
+        online = button(_("Search online…"), "internet-services", self._search_online)
+        online.setMinimumHeight(40)
+        online.setToolTip(_("Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"))
+        srow.addWidget(online)
+        lay.addLayout(srow)
 
         grid = QGridLayout()
         grid.setSpacing(14)
@@ -113,6 +129,13 @@ class HomePage(Page):
         lay.addWidget(muted(_("Every change waits in the queue at the bottom until you apply it. You can always see "
                               "the exact zypper command and what zypper answers.")))
 
+    def _search_online(self):
+        try:
+            from .findrepo import FindRepoDialog
+        except ImportError:
+            return
+        FindRepoDialog(self.ctx, term=self.search.text().strip(), parent=self).exec()
+
     def _search(self):
         text = self.search.text().strip()
         if not text:
@@ -127,7 +150,10 @@ class HomePage(Page):
         run_async(backend.system_info, on_done=self._info)
         run_async(backend.list_updates, on_done=self._updates)
         if flatpak.available():
-            run_async(lambda: (flatpak.installed(), flatpak.updates()), on_done=self._flatpak)
+            def fp():
+                apps = flatpak.installed()
+                return apps, flatpak.updates(), flatpak.eol_apps(apps[:40])
+            run_async(fp, on_done=self._flatpak)
         else:
             self.t_flatpak.set(_("Not installed"), _("Install Flatpak from here"))
         sources = [s for s in websources.load() if s.get("type") != "manual"]
@@ -144,7 +170,7 @@ class HomePage(Page):
             self.t_restart.set(_("Needed"), _("An update asks to restart the computer"), RED)
         else:
             self.t_restart.set(_("Not needed"), _("Nothing asks to restart the computer"), PURPLE)
-        self.t_repos.set(_("{n} enabled").format(n=info["repos_enabled"]),
+        self.t_repos.set(ngettext("{n} enabled", "{n} enabled", info["repos_enabled"]).format(n=info["repos_enabled"]),
                          ngettext("of {total} · {locks} lock", "of {total} · {locks} locks", info["locks"])
                          .format(total=info["repos_total"], locks=info["locks"]))
 
@@ -162,8 +188,15 @@ class HomePage(Page):
     def _flatpak(self, res, err):
         if err or not res:
             return
-        apps, ups = res
+        apps, ups, eol = res
         n_up = len([u for u in ups if u["application"] in {a["application"] for a in apps}])
+        if eol:
+            # an app that is no longer maintained gets no security fixes: say it here, not only in Flatpak
+            names = ", ".join(a["name"] for a in apps if a["application"] in eol)
+            self.t_flatpak.set(ngettext("{n} app", "{n} apps", len(apps)).format(n=len(apps)),
+                               ngettext("{n} is no longer maintained: {names}", "{n} are no longer maintained: {names}",
+                                        len(eol)).format(n=len(eol), names=names)[:90], BLUE, small_color=ORANGE)
+            return
         self.t_flatpak.set(ngettext("{n} app", "{n} apps", len(apps)).format(n=len(apps)),
                            ngettext("{n} update waiting", "{n} updates waiting", n_up).format(n=n_up) if n_up
                            else _("All up to date"))
@@ -181,7 +214,9 @@ class HomePage(Page):
         if err or res is None:
             self.t_web.set("?", str(err or "")[:80])
             return
-        newer = [r for r in res if r.get("newer")]
+        web = self.ctx.pages["websources"]
+        web.set_badge_from(res)  # the sidebar shows it before Web sources is opened
+        newer = [r for r in res if web.counts_as_new(r)]
         if newer:
             self.t_web.set(ngettext("{n} new version", "{n} new versions", len(newer)).format(n=len(newer)),
                            ", ".join(r["package"] for r in newer)[:80], ORANGE)

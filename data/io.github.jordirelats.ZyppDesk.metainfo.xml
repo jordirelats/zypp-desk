@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+<component type="desktop-application">
+  <id>io.github.jordirelats.ZyppDesk</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Zypp Desk</name>
+  <summary>Every zypper feature in a window</summary>
+  <summary xml:lang="ca">Totes les funcions de zypper en una finestra</summary>
+  <summary xml:lang="de">Alle Funktionen von zypper in einem Fenster</summary>
+  <summary xml:lang="fr">Toutes les fonctions de zypper dans une fenêtre</summary>
+  <description>
+    <p>
+      Zypp Desk is a graphical front end for zypper, the package manager of openSUSE, that keeps
+      the whole power of zypper and always shows the exact command and zypper's own output.
+    </p>
+    <ul>
+      <li>Search, install and remove packages, upgrade the distribution, with a simulation first</li>
+      <li>Your applications in one list, from the repositories, from Flatpak or from the web</li>
+      <li>Discover programs by theme in the openSUSE and Flathub catalogues</li>
+      <li>Follow programs installed from files published on the web and get their new versions</li>
+      <li>Repositories with a health check, locks, languages, history and maintenance</li>
+      <li>Warnings explained in plain words, with how serious they are</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.jordirelats.ZyppDesk.desktop</launchable>
+  <url type="homepage">https://github.com/jordirelats/zypp-desk</url>
+  <url type="bugtracker">https://github.com/jordirelats/zypp-desk/issues</url>
+  <url type="translate">https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md</url>
+  <url type="vcs-browser">https://github.com/jordirelats/zypp-desk</url>
+  <developer id="io.github.jordirelats">
+    <name>Jordi Relats</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>zypp-desk</binary>
+  </provides>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <releases>
+    <release version="0.3.1" date="2026-11-25">
+      <description>
+        <p>Routines run zypper without questions, programs from the web can be simulated, and fixes from a
+          review.</p>
+      </description>
+    </release>
+    <release version="0.3.0" date="2026-11-25">
+      <description>
+        <p>Applications by origin, discover by theme, more kinds of web source, repository health check and
+          an online search in the openSUSE Build Service, Fedora COPR and Flathub.</p>
+      </description>
+    </release>
+    <release version="0.2.0" date="2026-11-25">
+      <description>
+        <p>German and French translations, and fixes from a review.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-11-25"/>
+  </releases>
+</component>

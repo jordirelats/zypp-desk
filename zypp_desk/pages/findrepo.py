@@ -22,7 +22,7 @@ from ..runner import Step
 from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import ask, button, error_box, icon, muted
+from ..ui import ask, button, error_box, icon, muted, plain
 
 TRUST = {
     online.OFFICIAL: (GREEN, _("Official"), _("Official Tumbleweed package"),
@@ -108,6 +108,9 @@ class FindRepoDialog(QDialog):
     def __init__(self, ctx, term="", parent=None):
         super().__init__(parent or ctx)
         self.ctx = ctx
+        # Freed when closed; answers that arrive later (searches, icons, keys) see _closed and do nothing.
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self._closed = False
         self.setWindowTitle(_("Find software on line"))
         self.resize(1040, 700)
         self.generation = 0
@@ -171,6 +174,14 @@ class FindRepoDialog(QDialog):
         if term:
             self.search()
 
+    def done(self, result):
+        self._closed = True
+        super().done(result)
+
+    def closeEvent(self, ev):
+        self._closed = True
+        super().closeEvent(ev)
+
     # ------------------------------------------------------------ what is here already
     @staticmethod
     def _local_state():
@@ -182,7 +193,7 @@ class FindRepoDialog(QDialog):
         return repos, remotes, installed
 
     def _local_loaded(self, res, err):
-        if err or not res:
+        if self._closed or err or not res:
             return
         self.repos, self.flatpak_remotes, self.flatpak_installed = res
         self._selected(self.flathub)
@@ -241,8 +252,8 @@ class FindRepoDialog(QDialog):
         return rows
 
     def _got(self, gen, panel, rows, err):
-        if gen != self.generation:
-            return  # an older search
+        if self._closed or gen != self.generation:
+            return  # the dialog is closed, or an older search
         idx = self.tabs.indexOf(panel)
         base = {"obs": _("openSUSE Build Service"), "copr": _("Fedora COPR"), "flathub": _("Flathub")}[panel.kind]
         if err:
@@ -276,7 +287,7 @@ class FindRepoDialog(QDialog):
             panel.tree.setCurrentItem(panel.tree.topLevelItem(0))
         if panel.kind in ("obs", "copr") and not self.ctx.icon_catalog:
             self._icon_tries = 0
-            QTimer.singleShot(2000, self._refresh_pkg_icons)
+            QTimer.singleShot(2000, self, self._refresh_pkg_icons)  # the dialog as context: no call once it is gone
         if panel.kind == "flathub":
             for r in rows[:40]:
                 if r.get("icon_url"):
@@ -318,10 +329,12 @@ class FindRepoDialog(QDialog):
 
     def _refresh_pkg_icons(self):
         """The icon catalogue loads in the background when the window opens: use it once it is there."""
+        if self._closed:
+            return
         if not self.ctx.icon_catalog:
             self._icon_tries = getattr(self, "_icon_tries", 0) + 1
             if self._icon_tries < 15:
-                QTimer.singleShot(2000, self._refresh_pkg_icons)
+                QTimer.singleShot(2000, self, self._refresh_pkg_icons)
             return
         for panel in (self.obs, self.copr):
             for i in range(panel.tree.topLevelItemCount()):
@@ -329,7 +342,7 @@ class FindRepoDialog(QDialog):
                 it.setIcon(0, self._pkg_icon(it.data(0, Qt.ItemDataRole.UserRole)["name"]))
 
     def _icon(self, gen, app, path, *_):
-        if gen != self.generation or not path:
+        if self._closed or gen != self.generation or not path:
             return
         ic = QIcon(path)
         for i in range(self.flathub.tree.topLevelItemCount()):
@@ -429,6 +442,7 @@ class FindRepoDialog(QDialog):
         box.setInformativeText(text + "\n\n" + _("Add the repository {project} ({chroot}) and install {name} from "
                                                  "it?").format(project=r["project"], chroot=r["chroot"],
                                                                name=r["name"]))
+        plain(box)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         box.setDefaultButton(QMessageBox.StandardButton.No)
         if box.exec() != QMessageBox.StandardButton.Yes:
@@ -463,7 +477,7 @@ class FindRepoDialog(QDialog):
     def _offer_key(self, url, alias, project, packages_only=False):
         """zypper -n refuses a repository whose key it does not know: offer to import it now."""
         run_async(lambda: self._key_info(url, alias),
-                  on_done=lambda res, err: self._key_ready(res, err, project, packages_only))
+                  on_done=lambda res, err: self._key_ready(res, err, project, packages_only, alias))
 
     @staticmethod
     def _key_info(url, alias):
@@ -471,7 +485,13 @@ class FindRepoDialog(QDialog):
         k["known"] = _rpm_has_key(k["fingerprint"])
         return k
 
-    def _key_ready(self, k, err, project, packages_only=False):
+    def _key_ready(self, k, err, project, packages_only=False, alias=None):
+        # Only while the dialog is open and the repository is still waiting in the queue: importing a key
+        # for a repository that was taken out again would make rpm trust it for nothing.
+        if self._closed:
+            return
+        if alias and not any(a.target == alias for a in self.ctx.queue.of("repo-add")):
+            return
         if err:
             self.notice.setText(self.notice.text() + " " + _("Its signing key could not be read ({error}): zypper "
                                                              "will ask about it when it refreshes.").format(error=err))
@@ -490,7 +510,9 @@ class FindRepoDialog(QDialog):
             box.setText(_("zypper must trust the signing key of {project} before it can read the repository. Import "
                           "it now? It asks for the administrator password. From then on, rpm trusts every package "
                           "signed with this key.").format(project=project))
-        box.setInformativeText((k["uids"][0] + "\n\n" if k["uids"] else "") + nice)
+        box.setInformativeText(_("Fingerprint: {fpr}").format(fpr=nice) + ("\n\n" + _("Name in the key: {uid}").format(
+            uid=k["uids"][0]) if k["uids"] else ""))
+        plain(box)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if box.exec() != QMessageBox.StandardButton.Yes:
             return

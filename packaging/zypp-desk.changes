@@ -1,0 +1,24 @@
+-------------------------------------------------------------------
+Wed Nov 25 16:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.3.1:
+  * Routines run zypper with -n, so a question no longer stops them
+  * "Simulate the ticked ones": programs from the web are downloaded,
+    checked and simulated with the rest of the queue
+  * Fixes from a review of security, zypper semantics, robustness,
+    the interface and the packaging
+  * AppStream metainfo; the source install uses its own polkit action
+
+-------------------------------------------------------------------
+Wed Nov 25 15:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.3.0:
+  * Applications by origin and discover by theme
+  * Web sources: fixed addresses and download pages besides GitHub
+  * Repository health check, cards view and Flatpak remotes
+  * Search the openSUSE Build Service, Fedora COPR and Flathub
+
+-------------------------------------------------------------------
+Wed Nov 25 12:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Initial package (0.2.0)

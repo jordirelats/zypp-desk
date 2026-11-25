@@ -10,7 +10,7 @@ from .. import backend, flatpak, routine, websources
 from ..i18n import _, ngettext
 from ..txqueue import Action
 from ..runner import Step
-from ..simulation import CATEGORIES, human_size, parse_dry_run, summary_lines
+from ..simulation import CATEGORIES, disk_text, human_size, parse_dry_run, summary_lines
 from ..tasks import run_async
 from ..ui import Card, Page, ask, button, error_box, heading, mono, muted
 
@@ -41,8 +41,11 @@ class StepBox(QFrame):
         cmd.setFont(mono())
         cmd.setStyleSheet("color: palette(link);")
         v.addWidget(cmd)
-        cond = _("runs even if the previous one failed ( ; )") if step.cond == "always" and number > 1 else (
-            _("only if the previous one worked ( && )") if step.cond == "success" else "")
+        nb = "\u00a0"  # keep "( ; )" together when the line wraps
+        cond = (_("runs even if the previous one failed ( ; )").replace("( ; )", f"({nb};{nb})")
+                if step.cond == "always" and number > 1 else
+                _("only if the previous one worked ( && )").replace("( && )", f"({nb}&&{nb})")
+                if step.cond == "success" else "")
         self.state_lbl = muted(cond, self)
         v.addWidget(self.state_lbl)
         h.addLayout(v, 1)
@@ -87,6 +90,9 @@ class UpdatesPage(Page):
         self.result_lbl = QLabel("", self)
         self.result_lbl.setWordWrap(True)
         rc.lay.addLayout(rb)
+        rc.lay.addWidget(muted(_("Nobody can answer zypper in the middle of a routine, so it runs with -n: it takes "
+                                 "its default answers (“yes, continue”) and stops without changing anything when you "
+                                 "would have to choose, for example in a conflict."), self))
         rc.lay.addWidget(self.result_lbl)
         lay.addWidget(rc)
 
@@ -100,8 +106,14 @@ class UpdatesPage(Page):
         self.up_tree.itemDoubleClicked.connect(self._up_double)
         uc.lay.addWidget(self.up_tree, 1)
         ub = QHBoxLayout()
-        self.up_queue_btn = button(_("Add the ticked ones to the queue"), "list-add", self.queue_ticked, primary=True)
+        self.up_queue_btn = button(_("Add to the queue"), "list-add", self.queue_ticked, primary=True)
+        self.up_queue_btn.setToolTip(_("Add the ticked ones to the queue"))
         ub.addWidget(self.up_queue_btn)
+        self.up_sim_btn = button(_("Simulate the ticked ones"), "media-playback-start",
+                                 lambda: self.queue_ticked(simulate=True))
+        self.up_sim_btn.setToolTip(_("Programs from the web are downloaded and checked first: zypper can only "
+                                     "simulate them with the file. Then the whole queue is simulated."))
+        ub.addWidget(self.up_sim_btn)
         ub.addWidget(button(_("Look again"), "view-refresh", self.load_updates))
         ub.addStretch(1)
         uc.lay.addLayout(ub)
@@ -132,7 +144,8 @@ class UpdatesPage(Page):
         bb.addStretch(1)
         sc.lay.addLayout(bb)
         self.sim_lbl = muted(_("The simulation asks for the administrator password: zypper needs root even "
-                               "to simulate."), self)
+                               "to simulate. Programs from the web are not in it, because zypper does not know them "
+                               "until their file is downloaded: use “Simulate the ticked ones” on the left."), self)
         sc.lay.addWidget(self.sim_lbl)
         self.sim_tree = QTreeWidget(self)
         self.sim_tree.setHeaderLabels([_("Package"), _("Version"), _("Repository")])
@@ -170,10 +183,11 @@ class UpdatesPage(Page):
             self.strip.addWidget(box, 1)
 
     def edit_routine(self):
+        # the label treats '&' as a keyboard accelerator: '&&' must be written '&&&&' to show '&&'
         text, ok = QInputDialog.getText(
             self, _("Edit the routine"),
             _("Write it as in a terminal. ';' runs the next command anyway, '&&' only if the previous one "
-              "worked. Only zypper and flatpak commands are allowed."),
+              "worked. Only zypper and flatpak commands are allowed.").replace("&", "&&"),
             text=self.ctx.settings["routine"])
         if not ok:
             return
@@ -273,23 +287,39 @@ class UpdatesPage(Page):
                 except Exception as e:  # one site that does not answer must not hide the others
                     out.append(dict(name=src["package"], old="", new="", where=str(e), error=True))
                     continue
-                if f.get("newer") or (f.get("newer") is None and f.get("changed")):
+                if f.get("newer") or (f.get("newer") is None and f.get("changed")):  # = WebSourcesPage.counts_as_new
                     out.append(dict(name=src["package"], old=f.get("installed") or "", new=f.get("version") or "",
                                     where=websources.origin_text(src), changed=f.get("newer") is None))
             return out
         run_async(web, on_done=lambda res, err: self._up_part(rnd, "web", res, err))
+
+    def _web_changed(self):
+        if self.loaded:
+            self.load_updates()
 
     def _up_part(self, rnd, part, res, err):
         if rnd != self.up_round:
             return  # an older round answered late
         self.up_pending.discard(part)
         self.up_found[part] = res or []
+        if part == "web" and not err:
+            n = len([u for u in res or [] if not u.get("error")])
+            self.ctx.set_badge("websources", str(n) if n else "")
         if err:
             self.up_errors[part] = str(err)
         self._up_fill()
 
     def _up_fill(self):
         f = self.up_found
+        # what you ticked or unticked stays as it was when the list fills again
+        kept = {}
+        for i in range(self.up_tree.topLevelItemCount()):
+            top = self.up_tree.topLevelItem(i)
+            for j in range(top.childCount()):
+                it = top.child(j)
+                data = it.data(0, Qt.ItemDataRole.UserRole)
+                if data and it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                    kept[(data[0], it.text(0))] = it.checkState(0)
         self.up_tree.clear()
         groups = [
             ("repo", _("Packages from the repositories"), "system-software-update",
@@ -327,7 +357,7 @@ class UpdatesPage(Page):
                         it.setForeground(c, QBrush(QColor("#7f8c8d")))
                     continue
                 it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                it.setCheckState(0, Qt.CheckState.Checked)
+                it.setCheckState(0, kept.get((key, name), Qt.CheckState.Checked))
                 if key == "web":
                     it.setToolTip(0, _("Ticked, it is downloaded and checked (SHA-256, package name, signature) "
                                        "before going to the queue. Double-click to open Web sources."))
@@ -344,40 +374,55 @@ class UpdatesPage(Page):
         else:
             self.up_lbl.setText(_("Everything is up to date."))
         self.up_queue_btn.setEnabled(total > 0)
+        self.up_sim_btn.setEnabled(total > 0)
 
     def _up_double(self, item, _col):
         data = item.data(0, Qt.ItemDataRole.UserRole)
         if data and data[0] == "web":
             self.ctx.go("websources")
 
-    def queue_ticked(self):
+    def queue_ticked(self, simulate=False):
         n, web = 0, []
-        for i in range(self.up_tree.topLevelItemCount()):
-            top = self.up_tree.topLevelItem(i)
-            for j in range(top.childCount()):
-                it = top.child(j)
-                data = it.data(0, Qt.ItemDataRole.UserRole)
-                if not data or it.checkState(0) != Qt.CheckState.Checked:
-                    continue
-                kind, u = data
-                if kind == "repo":
-                    self.ctx.queue.add(Action("install", u["name"]))
-                    n += 1
-                elif kind == "flatpak":
-                    self.ctx.queue.add(Action("flatpak-update", u.get("application")))
-                    n += 1
-                else:
-                    web.append(u["name"])
+        with self.ctx.queue.batch():
+            for i in range(self.up_tree.topLevelItemCount()):
+                top = self.up_tree.topLevelItem(i)
+                for j in range(top.childCount()):
+                    it = top.child(j)
+                    data = it.data(0, Qt.ItemDataRole.UserRole)
+                    if not data or it.checkState(0) != Qt.CheckState.Checked:
+                        continue
+                    kind, u = data
+                    if kind == "repo":
+                        self.ctx.queue.add(Action("install", u["name"]))
+                        n += 1
+                    elif kind == "flatpak":
+                        self.ctx.queue.add(Action("flatpak-update", u.get("application")))
+                        n += 1
+                    else:
+                        web.append(u["name"])
         text = ngettext("{n} update added to the queue: simulate it or apply it below.",
                         "{n} updates added to the queue: simulate them or apply them below.", n).format(n=n) if n else ""
         if web:
-            self.ctx.pages["websources"].get_new_versions(web)
             text += " " + ngettext("{n} program from the web is being downloaded and checked; it joins the queue "
                                    "when it is ready (look at the terminal).",
                                    "{n} programs from the web are being downloaded and checked one after the "
                                    "other; each joins the queue when it is ready (look at the terminal).",
                                    len(web)).format(n=len(web))
-        self.up_lbl.setText(text.strip())
+        self.up_lbl.setText(text.strip())  # first: the simulation below may write its own message
+        if simulate:
+            if self.ctx.runner.busy:
+                self.up_lbl.setText(_("Wait until the current command finishes."))
+                return
+            # the simulation runs once every program from the web is downloaded, checked and queued
+            self.ctx.pages["websources"].get_new_versions(web, on_finished=self._simulate_queue)
+        elif web:
+            self.ctx.pages["websources"].get_new_versions(web)
+
+    def _simulate_queue(self):
+        if not self.ctx.queue.actions:
+            self.up_lbl.setText(_("Nothing reached the queue, so there is nothing to simulate."))
+            return
+        self.ctx.simulate_queue()
 
     # ------------------------------------------------ dup simulation
     def reload(self):
@@ -410,12 +455,18 @@ class UpdatesPage(Page):
         return args
 
     def simulate_dup(self):
+        if self.ctx.runner.busy:
+            self.sim_lbl.setText(_("Wait until the current command finishes."))
+            return
         st = Step("zypper", ["--xmlout", "-n", *self.dup_args(), "--dry-run"], lang="C", capture=True)
-        self.sim_lbl.setText(_("Simulating…"))
-        self.sim_tree.clear()
-        self.ctx.run([st], _("Simulation of zypper dup"), on_done=lambda ok: self._simulated(st))
+        if self.ctx.run([st], _("Simulation of zypper dup"), on_done=lambda ok: self._simulated(st)):
+            self.sim_lbl.setText(_("Simulating…"))
 
     def _simulated(self, st):
+        if st.code in (126, 127):
+            self.sim_lbl.setText(_("Not simulated: the administrator password was not given."))
+            return
+        self.sim_tree.clear()
         res = parse_dry_run(st.output)
         for line in summary_lines(res):
             self.ctx.terminal.view.note(line, "ok")
@@ -439,7 +490,7 @@ class UpdatesPage(Page):
         if res["download"]:
             counts.append(_("Download: {size}").format(size=human_size(res["download"])))
         if res["disk"]:
-            counts.append(_("Disk: {size}").format(size=human_size(res["disk"])))
+            counts.append(disk_text(res["disk"]))
         if res["problems"]:
             self.sim_lbl.setText(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:5]))
         elif not counts:

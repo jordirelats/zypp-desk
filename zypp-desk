@@ -2,4 +2,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Start Zypp Desk from the source tree.
 DIR="$(dirname "$(readlink -f "$0")")"
-PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m zypp_desk "$@"
+# -P: the current folder is not searched for modules (a downloaded argparse.py must never run here)
+PYTHONPATH="$DIR${PYTHONPATH:+:$PYTHONPATH}" exec python3 -P -m zypp_desk "$@"

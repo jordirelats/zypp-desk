@@ -67,10 +67,7 @@ class Chip(QToolButton):
         self.setText(text)
         self.setCheckable(True)
         self.setChecked(checked)
-        self.setStyleSheet(
-            "QToolButton { border: 1px solid palette(mid); border-radius: 10px; padding: 2px 9px; }"
-            "QToolButton:checked { background: palette(highlight); color: palette(highlighted-text);"
-            " border-color: palette(highlight); }")
+        self.setProperty("chip", True)  # the look is in style.py (QToolButton[chip="true"])
 
 
 def hline():
@@ -80,12 +77,28 @@ def hline():
     return f
 
 
+def plain(box):
+    """Show every text of a message box as plain text. Qt guesses "rich text" when a text looks like HTML,
+    so a key name or a package name from the network could otherwise draw anything (a fake fingerprint)."""
+    for lbl in box.findChildren(QLabel):
+        lbl.setTextFormat(Qt.TextFormat.PlainText)
+    return box
+
+
 def error_box(parent, title, text):
-    QMessageBox.warning(parent, title, text)
+    box = QMessageBox(QMessageBox.Icon.Warning, title, text, QMessageBox.StandardButton.Ok, parent)
+    plain(box).exec()
+
+
+def info_box(parent, title, text):
+    box = QMessageBox(QMessageBox.Icon.Information, title, text, QMessageBox.StandardButton.Ok, parent)
+    plain(box).exec()
 
 
 def ask(parent, title, text):
-    return QMessageBox.question(parent, title, text) == QMessageBox.StandardButton.Yes
+    box = QMessageBox(QMessageBox.Icon.Question, title, text,
+                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, parent)
+    return plain(box).exec() == QMessageBox.StandardButton.Yes
 
 
 class Page(QWidget):

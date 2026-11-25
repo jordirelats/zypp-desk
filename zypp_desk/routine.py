@@ -5,6 +5,7 @@
 
 ';' runs the next command anyway, '&&' only if the previous one worked. Only zypper and
 flatpak commands are accepted. A leading 'sudo' is dropped: the app asks for the password itself.
+zypper gets -n (no questions) and flatpak -y when they are missing: nobody can answer in the middle.
 """
 
 import shlex
@@ -40,7 +41,27 @@ def parse(text):
     if not steps:
         raise RoutineError(_("The routine is empty."))
     steps[0].cond = "always"
+    # A license accepted with -l in one step (zypper dup -d -l) is asked again by the next one (zypper dup);
+    # in a terminal you would say yes, but with -n nobody can: carry the acceptance over.
+    agreed = False
+    for st in steps:
+        if st.program != "zypper":
+            continue
+        if {"-l", "--auto-agree-with-licenses"} & set(st.args):
+            agreed = True
+        elif agreed and _subcommand(st.args) in LICENSE_SUBCOMMANDS:
+            st.args.append("--auto-agree-with-licenses")
     return steps
+
+
+LICENSE_SUBCOMMANDS = {"dup", "dist-upgrade", "up", "update", "in", "install", "patch"}
+
+
+def _subcommand(args):
+    return next((a for a in args if not a.startswith("-")), "")
+
+
+FLATPAK_CHANGES = {"install", "update", "upgrade", "uninstall", "remove"}
 
 
 def _make_step(words, cond):
@@ -49,7 +70,25 @@ def _make_step(words, cond):
     if not words or words[0] not in ALLOWED_PROGRAMS:
         raise RoutineError(_("Only zypper and flatpak commands are allowed (found '{cmd}').")
                            .format(cmd=" ".join(words)))
-    return Step(words[0], words[1:], cond=cond)
+    args = list(words[1:])
+    # Nobody can answer a question in the middle of a routine (zypper would stop with "cannot read
+    # input"). zypper -n takes the default answers ("yes, continue") and stops without changing
+    # anything when you would have to choose (a conflict, an unknown key). The added option is part
+    # of the command shown on screen.
+    if words[0] == "zypper" and not _has_non_interactive(args):
+        args.insert(0, "-n")
+    if words[0] == "flatpak" and FLATPAK_CHANGES & set(args) and not {"-y", "--assumeyes", "--noninteractive"} & set(args):
+        args.append("-y")
+    return Step(words[0], args, cond=cond, strict=True)  # '&&' as in a shell: only exit code 0 goes on
+
+
+def _has_non_interactive(args):
+    for a in args:
+        if not a.startswith("-"):
+            return False  # the subcommand: global options come before it
+        if a == "--non-interactive" or (not a.startswith("--") and "n" in a[1:]):
+            return True
+    return False
 
 
 def describe(step):

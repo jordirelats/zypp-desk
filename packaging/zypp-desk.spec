@@ -5,25 +5,32 @@
 #
 
 %define app_id io.github.jordirelats.ZyppDesk
+# runner.HELPER_PATHS looks here first; %%{_libexecdir} is /usr/lib on older distributions
+%define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.3.0
+Version:        0.3.1
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
 URL:            https://github.com/jordirelats/zypp-desk
-Source0:        %{name}-%{version}.tar.gz
+Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
 Source1:        %{name}-rpmlintrc
 BuildArch:      noarch
+BuildRequires:  AppStream
+BuildRequires:  desktop-file-utils
 BuildRequires:  gettext-tools
+BuildRequires:  hicolor-icon-theme
+BuildRequires:  python3 >= 3.11
+Requires:       gpg2
 Requires:       pkexec
 Requires:       polkit
-Requires:       python3
+Requires:       python3 >= 3.11
 Requires:       python3-pyside6
 Requires:       python3-rpm
 Requires:       zypper
 Recommends:     flatpak
-Recommends:     gpg2
+Recommends:     kf6-breeze-icons
 
 %description
 Zypp Desk is a graphical front end for zypper, the package manager of
@@ -34,7 +41,8 @@ locks, languages, Flatpak apps, history and maintenance.
 Every change goes to a queue that shows the exact zypper command, can be
 simulated with --dry-run and is applied at once. A terminal panel shows
 zypper's own output while it works. Update routines are written the way
-they are typed in a terminal and run step by step.
+they are typed in a terminal and run step by step. Programs installed from
+files downloaded from the web can be followed for new versions.
 
 %prep
 %autosetup -p1
@@ -52,24 +60,25 @@ install -d %{buildroot}%{_datadir}/%{name}
 cp -a zypp_desk %{buildroot}%{_datadir}/%{name}/
 find %{buildroot}%{_datadir}/%{name} -name '__pycache__' -prune -exec rm -rf {} +
 
-# launcher
+# launcher: the system Python, without the user's site-packages (a venv earlier in PATH must not win)
 install -d %{buildroot}%{_bindir}
 cat > %{buildroot}%{_bindir}/%{name} <<'EOF'
 #!/bin/sh
-PYTHONPATH=%{_datadir}/%{name}${PYTHONPATH:+:$PYTHONPATH} exec python3 -m zypp_desk "$@"
+PYTHONPATH=%{_datadir}/%{name}${PYTHONPATH:+:$PYTHONPATH} exec /usr/bin/python3 -P -s -m zypp_desk "$@"
 EOF
 chmod 0755 %{buildroot}%{_bindir}/%{name}
 
 # the root helper and its polkit action
-install -D -m 0755 helper/%{name}-helper %{buildroot}%{_libexecdir}/%{name}/%{name}-helper
+install -D -m 0755 helper/%{name}-helper %{buildroot}%{helperdir}/%{name}-helper
 install -d %{buildroot}%{_datadir}/polkit-1/actions
-sed 's|@HELPER@|%{_libexecdir}/%{name}/%{name}-helper|' data/%{app_id}.policy.in \
+sed 's|@HELPER@|%{helperdir}/%{name}-helper|' data/%{app_id}.policy.in \
   > %{buildroot}%{_datadir}/polkit-1/actions/%{app_id}.policy
 
-# menu entry and icon
+# menu entry, icon and AppStream metadata
 install -d %{buildroot}%{_datadir}/applications
 sed 's|@EXEC@|%{name}|' data/%{app_id}.desktop.in > %{buildroot}%{_datadir}/applications/%{app_id}.desktop
 install -D -m 0644 data/icons/%{app_id}.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
+install -D -m 0644 data/%{app_id}.metainfo.xml %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
 
 # translations
 for mo in locale/*/LC_MESSAGES/%{name}.mo; do
@@ -78,15 +87,22 @@ for mo in locale/*/LC_MESSAGES/%{name}.mo; do
 done
 %find_lang %{name}
 
+%check
+desktop-file-validate %{buildroot}%{_datadir}/applications/%{app_id}.desktop
+appstreamcli validate --no-net %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
+python3 -m py_compile helper/%{name}-helper $(find zypp_desk -name '*.py')
+find . -name '__pycache__' -prune -exec rm -rf {} +
+
 %files -f %{name}.lang
 %license LICENSE
 %doc README.md TRANSLATING.md
 %{_bindir}/%{name}
 %{_datadir}/%{name}
-%dir %{_libexecdir}/%{name}
-%{_libexecdir}/%{name}/%{name}-helper
+%dir %{helperdir}
+%{helperdir}/%{name}-helper
 %{_datadir}/polkit-1/actions/%{app_id}.policy
 %{_datadir}/applications/%{app_id}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
+%{_datadir}/metainfo/%{app_id}.metainfo.xml
 
 %changelog

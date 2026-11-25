@@ -23,7 +23,7 @@ from . import VERSION
 from .i18n import _, ngettext
 
 TIMEOUT = 15
-USER_AGENT = f"zypp-desk/{VERSION} (+https://github.com/jordirelats/zypp-desk)"
+USER_AGENT = f"ZyppDesk/{VERSION}"
 
 
 def _result(state, text, detail=""):

@@ -34,18 +34,20 @@ ALLOWED_SUBCOMMANDS = {
     "purge-kernels", "ps", "needs-rebooting", "download", "source-download", "licenses",
 }
 # Global options (before the subcommand) that are allowed. Values follow the ones in WITH_VALUE.
+# Only what Zypp Desk uses: no extra repositories (-p, --plus-repo, --plus-content), no automatic trust of
+# keys (--gpg-auto-import-keys) and no other release version (--releasever).
 GLOBAL_FLAGS = {
     "-v", "--verbose", "-q", "--quiet", "-n", "--non-interactive", "-x", "--xmlout", "-t", "--terse",
     "-A", "--no-abbrev", "--color", "--no-color", "--no-refresh", "-i", "--ignore-unknown", "--no-cd",
-    "--no-remote", "--gpg-auto-import-keys", "--non-interactive-include-reboot-patches",
+    "--no-remote", "--non-interactive-include-reboot-patches",
 }
-GLOBAL_WITH_VALUE = {"--userdata", "-p", "--plus-repo", "--plus-content", "--releasever"}
+GLOBAL_WITH_VALUE = {"--userdata"}
 SHORT_COMBINABLE = set("vqnxtAi")
 # Never accepted anywhere on the command line.
 FORBIDDEN = {
     "-R", "--root", "--installroot", "-c", "--config", "-D", "--reposd-dir", "--servicesd-dir",
     "-C", "--cache-dir", "--raw-cache-dir", "--solv-cache-dir", "--pkg-cache-dir",
-    "--disable-system-resolvables",
+    "--disable-system-resolvables", "--plus-repo", "--plus-content", "--gpg-auto-import-keys", "--releasever",
 }
 LANG_RE = re.compile(r"(C|POSIX|[A-Za-z]{2,3}(_[A-Za-z]{2})?)(\.[A-Za-z0-9-]+)?(@[A-Za-z]+)?")
 FPR_RE = re.compile(r"[0-9A-F]{40}|[0-9A-F]{64}")
@@ -111,6 +113,8 @@ def key_fingerprints(path):
     with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-", dir="/run") as home:
         p = subprocess.run([GPG, "--batch", "--no-autostart", "--homedir", home, "--with-colons", "--show-keys",
                             path], capture_output=True, text=True, env=clean_env("C"))
+    if p.returncode != 0:
+        return []  # gpg could not read it: no fingerprint, so the import is refused
     fprs, want = [], False
     for line in p.stdout.splitlines():
         f = line.split(":")

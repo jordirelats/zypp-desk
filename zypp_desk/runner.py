@@ -51,10 +51,14 @@ def zypper_subcommand(args):
 class Step:
     """One command. 'cond' is 'always' (like ';') or 'success' (like '&&')."""
 
-    def __init__(self, program, args, *, cond="success", root=None, lang=None, capture=False, label=None):
+    def __init__(self, program, args, *, cond="success", root=None, lang=None, capture=False, label=None,
+                 strict=False):
         self.program = program  # "zypper", "flatpak", "rpm-import", "history"
         self.args = list(args)
         self.cond = cond
+        # strict: only exit code 0 counts as success, as in a shell ('&&' in routines). Otherwise zypper's
+        # informational codes (100-107: updates available, restart needed, a repository skipped…) also do.
+        self.strict = strict
         if root is None:
             root = program in ("rpm-import", "history") or (
                 program == "zypper" and zypper_subcommand(self.args) not in USER_SUBCOMMANDS)
@@ -136,8 +140,9 @@ class Runner(QObject):
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self.proc = QProcess(self)
         self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-        # Nobody types into the child: a question gets end-of-input and zypper takes its default answer
-        # (the same as -n), instead of waiting for ever.
+        # Nobody can type into the child. zypper reads its answers from the terminal, and without one it gives
+        # up ("cannot read input", exit 4): every zypper step that can ask a question must carry -n (the queue
+        # and the routines add it). The null device only makes sure nothing waits for ever.
         self.proc.setStandardInputFile(QProcess.nullDevice())
         self.proc.readyReadStandardOutput.connect(self._read)
         self.proc.finished.connect(self._done)
@@ -155,7 +160,7 @@ class Runner(QObject):
                 self._next()
                 return
             verb = {"zypper": "zypper", "rpm-import": "rpm-import", "history": "history"}[st.program]
-            self.proc.start("pkexec", [helper, "--lang", st.lang, verb, *st.args])
+            self.proc.start("/usr/bin/pkexec", [helper, "--lang", st.lang, verb, *st.args])  # not a pkexec earlier in PATH
         else:
             env = QProcessEnvironment.systemEnvironment()
             env.insert("LANG", st.lang)
@@ -176,6 +181,7 @@ class Runner(QObject):
         if err == QProcess.ProcessError.FailedToStart:
             st = self.steps[self.index]
             self.note.emit(_("Could not start {prog}.").format(prog=st.program), "error")
+            self.proc.deleteLater()
             self.proc = None
             st.state, st.code, self.last_ok = "failed", -1, False
             self.step_finished.emit(self.index, -1)
@@ -194,7 +200,7 @@ class Runner(QObject):
         if status == QProcess.ExitStatus.CrashExit:
             code = -1
         st.code = code
-        ok = code in SUCCESS if st.program == "zypper" else code == 0
+        ok = code in SUCCESS if st.program == "zypper" and not st.strict else code == 0
         if st.root and code in PKEXEC_CANCELLED:
             self.note.emit(_("Authentication was cancelled or refused: nothing was changed by this step."), "error")
             ok = False
@@ -222,6 +228,10 @@ def exit_meaning(code):
         6: _("no repositories are defined"),
         7: _("the package manager is locked by another program (for example PackageKit)"),
         8: _("commit error: some packages could not be installed or removed"),
+        100: _("updates are available"),
+        101: _("security updates are available"),
+        102: _("the computer must be restarted"),
+        103: _("zypper itself was updated: run the command again"),
         104: _("nothing matched"),
         105: _("interrupted"),
         106: _("some repositories could not be refreshed"),

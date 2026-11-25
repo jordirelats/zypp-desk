@@ -80,12 +80,22 @@ def _get(url, data=None, accept=None, ctype=None, limit=MAX_BYTES):
     return body
 
 
+# What a name from the network may look like before it goes into a command: these services are trusted
+# less than the local system, and a name that looks like an option ('--eval=…') must never reach rpm or zypper.
+RPM_NAME_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.+-]{0,199}")
+OBS_NAME_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.:+-]{0,199}")
+COPR_OWNER_RE = re.compile(r"@?[A-Za-z0-9_][A-Za-z0-9_.+-]{0,99}")
+CHROOT_RE = re.compile(r"[a-z0-9][a-z0-9_.-]{0,99}")
+APP_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+){2,}")
+
+
 def _installed(names):
     """Which of these RPM names are installed."""
-    names = sorted(set(names))
+    names = sorted(n for n in set(names) if RPM_NAME_RE.fullmatch(n))
     if not names:
         return set()
-    p = subprocess.run(["rpm", "-q", "--qf", "%{NAME}\n", *names], capture_output=True, text=True, env=ENV_C)
+    p = subprocess.run(["rpm", "-q", "--qf", "%{NAME}\n", "--", *names], capture_output=True, text=True,
+                       env=ENV_C)
     return {ln.strip() for ln in p.stdout.splitlines() if ln.strip() in names}
 
 
@@ -137,6 +147,8 @@ def search_obs(term):
         name, project, repo = b.get("name") or "", b.get("project") or "", b.get("repository") or ""
         if not name or _DEBUG_RE.search(name) or _PORTS_RE.search(project) or not _obs_repo_ok(project, repo):
             continue
+        if not (RPM_NAME_RE.fullmatch(name) and OBS_NAME_RE.fullmatch(project) and OBS_NAME_RE.fullmatch(repo)):
+            continue  # not a name zypper could be given safely
         version = f"{b.get('version', '')}-{b.get('release', '')}"
         key = (project, name)
         old = best.get(key)
@@ -241,6 +253,10 @@ def search_copr(term):
         if (r["arch"] not in ("x86_64", "noarch") or "x86_64" not in r["chroot"] or "/" not in r["project"]
                 or not r["chroot"].startswith(("fedora-", "opensuse-tumbleweed"))):
             continue
+        owner_, _sep, proj_ = r["project"].partition("/")
+        if not (RPM_NAME_RE.fullmatch(r["name"]) and COPR_OWNER_RE.fullmatch(owner_) and RPM_NAME_RE.fullmatch(proj_)
+                and CHROOT_RE.fullmatch(r["chroot"])):
+            continue  # not a name zypper could be given safely
         p = by_project.setdefault(r["project"], {"chroots": {}})
         version = f"{r['version']}-{r['release']}"
         old = p["chroots"].get(r["chroot"])
@@ -283,7 +299,7 @@ def search_flathub(term, installed_ids=()):
     out = []
     for h in hits:
         app = h.get("app_id") or ""
-        if not app or h.get("type") not in (None, "desktop-application", "console-application"):
+        if not APP_ID_RE.fullmatch(app) or h.get("type") not in (None, "desktop-application", "console-application"):
             continue
         out.append({"app_id": app, "name": h.get("name") or app, "summary": h.get("summary") or "",
                     "developer": h.get("developer_name") or "", "icon_url": h.get("icon") or "",

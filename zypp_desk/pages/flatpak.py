@@ -3,20 +3,41 @@
 
 import html
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QLocale, Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
                                QLineEdit, QSplitter, QTabWidget, QTextBrowser, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
 from .. import flatpak
-from ..i18n import _
+from ..i18n import _, ngettext
 from ..runner import Step
 from ..tasks import run_async
 from ..txqueue import Action, installation_label
 from ..ui import Page, ask, button, error_box, muted, tool
 
 FLATHUB = ("flathub", "https://dl.flathub.org/repo/flathub.flatpakrepo")
+ORANGE = "#f67400"
+
+# the fields of 'flatpak info' shown, in this order, with words people use
+INFO_ROWS = [
+    ("Version", _("Version")),
+    ("Branch", _("Branch")),
+    ("Origin", _("Comes from")),
+    ("Installation", _("Installed for")),
+    ("Installed Size", _("Size on disk")),
+    ("Download Size", _("Download")),
+    ("License", _("License")),
+    ("Runtime", _("Runtime (shared base)")),
+    ("Date", _("Last change")),
+    ("ID", _("ID")),
+]
+
+
+def nice_size(text):
+    """A flatpak size ('142.1 MB') in the user's own format."""
+    n = flatpak.parse_size(text)
+    return QLocale().formattedDataSize(n) if n else (text or "")
 
 
 def _tree(headers, parent):
@@ -55,7 +76,9 @@ class FlatpakPage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         self.updates = {}
+        self.eol = {}  # app ID → (message, replacement) for apps that are no longer maintained
         self.selected = None  # (kind, row): kind is "installed" or "search"
+        self.shown = None  # the details on screen, to draw them again with or without permissions
 
         if not flatpak.available():
             lay = QVBoxLayout(self)
@@ -124,9 +147,20 @@ class FlatpakPage(Page):
 
         self.details = QTextBrowser(self)
         self.details.setOpenExternalLinks(True)
+        self.perm_btn = button(_("Show permissions"), "security-medium", self._toggle_perms)
+        self.perm_btn.setCheckable(True)
+        self.perm_btn.hide()
+        dbox = QWidget(self)
+        dl = QVBoxLayout(dbox)
+        dl.setContentsMargins(0, 0, 0, 0)
+        dl.addWidget(self.details, 1)
+        pr = QHBoxLayout()
+        pr.addStretch(1)
+        pr.addWidget(self.perm_btn)
+        dl.addLayout(pr)
         split = QSplitter(Qt.Orientation.Horizontal, self)
         split.addWidget(self.tabs)
-        split.addWidget(self.details)
+        split.addWidget(dbox)
         split.setStretchFactor(0, 3)
         split.setStretchFactor(1, 2)
         lay = QVBoxLayout(self)
@@ -162,8 +196,9 @@ class FlatpakPage(Page):
         self.t_inst.clear()
         for r in rows:
             it = QTreeWidgetItem(self.t_inst, [r["name"], r["application"], r["version"], r["branch"], r["origin"],
-                                               installation_label(r["installation"]), r["size"], ""])
+                                               installation_label(r["installation"]), nice_size(r["size"]), ""])
             it.setData(0, Qt.ItemDataRole.UserRole, r)
+            it.setData(6, Qt.ItemDataRole.UserRole, r.get("bytes") or 0)
         self.t_inst.setSortingEnabled(True)
         self.t_inst.sortByColumn(0, Qt.SortOrder.AscendingOrder)
         self._paint_installed()
@@ -171,6 +206,14 @@ class FlatpakPage(Page):
             self.t_inst.setCurrentItem(self.t_inst.topLevelItem(0))
         for c in range(7):
             self.t_inst.resizeColumnToContents(c)
+        # which apps are no longer maintained (one 'flatpak info' each, in the background)
+        apps = [r for r in rows if flatpak.APP_ID_RE.fullmatch(r["application"])][:80]
+        run_async(flatpak.eol_apps, apps, on_done=self._eol_loaded)
+
+    def _eol_loaded(self, eol, err):
+        if not err and eol is not None:
+            self.eol = eol
+            self._paint_installed()
 
     def _updates_loaded(self, rows, err):
         if not err:
@@ -191,6 +234,9 @@ class FlatpakPage(Page):
                 text, color = _("Will be updated"), "#27ae60"
             elif r["application"] in self.updates:
                 text, color = _("Update available"), "#1d99f3"
+            elif r["application"] in self.eol:
+                text, color = _("no longer maintained"), ORANGE
+                it.setToolTip(7, self.eol[r["application"]][0])
             it.setText(7, text)
             it.setForeground(7, QBrush(QColor(color)) if color else QBrush())
 
@@ -217,7 +263,7 @@ class FlatpakPage(Page):
         if err:
             self.s_info.setText(str(err)[:200])
             return
-        self.s_info.setText(_("{n} found").format(n=len(rows)))
+        self.s_info.setText(ngettext("{n} found", "{n} found", len(rows)).format(n=len(rows)))
         self.t_search.setSortingEnabled(False)
         for r in rows:
             it = QTreeWidgetItem(self.t_search, [r["name"], r["application"], r["version"], r["branch"],
@@ -234,25 +280,66 @@ class FlatpakPage(Page):
             return
         r = item.data(0, Qt.ItemDataRole.UserRole)
         self.selected = (kind, r)
+        self.shown = None
+        self.perm_btn.hide()
         self.details.setHtml(f"<h3>{html.escape(r['name'])}</h3><p><i>{html.escape(_('Loading…'))}</i></p>")
         app = r["application"]
         if kind == "installed":
-            run_async(flatpak.info, app, r["installation"], on_done=lambda res, e, a=app: self._info(a, res, e))
+            run_async(flatpak.details, app, r["installation"], on_done=lambda res, e, a=app: self._info(a, res, e))
         else:
             remote = r["remotes"].split(",")[0]
-            run_async(flatpak.remote_info, remote, app,
-                      on_done=lambda res, e, a=app: self._info(a, (res, ""), e))
+            run_async(flatpak.remote_details, remote, app, on_done=lambda res, e, a=app: self._info(a, res, e))
 
     def _info(self, app, res, err):
         if not self.selected or self.selected[1]["application"] != app:
-            return
+            return  # another app was selected meanwhile
         if err or not res:
             self.details.setPlainText(str(err or ""))
             return
-        text, perms = res
-        body = f"<pre>{html.escape(text)}</pre>"
-        if perms:
-            body += f"<h4>{html.escape(_('Permissions'))}</h4><pre>{html.escape(perms)}</pre>"
+        self.shown = res
+        self.perm_btn.setVisible(bool(res.get("perms")))
+        self._draw()
+
+    def _toggle_perms(self):
+        self.perm_btn.setText(_("Hide permissions") if self.perm_btn.isChecked() else _("Show permissions"))
+        self._draw()
+
+    def _draw(self):
+        res = self.shown
+        if not res:
+            return
+        e = html.escape
+        f = res["fields"]
+        title = res.get("title") or f.get("ID", "")
+        name, _sep, summary = title.partition(" - ")
+        body = f"<h3>{e(name)}</h3>"
+        if summary:
+            body += f"<p>{e(summary)}</p>"
+        if res.get("eol"):
+            msg, rebase = res["eol"]
+            body += (f"<p style='background:rgba(246,116,0,0.15); border-left:4px solid {ORANGE}; padding:6px'>"
+                     f"<b>{e(_('This app is no longer maintained.'))}</b> "
+                     + e(_("It gets no more updates, not even for security problems. Look for another app that "
+                           "does the same.")) + (f"<br><i>{e(msg)}</i>" if msg else "")
+                     + (f"<br>{e(_('It was replaced by {app}.').format(app=rebase))}" if rebase else "") + "</p>")
+        rows = []
+        for key, label in INFO_ROWS:
+            val = f.get(key)
+            if not val:
+                continue
+            if key in ("Installed Size", "Download Size"):
+                val = nice_size(val)
+            elif key == "Installation":
+                val = installation_label(val)
+            elif key == "Runtime":
+                val = val.split("/")[0] + " " + val.rsplit("/", 1)[-1]
+            elif key == "Date":
+                val = val.split(" ")[0]
+            rows.append((label, val))
+        body += "<table>" + "".join(f"<tr><td style='color:gray;padding-right:12px'>{e(k)}</td><td>{e(v)}</td></tr>"
+                                    for k, v in rows) + "</table>"
+        if self.perm_btn.isChecked() and res.get("perms"):
+            body += f"<h4>{e(_('Permissions'))}</h4><pre>{e(res['perms'])}</pre>"
         self.details.setHtml(body)
 
     # ------------------------------------------------------------ queue
@@ -276,7 +363,9 @@ class FlatpakPage(Page):
         if not it:
             return
         r = it.data(0, Qt.ItemDataRole.UserRole)
-        self.ctx.queue.add(Action("flatpak-install", r["application"], remote=r["remotes"].split(",")[0],
+        # with its branch: an app published in several branches (org.gimp.GIMP.Plugin…) is otherwise ambiguous
+        ref = r["application"] + (f"//{r['branch']}" if r.get("branch") and r["branch"] != "stable" else "")
+        self.ctx.queue.add(Action("flatpak-install", ref, remote=r["remotes"].split(",")[0],
                                   installation=self.target.currentData()))
 
     # ------------------------------------------------------------ immediate actions

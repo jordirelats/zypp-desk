@@ -5,7 +5,7 @@ import html
 import re
 from functools import cmp_to_key
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QBrush
 from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplitter, QTabWidget, QTextBrowser,
                                QPlainTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QSplit
 from .. import appicons, backend
 from ..style import BLUE, GREEN, RED, dot
 from PySide6.QtGui import QIcon
-from ..i18n import _
+from ..i18n import _, ngettext
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Chip, Page, button, heading, icon, mono, muted
@@ -83,6 +83,14 @@ class PackagesPage(Page):
             "exact": Chip(_("Exact match")),
             "case": Chip(_("Case-sensitive")),
         }
+        for key, tip in (("descriptions", _("Also look in the summary and the description, not only the name")),
+                         ("provides", _("Packages that provide this name (a library, a command, a capability)")),
+                         ("requires", _("Packages that need this name")),
+                         ("recommends", _("Packages that recommend this name")),
+                         ("files", _("Packages that contain a file with this name or path")),
+                         ("exact", _("Only the exact name, not names that contain it")),
+                         ("case", _("Tell capitals and small letters apart"))):
+            self.chips[key].setToolTip(tip)
         chips = QHBoxLayout()
         chips.addWidget(muted(_("Search in:"), wrap=False))
         for c in self.chips.values():
@@ -90,9 +98,14 @@ class PackagesPage(Page):
         chips.addStretch(1)
         lists = QHBoxLayout()
         lists.addWidget(muted(_("Lists:"), wrap=False))
+        tips = {"orphaned": _("Orphaned packages (installed, but in no repository)"),
+                "unneeded": _("Unneeded packages (nothing requires them any more)"),
+                "recommended": _("Recommended packages that are not installed"),
+                "suggested": _("Suggested packages that are not installed")}
         for key, label in (("orphaned", _("Orphaned")), ("unneeded", _("Unneeded")),
                            ("recommended", _("Recommended")), ("suggested", _("Suggested"))):
             b = Chip(label)
+            b.setToolTip(tips[key])
             b.setCheckable(False)
             b.clicked.connect(lambda _c=False, k=key: self.search(special=k))
             lists.addWidget(b)
@@ -128,7 +141,18 @@ class PackagesPage(Page):
         lay.addWidget(self.info)
         lay.addWidget(split, 1)
 
-        ctx.queue.changed.connect(self.update_statuses)
+        # the queue changes often (and in bursts): repaint once, later, and only if this page is in front
+        self._status_timer = QTimer(self)
+        self._status_timer.setSingleShot(True)
+        self._status_timer.timeout.connect(self.update_statuses)
+        ctx.queue.changed.connect(self._queue_changed)
+        # details are asked for only when the selection stops moving (arrow keys would start dozens of queries)
+        self._details_timer = QTimer(self)
+        self._details_timer.setSingleShot(True)
+        self._details_timer.setInterval(200)
+        self._details_timer.timeout.connect(lambda: self._load_details(self.tree.currentItem()))
+        self._statuses_stale = False
+        self._dots = {}
 
     # ------------------------------------------------------------ details panel
     def _build_details(self):
@@ -267,7 +291,10 @@ class PackagesPage(Page):
                 "recommended": _("Recommended packages that are not installed"),
                 "suggested": _("Suggested packages that are not installed")}.get(special)
         n = len(results)
-        self.info.setText((what + " · " if what else "") + _("{n} found").format(n=n))
+        self.info.setText((what + " · " if what else "") + ngettext("{n} found", "{n} found", n).format(n=n))
+        term = self.term.text().strip().lower()
+        # the package with exactly the name you typed first ("vlc" before "libextractor-plugins-vlc")
+        results = sorted(results, key=lambda d: d["name"].lower() != term)
         missing = n == 0 and not special
         if missing:
             self.info.setText(_("Not found in your repositories. “Search online…” looks for it in the openSUSE Build "
@@ -285,9 +312,13 @@ class PackagesPage(Page):
             if len(d["versions"]) > 1:
                 it.setToolTip(3, _("{n} versions available").format(n=len(d["versions"])))
             self._paint_status(it, d)
+        # keep the order of the search (the exact name first); clicking a header sorts as usual
+        self.tree.header().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         self.tree.setSortingEnabled(True)
         if n:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
+        else:
+            self._clear_details()
         names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]
         if names:
             run_async(appicons.desktop_icons, names, on_done=self._desktop_icons_loaded)
@@ -322,6 +353,18 @@ class PackagesPage(Page):
         if self.current:
             self.d_icon.setPixmap(self.pkg_icon(self.current).pixmap(56, 56))
 
+    def _queue_changed(self):
+        if self.isVisible():
+            self._status_timer.start(0)
+        else:
+            self._statuses_stale = True
+
+    def activated(self):
+        if self._statuses_stale:
+            self._statuses_stale = False
+            self._status_timer.start(0)
+        super().activated()
+
     def update_statuses(self):
         for i in range(self.tree.topLevelItemCount()):
             it = self.tree.topLevelItem(i)
@@ -348,7 +391,12 @@ class PackagesPage(Page):
         text, color, ic = self._status_text(d)
         it.setText(0, text)
         dots = {"checkmark": GREEN, "update-low": BLUE, "list-add": GREEN, "list-remove": RED}
-        it.setIcon(0, dot(dots[ic]) if ic in dots else (icon(ic) if ic else QIcon()))
+        if ic in dots:
+            if dots[ic] not in self._dots:
+                self._dots[dots[ic]] = dot(dots[ic])
+            it.setIcon(0, self._dots[dots[ic]])
+        else:
+            it.setIcon(0, icon(ic) if ic else QIcon())
         brush = QBrush(QColor(color)) if color else QBrush()
         it.setForeground(0, brush)
         f = it.font(0)
@@ -356,10 +404,29 @@ class PackagesPage(Page):
         it.setFont(0, f)
 
     # ------------------------------------------------------------ details
+    def _clear_details(self):
+        self.current = None
+        self.d_name.setText("")
+        self.d_icon.clear()
+        self.d_summary.setText("")
+        self.d_state.setText("")
+        self.t_versions.clear()
+        for w in (self.t_info, self.t_deps):
+            w.setHtml("")
+        for w in (self.t_files, self.t_changes):
+            w.setPlainText("")
+
     def show_details(self, item):
         if not item:
             return
+        self._details_timer.start()  # the queries wait until the selection stops moving
+
+    def _load_details(self, item):
+        if not item:
+            return
         d = item.data(0, Qt.ItemDataRole.UserRole)
+        if not d:
+            return
         self.current = d
         self.d_name.setText(d["name"])
         self.d_icon.setPixmap(self.pkg_icon(d).pixmap(56, 56))

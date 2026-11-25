@@ -4,7 +4,7 @@
 import re
 import xml.etree.ElementTree as ET
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QLocale, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPlainTextEdit,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout)
@@ -14,29 +14,87 @@ from .i18n import _, ngettext
 PROMPT_CONTINUE, PROMPT_DEP_RESOLVE, PROMPT_LICENSE = 0, 1, 10
 
 CATEGORIES = [
-    ("to-install", _("Will be installed")),
-    ("to-upgrade", _("Will be upgraded")),
-    ("to-downgrade", _("Will be downgraded")),
-    ("to-reinstall", _("Will be reinstalled")),
-    ("to-change-vendor", _("Will change vendor")),
-    ("to-change-arch", _("Will change architecture")),
-    ("to-remove", _("Will be removed")),
+    ("to-install", _("To install")),
+    ("to-upgrade", _("To upgrade")),
+    ("to-downgrade", _("To downgrade")),
+    ("to-reinstall", _("To reinstall")),
+    ("to-change-vendor", _("To change vendor")),
+    ("to-change-arch", _("To change architecture")),
+    ("to-remove", _("To remove")),
 ]
 
 
 def human_size(n):
+    """A size in the user's own format (QLocale: '4,4 MiB' in Catalan)."""
     try:
         n = float(n)
     except (TypeError, ValueError):
         return ""
     sign = "-" if n < 0 else ""
-    n = abs(n)
-    from PySide6.QtCore import QLocale
-    loc = QLocale()
-    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
-        if n < 1024 or unit == "TiB":
-            return f"{sign}{loc.toString(n, 'f', 1)} {unit}" if unit != "B" else f"{sign}{int(n)} B"
-        n /= 1024
+    return sign + QLocale().formattedDataSize(int(abs(n)))
+
+
+def disk_text(value):
+    """What a transaction does to the disk, in words: frees space or uses more."""
+    try:
+        n = int(float(value))
+    except (TypeError, ValueError):
+        return ""
+    if n < 0:
+        return _("Frees {size} on disk").format(size=human_size(-n))
+    return _("Uses {size} more on disk").format(size=human_size(n))
+
+
+def cancelled(steps):
+    """True when the password was refused or cancelled (pkexec 126/127): there is nothing to show."""
+    return any(getattr(s, "code", None) in (126, 127) for s in steps)
+
+
+# Lines of zypper's dependency solver (the dry run runs in English) said in plain words.
+_SOLVER = [
+    (r"nothing provides '?([^'\s]+)'? needed by the to be installed (\S+)",
+     lambda m: _("{pkg} needs {what}, and no repository provides it").format(pkg=m[2], what=m[1])),
+    (r"nothing provides '?([^'\s]+)'? needed by the installed (\S+)",
+     lambda m: _("the installed {pkg} needs {what}, and no repository provides it").format(pkg=m[2], what=m[1])),
+    (r"the to be installed (\S+) conflicts with '?([^'\s]+)'? provided by the installed (\S+)",
+     lambda m: _("{new} cannot be installed together with the installed {old}").format(new=m[1], old=m[3])),
+    (r"the installed (\S+) conflicts with '?([^'\s]+)'? provided by the to be installed (\S+)",
+     lambda m: _("{new} cannot be installed together with the installed {old}").format(new=m[3], old=m[1])),
+    (r"(\S+) requires (.+), but this requirement cannot be provided",
+     lambda m: _("{pkg} needs {what}, which cannot be installed").format(pkg=m[1], what=m[2])),
+    (r"break (\S+) by ignoring some of its dependencies",
+     lambda m: _("install {pkg} anyway, ignoring some of its dependencies (it may not work)").format(pkg=m[1])),
+    (r"deinstallation of (\S+)", lambda m: _("remove {pkg}").format(pkg=m[1])),
+    (r"do not keep (\S+) installed", lambda m: _("remove {pkg}").format(pkg=m[1])),
+    (r"do not install (\S+)", lambda m: _("do not install {pkg}").format(pkg=m[1])),
+    (r"keep obsolete (\S+)", lambda m: _("keep the old {pkg}").format(pkg=m[1])),
+    (r"downgrade of (\S+) to (\S+)", lambda m: _("go back from {old} to {new}").format(old=m[1], new=m[2])),
+]
+_PROMPT_LINE = re.compile(r"Choose from above solutions|\[\d+(/\d+)*/[a-z?/]+\]\s*\(\w\)", re.I)
+
+
+def plain_problem(text):
+    """A solver problem with zypper's question removed and its lines said in plain words."""
+    out = []
+    for line in text.splitlines():
+        if _PROMPT_LINE.search(line):
+            continue  # zypper's own question (which solution?) cannot be answered here
+        s = line.strip()
+        for rx, fn in _SOLVER:
+            s = re.sub(rx, fn, s)
+        m = re.match(r"^Problem:\s*(\d+):\s*(.*)$", s)
+        if m:
+            s = _("Problem {n}: {text}").format(n=m[1], text=m[2])
+        elif (m := re.match(r"^Problem:\s*(.*)$", s)):
+            s = _("Problem: {text}").format(text=m[1])
+        m = re.match(r"^Solution\s+(\d+):\s*(.*)$", s)
+        if m:
+            s = "  " + _("Possible solution {n}: {text}").format(n=m[1], text=m[2])
+        elif s and line[:1].isspace() and out:
+            s = "    " + s
+        if s:
+            out.append(s)
+    return "\n".join(out)
 
 
 def parse_dry_run(text):
@@ -67,11 +125,14 @@ def parse_dry_run(text):
             pid = -1
         if pid == PROMPT_CONTINUE:
             continue
-        desc = " ".join((x.text or "").strip() for x in p.iter("text")) or (p.text or "").strip()
+        # zypper puts the problem and its numbered solutions in <description>; <text> is only the question
+        question = " ".join((x.text or "").strip() for x in p.iter("text")) or (p.text or "").strip()
+        description = (p.findtext("description") or "").strip()
+        desc = "\n".join(x for x in (description, question) if x)
         opts = [o.get("desc") or o.get("value") or "" for o in p.iter("option")]
         if pid == PROMPT_DEP_RESOLVE:
             detail = [t for k, t in res["messages"] if re.match(r"^\s*(Problem|Solution|\d+:)", t)]
-            res["problems"].append("\n".join(detail + [desc]).strip() or desc)
+            res["problems"].append(plain_problem("\n".join(detail + [description]).strip() or desc))
         elif pid == PROMPT_LICENSE:
             res["problems"].append(_("A license must be accepted. Turn on “Accept licenses without asking” in "
                                      "Settings, or install it from a terminal.") + "\n" + desc)
@@ -98,6 +159,31 @@ def parse_dry_run(text):
     return res
 
 
+def merge_results(results):
+    """One result for several dry runs of the same queue (removals and installs run as separate steps)."""
+    if len(results) == 1:
+        return results[0]
+    out = dict(groups={}, download=None, disk=None, messages=[], problems=[], ok=True,
+               raw="\n".join(r["raw"] for r in results))
+
+    def add(a, b):
+        try:
+            return str(int(a or 0) + int(b or 0))
+        except ValueError:
+            return a or b
+    for r in results:
+        for k, items in r["groups"].items():
+            out["groups"].setdefault(k, []).extend(items)
+        out["messages"] += r["messages"]
+        out["problems"] += r["problems"]
+        out["ok"] = out["ok"] and r["ok"]
+        if r["download"] is not None:
+            out["download"] = add(out["download"], r["download"])
+        if r["disk"] is not None:
+            out["disk"] = add(out["disk"], r["disk"])
+    return out
+
+
 def self_order(extra_steps, command):
     return command.replace(" && ", "\n")
 
@@ -114,7 +200,7 @@ def summary_lines(result):
     if result["download"]:
         lines.append(_("Download: {size}").format(size=human_size(result["download"])))
     if result["disk"]:
-        lines.append(_("Disk: {size}").format(size=human_size(result["disk"])))
+        lines.append(disk_text(result["disk"]))
     for p in result["problems"]:
         lines.append(_("Problem: {text}").format(text=p))
     if not lines:
@@ -153,11 +239,12 @@ class SimulationDialog(QDialog):
         if result["download"]:
             counts.append(_("Download: {size}").format(size=human_size(result["download"])))
         if result["disk"]:
-            counts.append(_("Disk: {size}").format(size=human_size(result["disk"])))
+            counts.append(disk_text(result["disk"]))
         if not counts and ok:
             counts.append(_("Nothing to do."))
         bl.addWidget(QLabel("  ·  ".join(counts), banner))
         cmd = QLabel(command, banner)
+        cmd.setTextFormat(Qt.TextFormat.PlainText)  # package and repository names come from outside
         cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         mono = QFont("monospace")
         mono.setStyleHint(QFont.StyleHint.Monospace)
@@ -193,14 +280,17 @@ class SimulationDialog(QDialog):
                 ver = f"{it['old']} → {it['edition']}" if it["old"] else it["edition"]
                 if it.get("old_vendor") and it.get("vendor"):
                     ver += f"  ({it['old_vendor']} → {it['vendor']})"
-                QTreeWidgetItem(top, [it["name"], ver, it["repo"]])
+                repo = _("installed") if it["repo"] == "@System" else it["repo"]
+                QTreeWidgetItem(top, [it["name"], ver, repo])
             top.setExpanded(True)
         tree.resizeColumnToContents(0)
+        tree.resizeColumnToContents(1)
         lay.addWidget(tree, 1)
 
         if extra_steps:
             lbl = QLabel(_("These commands are also in the queue and cannot be simulated. Everything runs in "
                            "this order:") + "\n" + self_order(extra_steps, command), self)
+            lbl.setTextFormat(Qt.TextFormat.PlainText)
             lbl.setWordWrap(True)
             lay.addWidget(lbl)
 

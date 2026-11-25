@@ -4,6 +4,9 @@
 # Usage: tools/build-rpm.sh   → build/rpmbuild/RPMS/noarch/zypp-desk-<version>-0.noarch.rpm
 set -eu
 cd "$(dirname "$0")/.."
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "Warning: there are uncommitted changes; the RPM is built from the last commit (HEAD) without them." >&2
+fi
 VERSION=$(sed -n 's/^Version: *//p' packaging/zypp-desk.spec)
 TOP="$PWD/build/rpmbuild"
 mkdir -p "$TOP/SOURCES" "$TOP/SPECS"

@@ -41,10 +41,11 @@ from .backend import ENV_C, vercmp
 from .i18n import _
 
 API = "https://api.github.com/repos/{repo}/releases/latest"
-USER_AGENT = f"zypp-desk/{VERSION} (+https://github.com/jordirelats/zypp-desk)"
+USER_AGENT = f"ZyppDesk/{VERSION}"
 TYPES = ("github", "url", "page", "manual")
 MAX_PAGE = 4 * 1024 * 1024
 MAX_RPM_IN_ZIP = 2 * 1024 * 1024 * 1024
+MAX_DOWNLOAD = 2 * 1024 * 1024 * 1024
 ARCH_RE = re.compile(r"x86[_-]64|amd64|aarch64|arm64|i[3-6]86|noarch", re.I)
 VERSION_RE = re.compile(r"\d+(?:[._]\d+)+")
 
@@ -98,8 +99,8 @@ def origin_text(source):
 
 
 def installed_version(package):
-    p = subprocess.run(["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}\n", package], capture_output=True, text=True,
-                       env=ENV_C)
+    p = subprocess.run(["rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}\n", "--", package], capture_output=True,
+                       text=True, env=ENV_C)
     lines = p.stdout.split()
     return lines[-1] if p.returncode == 0 and lines else None
 
@@ -111,6 +112,12 @@ def guess_pattern(package, filename=None):
         if m:
             return rf"^{re.escape(package)}-.*{re.escape(m.group(2))}$"
     return rf"^{re.escape(package)}-.*\.x86_64.*\.rpm$"
+
+
+def guess_link_pattern(package):
+    """A regular expression for the link to take on a download page: the package name followed by anything,
+    ending in .rpm or .zip (the page check compares it with the whole address, ignoring case)."""
+    return rf"{re.escape(package)}[-_][^/]*\.(rpm|zip)$"
 
 
 def version_in_url(url):
@@ -278,7 +285,9 @@ def _check_url(url, page=""):
 
 def _check_page(source):
     rx = re.compile(source["pattern"], re.I)
-    links = [u for u in _links(source["page"]) if rx.search(urllib.parse.unquote(u))]
+    host = urllib.parse.urlsplit(source["page"]).hostname or ""
+    links = [u for u in _links(source["page"]) if rx.search(urllib.parse.unquote(u))
+             and _same_site(urllib.parse.urlsplit(u).hostname or "", host)]
     if not links:
         raise ValueError(_("No link on the page matches {pattern}.").format(pattern=source["pattern"]))
     versioned = [(version_in_url(u), u) for u in links]
@@ -363,6 +372,8 @@ def _download(source, found, folder, final, part, progress):
             out.write(chunk)
             h.update(chunk)
             done += len(chunk)
+            if done > MAX_DOWNLOAD:
+                raise ValueError(_("The file is bigger than 2 GiB: it was not downloaded."))
             if progress:
                 progress(done, total)
     digest = h.hexdigest()
@@ -381,16 +392,36 @@ def _download(source, found, folder, final, part, progress):
                          .format(found=head["name"] or "?", expected=source["package"]))
     if source.get("type", "github") != "github" or part.suffix != ".rpm":
         # files like zoom_openSUSE_x86_64.rpm carry no version: name them as rpm does, to keep each version
-        final = folder / f"{head['name']}-{head['version']}-{head['release']}.{head['arch']}.rpm"
+        final = folder / _safe_name(f"{head['name']}-{head['version']}-{head['release']}.{head['arch']}.rpm")
     part.replace(final)
     inst = installed_version(source["package"])
+    sig, signer = signature_of_file(final, with_signer=True)
     return {"path": str(final), "sha256": digest, "sha256_checked": bool(found.get("sha256")),
-            "signature": signature_of_file(final), "version": f"{head['version']}-{head['release']}",
+            "file_sha256": sha256_of(final), "signature": sig, "signer": signer,
+            "version": f"{head['version']}-{head['release']}",
             "same": inst == f"{head['version']}-{head['release']}"}
 
 
+def sha256_of(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _safe_name(name):
+    """A file name made from an RPM header: no folders, nothing odd."""
+    return re.sub(r"[^A-Za-z0-9._+~^-]", "_", name).lstrip(".") or "download.rpm"
+
+
+def _same_site(host, page_host):
+    host, page_host = host.lower(), page_host.lower()
+    return host == page_host or host.endswith("." + page_host) or page_host.endswith("." + host)
+
+
 def _rpm_header(path):
-    p = subprocess.run(["rpm", "-qp", "--qf", "%{NAME}\t%{VERSION}\t%{RELEASE}\t%{ARCH}", str(path)],
+    p = subprocess.run(["rpm", "-qp", "--qf", "%{NAME}\t%{VERSION}\t%{RELEASE}\t%{ARCH}", "--", str(path)],
                        capture_output=True, text=True, env=ENV_C)
     f = p.stdout.strip().split("\t") if p.returncode == 0 else []
     if len(f) != 4:
@@ -417,6 +448,41 @@ def _rpm_from_zip(zpath, package, folder):
             if keep:
                 return target
     raise ValueError(_("The .zip file has no RPM of {package}.").format(package=package))
+
+
+def folder_versions(folders):
+    """Every RPM file in these folders, with its package, version and what it is to the system:
+    'installed' (the version you have), 'older', 'newer' (not installed yet) or 'not-installed'.
+    Used to offer to throw away old versions that pile up in the folder of programs from the web."""
+    files, seen = [], set()
+    for folder in folders:
+        d = Path(os.path.expanduser(folder))
+        if not d.is_dir():
+            continue
+        for f in sorted(d.iterdir()):
+            try:
+                real = f.resolve()
+                if f.suffix != ".rpm" or not f.is_file() or real in seen:
+                    continue
+                seen.add(real)
+                size = f.stat().st_size
+            except OSError:
+                continue
+            head = _rpm_header(f)
+            if head["name"]:
+                files.append({"path": str(f), "folder": str(d), "name": head["name"],
+                              "version": f"{head['version']}-{head['release']}", "size": size})
+    installed = {n: installed_version(n) for n in {x["name"] for x in files}}
+    for x in files:
+        cur = installed.get(x["name"])
+        x["installed"] = cur
+        if not cur:
+            x["state"] = "not-installed"
+        elif x["version"] == cur:
+            x["state"] = "installed"
+        else:
+            x["state"] = "older" if vercmp(x["version"], cur) < 0 else "newer"
+    return files
 
 
 def clean_downloads(max_age=3600):
@@ -448,15 +514,18 @@ def place(path, source):
     return str(final)
 
 
-def signature_of_file(path):
-    """'signed and verified', 'signed, unknown key (…)', 'not signed' — from rpm -K."""
-    p = subprocess.run(["rpm", "-Kv", str(path)], capture_output=True, text=True, env=ENV_C)
+def signature_of_file(path, with_signer=False):
+    """'verified', 'nokey:<key id>', 'bad' or 'unsigned' — from rpm -K. With with_signer, also the key id that
+    signed it (when rpm verified it), so that each source can remember its key."""
+    p = subprocess.run(["rpm", "-Kv", "--", str(path)], capture_output=True, text=True, env=ENV_C)
     out = p.stdout + p.stderr
-    if p.returncode == 0 and re.search(r"Signature, key ID \w+: OK", out) and "BAD" not in out:
-        return "verified"
-    m = re.search(r"Signature, key ID (\w+): NOKEY", out)
-    if m:
-        return "nokey:" + m.group(1)
-    if "Signature" in out:
-        return "bad"
-    return "unsigned"
+    ok = re.search(r"Signature, key ID (\w+): OK", out)
+    if p.returncode == 0 and ok and "BAD" not in out:
+        result, signer = "verified", ok.group(1).lower()
+    elif m := re.search(r"Signature, key ID (\w+): NOKEY", out):
+        result, signer = "nokey:" + m.group(1), None
+    elif "Signature" in out:
+        result, signer = "bad", None
+    else:
+        result, signer = "unsigned", None
+    return (result, signer) if with_signer else result

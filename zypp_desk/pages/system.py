@@ -67,6 +67,7 @@ class LocksPage(Page):
             pend = _("will be unlocked") if any(a.target == lk["name"] for a in self.ctx.queue.of("unlock")) else ""
             it = QTreeWidgetItem(self.tree, [lk["name"], kind_label(lk["type"]), lk["repo"], pend])
             it.setData(0, Qt.ItemDataRole.UserRole, lk["type"])
+            it.setData(1, Qt.ItemDataRole.UserRole, lk["repo"])
         for a in self.ctx.queue.of("lock"):
             if a.target not in names:
                 QTreeWidgetItem(self.tree, [a.target, kind_label("package"), "", _("will be locked")])
@@ -80,7 +81,9 @@ class LocksPage(Page):
     def remove(self):
         it = self.tree.currentItem()
         if it:
-            self.ctx.queue.add(Action("unlock", it.text(0), type=it.data(0, Qt.ItemDataRole.UserRole) or "package"))
+            # a lock limited to a repository is only removed with that repository named (-r)
+            self.ctx.queue.add(Action("unlock", it.text(0), type=it.data(0, Qt.ItemDataRole.UserRole) or "package",
+                                      repo=it.data(1, Qt.ItemDataRole.UserRole) or ""))
 
 
 # ============================================================ services
@@ -209,6 +212,8 @@ class HistoryPage(Page):
         self.ctx.run([st], _("Read the history"), on_done=lambda ok: self._loaded(st))
 
     def _loaded(self, st):
+        if st.code != 0:
+            return  # the password was not given or reading failed: keep what is shown
         rows = backend.parse_history(st.output)
         labels = {"install": _("installed"), "remove": _("removed"), "command": _("command"),
                   "radd": _("repository added"), "rremove": _("repository removed")}
@@ -238,7 +243,8 @@ MAINTENANCE = [
      _("Installs packages recommended by what you have, added since it was installed."),
      ["install-new-recommends", "--dry-run"], ["-n", "install-new-recommends"]),
     ("purge", _("Remove old kernels"),
-     _("Keeps the kernels set in /etc/zypp/zypp.conf (multiversion.kernels) and removes the rest."),
+     _("Keeps the kernels set in zypp.conf (multiversion.kernels; on Tumbleweed /usr/etc/zypp/zypp.conf and "
+       "/etc/zypp/zypp.conf.d) and removes the rest."),
      ["purge-kernels", "--dry-run"], ["-n", "purge-kernels"]),
     ("clean", _("Clean the cache"),
      _("Deletes downloaded packages and cached metadata. They are downloaded again when needed."),

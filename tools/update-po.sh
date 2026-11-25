@@ -4,7 +4,7 @@
 # Run it after changing user-visible strings. Translators only edit po/<lang>.po.
 set -eu
 cd "$(dirname "$0")/.."
-find zypp_desk -name '*.py' | sort > po/POTFILES
+find zypp_desk -name '*.py' | LC_ALL=C sort > po/POTFILES
 xgettext --language=Python --from-code=UTF-8 --keyword=_ --keyword=ngettext:1,2 \
   --add-comments=TRANSLATORS --sort-by-file --package-name="Zypp Desk" \
   --msgid-bugs-address="https://github.com/jordirelats/zypp-desk/issues" \

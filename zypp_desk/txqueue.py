@@ -7,6 +7,8 @@ commands it will run, so the window can always show them.
 
 import shlex
 
+from contextlib import contextmanager
+
 from PySide6.QtCore import QObject, Signal
 
 from .i18n import _, ngettext
@@ -82,6 +84,26 @@ class TxQueue(QObject):
         super().__init__(parent)
         self.settings = settings
         self.actions = []
+        self._batch = 0
+        self._dirty = False
+
+    @contextmanager
+    def batch(self):
+        """Several changes, one 'changed' signal at the end (every page redraws once, not once per change)."""
+        self._batch += 1
+        try:
+            yield self
+        finally:
+            self._batch -= 1
+            if self._batch == 0 and self._dirty:
+                self._dirty = False
+                self.changed.emit()
+
+    def _changed(self):
+        if self._batch:
+            self._dirty = True
+        else:
+            self.changed.emit()
 
     # ---------------------------------------------------------- editing
     def add(self, action):
@@ -89,7 +111,7 @@ class TxQueue(QObject):
             for a in self.actions:
                 if a.kind == "repo-modify" and a.target == action.target:
                     a.opts.update(action.opts)
-                    self.changed.emit()
+                    self._changed()
                     return
         opposite = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
                     "locale-add": "locale-remove", "locale-remove": "locale-add",
@@ -97,23 +119,23 @@ class TxQueue(QObject):
         key = _key(action)
         self.actions = [a for a in self.actions if not (_key(a) == key and a.kind in (action.kind, opposite))]
         self.actions.append(action)
-        self.changed.emit()
+        self._changed()
 
     def discard(self, kind, target):
         n = len(self.actions)
         self.actions = [a for a in self.actions if not (a.kind == kind and a.target == target)]
         if len(self.actions) != n:
-            self.changed.emit()
+            self._changed()
 
     def discard_action(self, action):
         if action in self.actions:
             self.actions.remove(action)
-            self.changed.emit()
+            self._changed()
 
     def clear(self):
         if self.actions:
             self.actions = []
-            self.changed.emit()
+            self._changed()
 
     def state_of(self, name):
         for a in self.actions:
@@ -144,11 +166,14 @@ class TxQueue(QObject):
         return [a for a in self.of("install") if ":" in a.target and a.target.split(":", 1)[0] in new_aliases]
 
     def package_args(self, dry_run=False):
+        """The zypper commands for packages: removals first ('zypper remove' resolves what depends on them,
+        as when you remove a package alone), then installs. Each one is a list of arguments."""
         skip = self.not_simulable() if dry_run else []
         inst = [a for a in self.of("install") if a not in skip]
         rem = [a.target for a in self.of("remove")]
-        if not inst and not rem:
-            return None
+        out = []
+        if rem:
+            out.append(["remove", *(["--dry-run"] if dry_run else []), "--", *rem])
         if inst:
             args = ["install"]
             if any(a.opts.get("oldpackage") for a in inst):
@@ -161,10 +186,8 @@ class TxQueue(QObject):
                 args.append("--auto-agree-with-licenses")
             if dry_run:
                 args.append("--dry-run")
-            # '!name' removes in the same transaction (see "man zypper", install).
-            return args + [a.target for a in inst] + ["!" + r for r in rem]
-        args = ["remove"] + (["--dry-run"] if dry_run else [])
-        return args + rem
+            out.append(args + ["--"] + [a.target for a in inst])  # '--': no name is read as an option
+        return out
 
     def steps(self):
         """Every command, in order: repositories first, then locks, packages and languages."""
@@ -200,13 +223,13 @@ class TxQueue(QObject):
         if rr:
             out.append(Step("zypper", ["-n", "removerepo", *rr]))
         for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
-            by_type = {}
+            groups = {}
             for a in self.of(kind):
-                by_type.setdefault(a.opts.get("type", "package"), []).append(a.target)
-            for typ, names in by_type.items():
-                out.append(Step("zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]), *names]))
-        pkg = self.package_args()
-        if pkg:
+                groups.setdefault((a.opts.get("type", "package"), a.opts.get("repo", "")), []).append(a.target)
+            for (typ, repo), names in groups.items():
+                out.append(Step("zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]),
+                                           *(["-r", repo] if repo else []), "--", *names]))
+        for pkg in self.package_args():
             out.append(Step("zypper", ["-n", *pkg]))
         for kind, sub in (("locale-add", "addlocale"), ("locale-remove", "removelocale")):
             codes = [a.target for a in self.of(kind)]
@@ -222,23 +245,22 @@ class TxQueue(QObject):
         for a in self.of("flatpak-install"):
             groups.setdefault((a.opts.get("installation", "system"), a.opts.get("remote", "flathub")), []).append(a.target)
         for (inst, remote), apps in groups.items():
-            out.append(Step("flatpak", ["install", "--noninteractive", "-y", f"--{inst}", remote, *apps]))
+            out.append(Step("flatpak", ["install", "--noninteractive", "-y", f"--{inst}", "--", remote, *apps]))
         groups = {}
         for a in self.of("flatpak-uninstall"):
             groups.setdefault((a.opts.get("installation", "system"), bool(a.opts.get("delete_data"))), []).append(a.target)
         for (inst, delete), apps in groups.items():
             out.append(Step("flatpak", ["uninstall", "--noninteractive", "-y", f"--{inst}",
-                                        *(["--delete-data"] if delete else []), *apps]))
+                                        *(["--delete-data"] if delete else []), "--", *apps]))
         ups = [a.target for a in self.of("flatpak-update")]
         if ups:
-            out.append(Step("flatpak", ["update", "--noninteractive", "-y", *([] if "*" in ups else ups)]))
+            out.append(Step("flatpak", ["update", "--noninteractive", "-y", *([] if "*" in ups else ["--", *ups])]))
         return out
 
-    def simulation_step(self):
-        pkg = self.package_args(dry_run=True)
-        if not pkg:
-            return None
-        return Step("zypper", ["--xmlout", "-n", *pkg], lang="C", capture=True)
+    def simulation_steps(self):
+        """Dry runs of the package commands (each one is simulated on its own)."""
+        return [Step("zypper", ["--xmlout", "-n", *pkg], lang="C", capture=True, cond="always")
+                for pkg in self.package_args(dry_run=True)]
 
     def preview(self):
         steps = self.steps()

@@ -4,23 +4,24 @@
 import html
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QFile, QLocale, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QSplitter, QStackedWidget, QTextBrowser,
+                               QLineEdit, QMessageBox, QPushButton, QSplitter, QTextBrowser, QToolButton,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import backend, websources
-from ..i18n import _
+from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Page, ask, button, error_box, muted, tool
+from ..ui import Page, ask, button, error_box, info_box, muted, plain, tool
 
 GREY = "#7f8c8d"
 SIG_TEXT = {
@@ -84,14 +85,18 @@ def github_guess(name):
 
 
 class SourceDialog(QDialog):
-    """Where a program is published: GitHub, a fixed address, a download page, or not followed."""
+    """Where a program is published: GitHub, a fixed address, a download page, or not followed.
+
+    One form: the rows that do not belong to the chosen kind are hidden. The patterns that choose the file
+    are filled in from the package name and kept under “Advanced”, because they are regular expressions."""
 
     def __init__(self, local, source=None, default_folder="", package=None, parent=None):
         super().__init__(parent)
         self.local = local
         self.setWindowTitle(_("Web source"))
-        self.resize(660, 0)
-        form = QFormLayout(self)
+        self.setMinimumWidth(640)
+        self.form = form = QFormLayout(self)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.package = QComboBox(self)
         self.package.setEditable(True)
         self.package.addItems(sorted(local))
@@ -101,80 +106,70 @@ class SourceDialog(QDialog):
         form.addRow(_("Installed package:"), self.package)
         form.addRow(_("Where it is published:"), self.kind)
 
-        self.stack = QStackedWidget(self)
         # GitHub
-        g = QWidget(self)
-        gf = QFormLayout(g)
-        gf.setContentsMargins(0, 0, 0, 0)
         self.repo = QLineEdit(self)
-        self.repo.setPlaceholderText(_("owner/project, for example rustdesk/rustdesk"))
+        self.repo.setPlaceholderText(_("owner/project on github.com"))
         find = QPushButton(_("Look for it on GitHub"), self)
         find.clicked.connect(self._find)
-        rrow = QHBoxLayout()
-        rrow.addWidget(self.repo, 1)
-        rrow.addWidget(find)
-        self.gpattern = QLineEdit(self)
-        gf.addRow(_("GitHub project:"), rrow)
-        gf.addRow(_("File to take (regular expression):"), self.gpattern)
+        self.r_repo = self._row(_("GitHub project:"), self._hbox(self.repo, find))
         # fixed address
-        u = QWidget(self)
-        uf = QFormLayout(u)
-        uf.setContentsMargins(0, 0, 0, 0)
         self.url = QLineEdit(self)
-        self.url.setPlaceholderText("https://zoom.us/client/latest/zoom_openSUSE_x86_64.rpm")
-        uf.addRow(_("Download address:"), self.url)
-        uf.addRow(muted(_("An address that always gives the latest file. When it does not say the version, "
-                          "Zypp Desk notices when the file changes.")))
-        # page
-        p = QWidget(self)
-        pf = QFormLayout(p)
-        pf.setContentsMargins(0, 0, 0, 0)
+        self.r_url = self._row(_("Download address:"), self.url)
+        # download page
         self.page = QLineEdit(self)
-        self.page.setPlaceholderText("https://iriun.com/")
-        self.ppattern = QLineEdit(self)
-        self.ppattern.setPlaceholderText(r"iriunwebcam-[\d.]+\.rpm$")
-        pf.addRow(_("Download page:"), self.page)
-        pf.addRow(_("Link to take (regular expression):"), self.ppattern)
-        pf.addRow(muted(_("Zypp Desk reads the links written on the page and takes the newest one that matches. "
-                          "A .zip with the RPM inside also works.")))
-        # manual
-        m = QWidget(self)
-        mf = QFormLayout(m)
-        mf.setContentsMargins(0, 0, 0, 0)
+        self.page.setPlaceholderText("https://…")
+        self.r_page = self._row(_("Download page:"), self.page)
+        # not followed
         self.note = QLineEdit(self)
         self.note.setPlaceholderText(_("for example: made on this computer"))
+        self.r_note = self._row(_("Note:"), self.note)
         self.mpage = QLineEdit(self)
         self.mpage.setPlaceholderText("https://…")
-        mf.addRow(_("Note:"), self.note)
-        mf.addRow(_("Page to look at by hand:"), self.mpage)
-        for w in (g, u, p, m):
-            self.stack.addWidget(w)
-        form.addRow(self.stack)
-
+        self.r_mpage = self._row(_("Page to look at by hand:"), self.mpage)
+        # what Zypp Desk does with it, in plain words
+        self.help = muted("", self)
+        form.addRow(self.help)
+        self.r_help = form.rowCount() - 1
+        # where new versions go
         self.folder = QLineEdit(self)
         pick = QPushButton(_("Choose…"), self)
         pick.clicked.connect(self._pick)
-        frow = QHBoxLayout()
-        frow.addWidget(self.folder, 1)
-        frow.addWidget(pick)
-        self.folder_lbl = QLabel(_("Download into:"), self)
-        form.addRow(self.folder_lbl, frow)
+        self.r_folder = self._row(_("Download into:"), self._hbox(self.folder, pick))
+        # the patterns, for those who want them
+        self.adv = QToolButton(self)
+        self.adv.setText(_("Advanced"))
+        self.adv.setCheckable(True)
+        self.adv.setAutoRaise(True)
+        self.adv.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.adv.setArrowType(Qt.ArrowType.RightArrow)
+        self.adv.toggled.connect(self._update_rows)
+        form.addRow(self.adv)
+        self.r_adv = form.rowCount() - 1
+        self.gpattern = QLineEdit(self)
+        self.r_gpat = self._row(_("File to take (regular expression):"), self.gpattern)
+        self.ppattern = QLineEdit(self)
+        self.r_ppat = self._row(_("Link to take (regular expression):"), self.ppattern)
+
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         bb.accepted.connect(self._ok)
         bb.rejected.connect(self.reject)
         form.addRow(bb)
-        self.kind.currentIndexChanged.connect(self._kind_changed)
+        self.kind.currentIndexChanged.connect(self._update_rows)
         self.package.currentTextChanged.connect(self._package_changed)
         if source:
+            kind = source.get("type", "github")
             self.package.setCurrentText(source["package"])
-            self.kind.setCurrentIndex(max(0, [k for k, _l in KINDS].index(source.get("type", "github"))))
+            self.kind.setCurrentIndex(max(0, [k for k, _l in KINDS].index(kind)))
+            self._package_changed(source["package"], keep_folder=True)
             self.repo.setText(source.get("repo", ""))
-            self.gpattern.setText(source.get("pattern", "") if source.get("type", "github") == "github" else "")
+            if kind == "github" and source.get("pattern"):
+                self.gpattern.setText(source["pattern"])
             self.url.setText(source.get("url", ""))
-            self.page.setText(source.get("page", "") if source.get("type") == "page" else "")
-            self.ppattern.setText(source.get("pattern", "") if source.get("type") == "page" else "")
+            self.page.setText(source.get("page", "") if kind == "page" else "")
+            if kind == "page" and source.get("pattern"):
+                self.ppattern.setText(source["pattern"])
             self.note.setText(source.get("note", ""))
-            self.mpage.setText(source.get("page", "") if source.get("type") == "manual" else "")
+            self.mpage.setText(source.get("page", "") if kind == "manual" else "")
             self.folder.setText(source.get("folder", "") or default_folder)
         else:
             if package:
@@ -182,25 +177,54 @@ class SourceDialog(QDialog):
             self._package_changed(self.package.currentText())
             if not self.folder.text():
                 self.folder.setText(default_folder)
-        self._kind_changed()
+        self._update_rows()
 
-    def _kind_changed(self):
-        i = self.kind.currentIndex()
-        self.stack.setCurrentIndex(i)
-        manual = self.kind.currentData() == "manual"
-        self.folder.setEnabled(not manual)
-        self.folder_lbl.setEnabled(not manual)
+    def _row(self, label, widget):
+        self.form.addRow(label, widget)
+        return self.form.rowCount() - 1
+
+    def _hbox(self, *widgets):
+        w = QWidget(self)
+        h = QHBoxLayout(w)
+        h.setContentsMargins(0, 0, 0, 0)
+        for i, x in enumerate(widgets):
+            h.addWidget(x, 1 if i == 0 else 0)
+        return w
+
+    def _update_rows(self, *_a):
+        kind = self.kind.currentData()
+        adv = self.adv.isChecked()
+        self.adv.setArrowType(Qt.ArrowType.DownArrow if adv else Qt.ArrowType.RightArrow)
+        shown = {
+            self.r_repo: kind == "github", self.r_url: kind == "url", self.r_page: kind == "page",
+            self.r_note: kind == "manual", self.r_mpage: kind == "manual", self.r_folder: kind != "manual",
+            self.r_adv: kind in ("github", "page"), self.r_gpat: kind == "github" and adv,
+            self.r_ppat: kind == "page" and adv,
+        }
+        for row, on in shown.items():
+            self.form.setRowVisible(row, on)
+        self.help.setText({
+            "github": _("Zypp Desk looks at the latest release of the project and takes the file of this package."),
+            "url": _("An address that always gives the latest file. When it does not say the version, Zypp Desk "
+                     "notices when the file changes."),
+            "page": _("Zypp Desk reads the links written on the page and takes the newest one that matches. A .zip "
+                      "with the RPM inside also works."),
+            "manual": _("Zypp Desk will not look for new versions of this package."),
+        }[kind])
         self.adjustSize()
 
-    def _package_changed(self, name):
+    def _package_changed(self, name, keep_folder=False):
+        name = name.strip()
         folder = self.local.get(name, "")
-        if folder:
+        if folder and not keep_folder:
             self.folder.setText(home_short(folder))
         example = None
         if folder and Path(folder).is_dir():
             files = sorted(f.name for f in Path(folder).glob(f"{name}-*.rpm"))
             example = files[-1] if files else None
-        self.gpattern.setText(websources.guess_pattern(name, example))
+        self.gpattern.setText(websources.guess_pattern(name, example) if name else "")
+        self.ppattern.setText(websources.guess_link_pattern(name) if name else "")
+        self.url.setPlaceholderText("https://…/" + (name or "program") + ".rpm")
 
     def _find(self):
         name = self.package.currentText().strip()
@@ -210,7 +234,7 @@ class SourceDialog(QDialog):
         run_async(github_guess, name, on_done=self._found)
 
     def _found(self, hits, err):
-        self.repo.setPlaceholderText(_("owner/project, for example rustdesk/rustdesk"))
+        self.repo.setPlaceholderText(_("owner/project on github.com"))
         if err:
             error_box(self, self.windowTitle(), str(err)[:300])
             return
@@ -226,20 +250,24 @@ class SourceDialog(QDialog):
     def _ok(self):
         kind = self.kind.currentData()
         name = self.package.currentText().strip()
+        if kind == "github" and not self.gpattern.text().strip():
+            self.gpattern.setText(websources.guess_pattern(name))
+        if kind == "page" and not self.ppattern.text().strip():
+            self.ppattern.setText(websources.guess_link_pattern(name))
         need = {
-            "github": "/" in self.repo.text() and self.gpattern.text().strip(),
+            "github": "/" in self.repo.text(),
             "url": self.url.text().strip().startswith("https://"),
-            "page": self.page.text().strip().startswith("https://") and self.ppattern.text().strip(),
+            "page": self.page.text().strip().startswith("https://"),
             "manual": True,
         }[kind]
         if not name or not need or (kind != "manual" and not self.folder.text().strip()):
             error_box(self, self.windowTitle(), _("Fill in every field. Addresses must start with https://."))
             return
         if kind in ("github", "page"):
-            import re
             try:
                 re.compile(self.gpattern.text() if kind == "github" else self.ppattern.text())
             except re.error as e:
+                self.adv.setChecked(True)
                 error_box(self, self.windowTitle(), _("The regular expression is not valid: {error}").format(error=e))
                 return
         self.accept()
@@ -260,7 +288,78 @@ class SourceDialog(QDialog):
                                      page=self.mpage.text().strip())
 
 
+def fmt_size(n):
+    """A size the way the user's language writes it (63,7 MiB in Catalan)."""
+    return QLocale().formattedDataSize(int(n or 0))
+
+
+class TidyDialog(QDialog):
+    """Old versions that pile up in the folder of programs from the web, to move to the trash."""
+
+    def __init__(self, files, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_("Tidy up old versions"))
+        self.resize(940, 560)
+        lay = QVBoxLayout(self)
+        lay.addWidget(muted(_("Every new version you download stays in the folder. The ticked files are moved to the "
+                              "trash, so you can still get them back. The version you have installed always stays.")))
+        self.tree = QTreeWidget(self)
+        self.tree.setHeaderLabels([_("File"), _("Version"), _("You have"), _("Size")])
+        groups = [
+            ("older", _("Older than the version you have"), True),
+            ("not-installed", _("Programs you no longer have installed"), False),
+        ]
+        for state, label, ticked in groups:
+            rows = [f for f in files if f["state"] == state]
+            if not rows:
+                continue
+            top = QTreeWidgetItem(self.tree, [f"{label} ({len(rows)})"])
+            top.setFirstColumnSpanned(True)
+            top.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsAutoTristate)
+            for f in sorted(rows, key=lambda r: (r["name"], r["path"])):
+                it = QTreeWidgetItem(top, [Path(f["path"]).name, f["version"], f["installed"] or "—",
+                                           fmt_size(f["size"])])
+                it.setData(0, Qt.ItemDataRole.UserRole, f)
+                it.setToolTip(0, f["path"])
+                it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                it.setCheckState(0, Qt.CheckState.Checked if ticked else Qt.CheckState.Unchecked)
+            top.setExpanded(True)
+        for c in range(4):
+            self.tree.resizeColumnToContents(c)
+        lay.addWidget(self.tree, 1)
+        self.total = QLabel(self)
+        lay.addWidget(self.total)
+        self.tree.itemChanged.connect(lambda *_a: self._update_total())  # once the list is filled
+        bb = QDialogButtonBox(self)
+        self.go = bb.addButton(_("Move to the trash"), QDialogButtonBox.ButtonRole.AcceptRole)
+        bb.addButton(QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+        self._update_total()
+
+    def ticked(self):
+        out = []
+        for i in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(i)
+            for j in range(top.childCount()):
+                it = top.child(j)
+                if it.checkState(0) == Qt.CheckState.Checked:
+                    out.append(it.data(0, Qt.ItemDataRole.UserRole))
+        return out
+
+    def _update_total(self):
+        files = self.ticked()
+        size = sum(f["size"] for f in files)
+        self.total.setText(ngettext("{n} file ticked, {size}.", "{n} files ticked, {size}.", len(files)).format(
+            n=len(files), size=fmt_size(size)))
+        self.go.setEnabled(bool(files))
+
+
 class WebSourcesPage(Page):
+    # what is known about the programs from the web changed (a file was remembered, a source edited,
+    # a new version queued): the Updates and Applications pages look again
+    sources_changed = Signal()
     key = "websources"
     title = _("Web sources")
     icon_name = "internet-web-browser"
@@ -272,9 +371,13 @@ class WebSourcesPage(Page):
         self.downloading = False
         self._dl_queue = []
         self._dl_current = None
+        self._dl_finished = []
         self.aliases = set()
         self.local = {}
         self.folders = {}
+        self._round = 0      # each check of every source is a round: late answers of an older one are dropped
+        self._inst = {}      # installed version of the packages that are not checked (filled in a thread)
+        self._inst_round = 0
 
         self.folder_lbl = QLabel(self)
         self.folder_lbl.setTextFormat(Qt.TextFormat.RichText)
@@ -284,8 +387,8 @@ class WebSourcesPage(Page):
         fbar.addWidget(button(_("Change the folder…"), "folder-open", self.change_folder))
 
         self.tree = QTreeWidget(self)
-        self.tree.setHeaderLabels([_("Program"), _("Installed"), _("Latest"), _("Where it is published"),
-                                   _("Status")])
+        self.tree.setHeaderLabels([_("Program"), _("Status"), _("Installed"), _("Latest"),
+                                   _("Where it is published")])
         self.tree.setRootIsDecorated(False)
         self.tree.setAlternatingRowColors(True)
         self.tree.currentItemChanged.connect(lambda cur, _p: self._show(cur))
@@ -321,14 +424,33 @@ class WebSourcesPage(Page):
 
     def header_actions(self):
         return [tool(_("Add…"), "list-add", self.add), tool(_("Edit…"), "document-edit", self.edit),
+                tool(_("Tidy up old versions…"), "edit-clear-history", lambda: self.tidy()),
                 tool(_("Remove"), "list-remove", self.remove),
                 tool(_("Check now"), "view-refresh", lambda: self.check_all(force=True))]
 
     def reload(self):
         self.sources = websources.load()
+        self._inst = {}  # after an Apply the installed versions change
         self._fill()
         self.check_all()
+        self._load_installed()
         run_async(local_state, on_done=self._local_loaded)
+
+    def _load_installed(self):
+        """rpm -q for the rows that are not checked (not followed, or made here), never on the GUI thread."""
+        names = sorted(set(self.local) | {s["package"] for s in self.sources})
+        self._inst_round += 1
+        rnd = self._inst_round
+
+        def query():
+            return {n: websources.installed_version(n) or "" for n in names}
+        run_async(query, on_done=lambda res, err: self._installed_loaded(rnd, res, err))
+
+    def _installed_loaded(self, rnd, res, err):
+        if rnd != self._inst_round or err or res is None:
+            return
+        self._inst = res
+        self._fill()
 
     def _local_loaded(self, res, err):
         if err or not res:
@@ -338,6 +460,8 @@ class WebSourcesPage(Page):
         self.aliases = res.get("aliases", set())
         self._show_folder()
         self._fill()
+        if set(self.local) - set(self._inst):
+            self._load_installed()
 
     # ------------------------------------------------------------ folder
     def default_folder(self):
@@ -427,39 +551,33 @@ class WebSourcesPage(Page):
         for name, s in rows:
             f = self.found.get(name, {}) if s else {}
             text, color = self._status(s, f)
-            installed = f.get("installed") or ""
-            if s is None or s.get("type") == "manual":
-                installed = installed or self._installed_cache(name)
+            installed = f.get("installed") or self._inst.get(name, "")
             origin = ""
             if s and s.get("type") != "manual":
                 where = websources.origin_text(s)
                 origin = KIND_SHORT.get(s.get("type", "github"), "") + " · " + where.removeprefix("github.com/")
-            it = QTreeWidgetItem(self.tree, [name, installed, f.get("version") or "", origin, text])
+            it = QTreeWidgetItem(self.tree, [name, text, installed, f.get("version") or "", origin])
             it.setData(0, Qt.ItemDataRole.UserRole, s)
             it.setData(0, Qt.ItemDataRole.UserRole + 1, name)
-            it.setToolTip(3, websources.origin_text(s) if s else "")
-            it.setToolTip(4, (s or {}).get("note") or text)
+            it.setToolTip(1, (s or {}).get("note") or text)
+            it.setToolTip(4, websources.origin_text(s) if s else "")
             if color:
-                it.setForeground(4, QBrush(QColor(color)))
+                it.setForeground(1, QBrush(QColor(color)))
             if s is None or s.get("type") == "manual":
-                for c in range(4):
+                for c in (0, 2, 3, 4):
                     it.setForeground(c, QBrush(QColor(GREY)))
             if name == cur_pkg:
                 self.tree.setCurrentItem(it)
         for c in range(4):
             self.tree.resizeColumnToContents(c)
+        if self.tree.columnWidth(1) > 240:  # a long error stays in the tooltip
+            self.tree.setColumnWidth(1, 240)
         if not rows:
             empty = QTreeWidgetItem(self.tree, [_("No program from the web yet. Use “Add…”.")])
             empty.setFirstColumnSpanned(True)
             empty.setFlags(Qt.ItemFlag.NoItemFlags)
         elif self.tree.currentItem() is None:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
-
-    def _installed_cache(self, name):
-        cache = self.__dict__.setdefault("_inst", {})
-        if name not in cache:
-            cache[name] = websources.installed_version(name) or ""
-        return cache[name]
 
     def _current(self):
         it = self.tree.currentItem()
@@ -499,16 +617,16 @@ class WebSourcesPage(Page):
         elif kind == "url":
             rows.append((_("Download address"), link(s["url"])))
         elif kind == "page":
-            rows += [(_("Download page"), link(s["page"])), (_("Link to take"), f"<code>{e(s['pattern'])}</code>")]
+            rows.append((_("Download page"), link(s["page"])))
         else:
             rows += [(_("Note"), e(s.get("note") or "")), (_("Page to look at by hand"), link(s.get("page", "")))]
         if kind != "manual":
             if f.get("url") and kind != "github":
                 rows.append((_("File found"), link(f["url"], f.get("asset"))))
             else:
-                rows.append((_("File"), e(f.get("asset") or (_("no file matches {pattern}").format(
-                    pattern=s.get("pattern", "")) if f and not f.get("error") else ""))))
-            rows.append((_("Size"), f"{f['size'] / 1048576:.1f} MiB" if f.get("size") else ""))
+                rows.append((_("File"), e(f.get("asset") or (_("no file of the latest release matches")
+                                                             if f and not f.get("error") else ""))))
+            rows.append((_("Size"), e(fmt_size(f["size"])) if f.get("size") else ""))
             rows.append((_("Published"), e(f.get("published") or "")))
             if kind == "github":
                 rows.append((_("SHA-256 published by GitHub"), f"<code>{f['sha256']}</code>" if f.get("sha256") else
@@ -519,9 +637,13 @@ class WebSourcesPage(Page):
             rows.append((_("Download into"), e(s.get("folder", ""))))
             if kind == "github" and f.get("page"):
                 rows.append((_("Release page"), link(f["page"], f.get("tag"))))
+        advanced = ""
+        if kind in ("github", "page") and s.get("pattern"):
+            advanced = (f"<p style='color:gray'>{e(_('Advanced'))} · {e(_('pattern that chooses the file'))}: "
+                        f"<code>{e(s['pattern'])}</code></p>")
         self.details.setHtml(f"<h3>{e(name)}</h3><table>" + "".join(
             f"<tr><td style='color:gray;padding-right:12px'>{k}</td><td>{v}</td></tr>" for k, v in rows if v)
-            + "</table>")
+            + "</table>" + advanced)
         self.get_btn.setText(_("Download it to see the version") if f.get("newer") is None and f.get("changed")
                              else _("Download, verify and add to the queue"))
         self.get_btn.setEnabled(kind != "manual" and bool(f.get("url")) and not self.ctx.runner.busy
@@ -529,27 +651,40 @@ class WebSourcesPage(Page):
 
     # ------------------------------------------------------------ checking
     def check_all(self, force=False):
+        self._round += 1
+        rnd = self._round
         self.found = {}
         self._fill()
-        for s in self.sources:
-            if s.get("type") == "manual":
-                self.found[s["package"]] = websources.check(s)
-                continue
+        for s in self.sources:  # the manual ones too: they only ask rpm, but never on the GUI thread
             run_async(websources.check, s, force,
-                      on_done=lambda res, err, p=s["package"]: self._checked(p, res, err))
-        self._fill()
+                      on_done=lambda res, err, p=s["package"]: self._checked(rnd, p, res, err))
 
-    def _checked(self, package, res, err):
+    def _checked(self, rnd, package, res, err):
+        if rnd != self._round:
+            return  # an answer of an older round (the source was edited, or checked again meanwhile)
         self.found[package] = res if not err else {"error": str(err)}
         self._fill()
         self._show(self.tree.currentItem())
-        newer = [p for p, f in self.found.items() if f.get("newer")]
-        self.ctx.set_badge("websources", str(len(newer)) if newer else "")
+        self.set_badge_from(list(self.found.values()))
+
+    @staticmethod
+    def counts_as_new(found):
+        """What every page counts as news from the web: a newer version, or a changed file whose version is
+        not written in its address."""
+        return bool(found) and not found.get("error") and bool(
+            found.get("newer") or (found.get("newer") is None and found.get("changed")))
+
+    def set_badge_from(self, results):
+        """The number after “Web sources” in the sidebar, from a list of dicts returned by websources.check
+        (the Home and Updates pages call it after their own checks, so it shows before a visit here)."""
+        n = sum(1 for f in results if self.counts_as_new(f))
+        self.ctx.set_badge("websources", str(n) if n else "")
 
     # ------------------------------------------------------------ editing
     def _save_source(self, s, old_name=None):
         self.sources = [x for x in self.sources if x["package"] not in (s["package"], old_name)] + [s]
         websources.save(self.sources)
+        self.sources_changed.emit()
         self.check_all()
 
     def add(self, package=None):
@@ -584,6 +719,7 @@ class WebSourcesPage(Page):
             self.sources = [x for x in self.sources if x["package"] != s["package"]]
             websources.save(self.sources)
             self._fill()
+            self.sources_changed.emit()
 
     def _remember_file(self, package, fingerprint):
         """Remember the file seen, for addresses that do not say the version."""
@@ -593,6 +729,55 @@ class WebSourcesPage(Page):
             if x["package"] == package:
                 x["seen"] = fingerprint
         websources.save(self.sources)
+        self.sources_changed.emit()
+
+    # ------------------------------------------------------------ old versions
+    def tidy(self, packages=None):
+        """Offer to move old versions to the trash. With packages (after installing new versions of them), only
+        their older versions are offered, and nothing is shown when there are none."""
+        if getattr(self, "_tidying", False):
+            return
+        self._tidying = True
+        folders = {s.get("folder") for s in self.sources if s.get("folder")} | {self.default_folder()}
+
+        def scan():
+            folders.update(local_state()["folders"])
+            return websources.folder_versions(sorted(folders))
+        if packages is None:
+            self.ctx.terminal.view.note(_("Looking for old versions in {folders}…").format(
+                folders=", ".join(sorted(home_short(os.path.expanduser(f)) for f in folders))), "info")
+        run_async(scan, on_done=lambda res, err: self._tidy_found(res, err, packages))
+
+    def _tidy_found(self, files, err, packages):
+        self._tidying = False
+        if err:
+            error_box(self, _("Tidy up old versions"), str(err))
+            return
+        files = files or []
+        if packages is not None:
+            files = [f for f in files if f["name"] in packages and f["state"] == "older"]
+            if not files:
+                return
+        if not any(f["state"] in ("older", "not-installed") for f in files):
+            info_box(self, _("Tidy up old versions"), _("There are no old versions to throw away."))
+            return
+        dlg = TidyDialog(files, self)
+        if not dlg.exec():
+            return
+        moved, failed = 0, []
+        for f in dlg.ticked():
+            if f["state"] == "installed":
+                continue  # never the version you have
+            if QFile.moveToTrash(f["path"])[0]:
+                moved += 1
+            else:
+                failed.append(f["path"])
+        view = self.ctx.terminal.view
+        view.note(ngettext("{n} old file moved to the trash.", "{n} old files moved to the trash.", moved)
+                  .format(n=moved), "ok")
+        if failed:
+            error_box(self, _("Tidy up old versions"), _("These files could not be moved to the trash:") + "\n"
+                      + "\n".join(failed))
 
     # ------------------------------------------------------------ download
     def download(self):
@@ -600,12 +785,15 @@ class WebSourcesPage(Page):
         if s:
             self.get_new_versions([s["package"]])
 
-    def get_new_versions(self, names):
+    def get_new_versions(self, names, on_finished=None):
         """Download, check and queue the new version of these programs, one after the other.
 
         Used by the button here and by the Updates and Applications pages. Each file goes through the same
-        checks and questions as always; only one download runs at a time.
+        checks and questions as always; only one download runs at a time. on_finished() is called once
+        nothing is waiting or downloading any more (the Updates page then simulates the queue).
         """
+        if on_finished:
+            self._dl_finished.append(on_finished)
         queued = {x["package"] for x in self._dl_queue} | ({self._dl_current} if self._dl_current else set())
         for n in names:
             src = next((x for x in self.sources if x["package"] == n and x.get("type", "github") != "manual"), None)
@@ -617,6 +805,10 @@ class WebSourcesPage(Page):
     def _next_download(self):
         if self.downloading or not self._dl_queue:
             self.get_btn.setEnabled(bool(self._current()) and not self.downloading)
+            if not self.downloading and not self._dl_queue:
+                done, self._dl_finished = self._dl_finished, []
+                for fn in done:
+                    fn()
             return
         s = self._dl_queue.pop(0)
         self.downloading = True
@@ -644,7 +836,8 @@ class WebSourcesPage(Page):
         self.ctx.term_toggle.setChecked(True)
         self.ctx.terminal.set_title(_("Download {file}").format(file=f.get("asset") or s["package"]))
         view.prompt(f"$ curl -LO {f['url']}")
-        view.note(_("Downloading {size} MiB…").format(size=f"{(f.get('size') or 0) / 1048576:.1f}"), "info")
+        view.note(_("Downloading {size}…").format(size=fmt_size(f["size"])) if f.get("size") else _("Downloading…"),
+                  "info")
         run_async(websources.download, s, f, on_done=lambda res, err: self._downloaded(s, f, res, err))
 
     def _downloaded(self, s, f, res, err):
@@ -667,7 +860,7 @@ class WebSourcesPage(Page):
             os.unlink(res["path"])
             self._remember_file(s["package"], f.get("fingerprint"))
             view.note(_("You already have this version: the file was deleted."), "info")
-            QMessageBox.information(self, self.title, _("{name}: you already have version {version}.").format(
+            info_box(self, self.title, _("{name}: you already have version {version}.").format(
                 name=s["package"], version=res["version"]))
             self.check_all()
             return
@@ -684,6 +877,34 @@ class WebSourcesPage(Page):
             os.unlink(res["path"])
             error_box(self, self.title, _("The signature of the file does not verify: it was deleted."))
             return
+        if sig.startswith("nokey:"):
+            # signed, but with a key rpm does not know: zypper refuses it (--allow-unsigned-rpm is only for
+            # packages without any signature). The vendor's key must be imported first.
+            os.unlink(res["path"])
+            error_box(self, self.title, _(
+                "{name} {version} is signed with the key {key}, which this computer does not know yet, so zypper "
+                "would refuse to install it. Get the vendor's public key from its official web site, check the "
+                "fingerprint there, import it (Repositories → More → Import a signing key…) and download it again. "
+                "The downloaded file was deleted.").format(name=s["package"], version=res["version"], key=sig[6:]))
+            return
+        pinned = s.get("signer")
+        if sig == "verified" and pinned and res.get("signer") and res["signer"] != pinned:
+            # the same program, signed now by another key that rpm also trusts: it may be a renewed key, or not
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Critical)
+            box.setWindowTitle(_("A different signing key"))
+            box.setText(_("{name} {version} is signed with the key {new}, but until now it came signed with {old}.")
+                        .format(name=s["package"], version=res["version"], new=res["signer"], old=pinned))
+            box.setInformativeText(_("A vendor sometimes renews its key, but a different key can also mean that the "
+                                     "file does not come from the vendor. Check the vendor's web site before going "
+                                     "on. Add it to the queue anyway, and trust the new key for this program?"))
+            plain(box)
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            if box.exec() != QMessageBox.StandardButton.Yes:
+                os.unlink(res["path"])
+                view.note(_("Not accepted: the downloaded file was deleted."), "info")
+                return
         if sig != "verified":
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
@@ -699,14 +920,25 @@ class WebSourcesPage(Page):
                 why = _("It was downloaded over https from {host}, but nothing else confirms that the file is the "
                         "original.").format(host=urllib.parse.urlsplit(f["url"]).netloc)
             box.setInformativeText(why + " " + _("Add it to the queue anyway?"))
+            plain(box)
             box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if box.exec() != QMessageBox.StandardButton.Yes:
                 os.unlink(res["path"])
                 view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
-            allow_unsigned = sig == "unsigned" or sig.startswith("nokey:")
-        path = websources.place(res["path"], s)
+            allow_unsigned = sig == "unsigned"
+        if sig == "verified" and res.get("signer") and res["signer"] != pinned:
+            for x in self.sources:  # remember which key signs this program
+                if x["package"] == s["package"]:
+                    x["signer"] = res["signer"]
+            websources.save(self.sources)
         self._remember_file(s["package"], f.get("fingerprint"))
-        view.note(_("Saved as {path}").format(path=path), "ok")
-        self.ctx.queue.add(Action("install", path, package=s["package"], allow_unsigned=allow_unsigned))
+        # The file stays in the private download folder until it is installed, and the queue keeps its
+        # SHA-256: Apply checks it again, and only then it moves to your folder (which a cloud may sync).
+        path = res["path"]
+        view.note(_("Ready to install: {path}. After installing, it moves to {folder}.").format(
+            path=path, folder=s["folder"]), "ok")
+        self.ctx.queue.add(Action("install", path, package=s["package"], allow_unsigned=allow_unsigned,
+                                  sha256=res["file_sha256"], move_to=s["folder"]))
+        self.sources_changed.emit()
         view.note(_("Added to the queue. Simulate it, then apply it."), "info")

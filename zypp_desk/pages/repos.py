@@ -21,9 +21,9 @@ from .. import backend, flatpak, repocheck
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import GREEN, RED, dot
-from ..tasks import run_async
+from ..tasks import emit_safely, run_async
 from ..txqueue import Action
-from ..ui import Chip, Page, ask, button, error_box, icon, muted, tool
+from ..ui import Chip, Page, ask, button, error_box, icon, muted, plain, tool
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
 FCOL_NAME, FCOL_HEALTH, FCOL_ON, FCOL_INST, FCOL_URL = range(5)
@@ -81,7 +81,7 @@ class Checker(QObject):
             except Exception as e:  # a check must never take the window down
                 res = {"state": "fail", "text": _("could not check"), "detail": str(e)}
         try:
-            self.result.emit(gen, key, res)
+            emit_safely(self.result, gen, key, res)  # nothing is emitted once the program is quitting
         except RuntimeError:
             pass  # the window was closed meanwhile
 
@@ -302,6 +302,10 @@ class ReposPage(Page):
         self.checker = Checker(self)
         self.checker.result.connect(self._checked)
         self._total = self._done = 0
+        self._fill_pending = False
+        self._stale = False
+        self._cards_stale = True
+        self._fcards_stale = True
 
         # ---- top row: filter, "only failing", view switch
         self.filter = QLineEdit(self)
@@ -382,13 +386,12 @@ class ReposPage(Page):
         self.tabs.addTab(fpage, icon("flatpak-discover", "application-vnd.flatpak.ref"), "Flatpak")
 
         lay = QVBoxLayout(self)
+        lay.addWidget(self._online_banner())
         lay.addLayout(top)
         lay.addLayout(srow)
         lay.addWidget(self.tabs, 1)
         self._view_changed()
-        # Rebuild the list after the click has finished: rebuilding it inside itemChanged deletes the item
-        # Qt is still handling, and crashes.
-        ctx.queue.changed.connect(lambda: QTimer.singleShot(0, self._fill))
+        ctx.queue.changed.connect(self._queue_changed)
 
     def _view_button(self, text, icon_name):
         b = QToolButton(self)
@@ -435,9 +438,10 @@ class ReposPage(Page):
             error_box(self, self.title, str(err))
             return
         self.repos = repos
-        self._fill()
         if check:
-            self.check_all()
+            self.check_all()  # it fills the list too
+        else:
+            self._fill()
 
     def _remotes_loaded(self, remotes, err):
         if err or remotes is None:
@@ -486,12 +490,13 @@ class ReposPage(Page):
 
     def _progress(self):
         done, total = self._done, self._total
-        fails = [k for k, v in self.health.items() if v["state"] == "fail"]
+        zypper = {k: v for k, v in self.health.items() if k.startswith("zypper:")}
+        fails = [k for k, v in zypper.items() if v["state"] == "fail"]
         if done < total:
             self.status.setStyleSheet("color: palette(placeholder-text);")
             self.status.setText(_("Checking the addresses… {done} of {total}").format(done=done, total=total))
         else:
-            ok = sum(1 for v in self.health.values() if v["state"] == "ok")
+            ok = sum(1 for v in zypper.values() if v["state"] == "ok")
             text = f"<span style='color:{GREEN}'>● " + ngettext("{n} works", "{n} work", ok).format(n=ok) + "</span>"
             if fails:
                 text += (f"  &nbsp;<span style='color:{RED}'>● " + ngettext("{n} does not work", "{n} do not work",
@@ -501,15 +506,17 @@ class ReposPage(Page):
             self.tree.resizeColumnToContents(COL_HEALTH)
             self.ftree.resizeColumnToContents(FCOL_HEALTH)
             self._fit_columns()
-        self.fix_btn.setVisible(done >= total and any(k.startswith("zypper:") for k in fails))
+        self.fix_btn.setVisible(done >= total and bool(fails))
         self._update_tab_titles()
 
     def _update_tab_titles(self):
-        def title(base, prefix, n):
-            bad = sum(1 for k, v in self.health.items() if k.startswith(prefix) and v["state"] == "fail")
-            return f"{base} ({n})" + (f" · {bad} ✕" if bad else "")
-        self.tabs.setTabText(0, title("zypper", "zypper:", len(self.repos)))
-        self.tabs.setTabText(1, title("Flatpak", "flatpak:", len(self.remotes)))
+        def bad(prefix):
+            return sum(1 for k, v in self.health.items() if k.startswith(prefix) and v["state"] == "fail")
+        z, f = bad("zypper:"), bad("flatpak:")
+        self.tabs.setTabText(0, _("Repositories ({n})").format(n=len(self.repos)) + (
+            " · " + ngettext("{n} does not work", "{n} do not work", z).format(n=z) if z else ""))
+        self.tabs.setTabText(1, f"Flatpak ({len(self.remotes)})" + (
+            " · " + ngettext("{n} does not work", "{n} do not work", f).format(n=f) if f else ""))
 
     # ------------------------------------------------------------ zypper: table and cards
     def _gpg_text(self, r):
@@ -518,23 +525,31 @@ class ReposPage(Page):
                 _("packages") if r["pkg_gpgcheck"] else _("repository") if r["repo_gpgcheck"] else
                 _("on") if r["gpgcheck"] else _("off"))
 
+    def _state(self, r):
+        """What the queue changes in a repository: (opts, removing, enabled, autorefresh, priority, card style)."""
+        ch = self.ctx.queue.repo_change(r["alias"])
+        o = ch.opts if ch and ch.kind == "repo-modify" else {}
+        removing = bool(ch and ch.kind == "repo-remove")
+        style = None
+        if o or removing:
+            color = RED if removing else "#1d99f3"
+            style = f"color: {color}; font-style: italic;" + (" text-decoration: line-through;" if removing else "")
+        return (o, removing, o.get("enabled", r["enabled"]), o.get("autorefresh", r["autorefresh"]),
+                o.get("priority", r["priority"]), style)
+
+    def _ordered(self):
+        return sorted(self.repos, key=lambda r: (not r["enabled"], r["name"].lower()))
+
     def _fill(self):
+        self._fill_pending = False
         self._filling = True
         col, order = self.tree.sortColumn(), self.tree.header().sortIndicatorOrder()
         cur_alias = self._current
         self.tree.setSortingEnabled(False)
         self.tree.clear()
         self.items = {}
-        cards = []
-        self.cards = {}
-        ordered = sorted(self.repos, key=lambda r: (not r["enabled"], r["name"].lower()))
-        for r in ordered:
-            ch = self.ctx.queue.repo_change(r["alias"])
-            o = ch.opts if ch and ch.kind == "repo-modify" else {}
-            removing = bool(ch and ch.kind == "repo-remove")
-            enabled = o.get("enabled", r["enabled"])
-            auto = o.get("autorefresh", r["autorefresh"])
-            prio = o.get("priority", r["priority"])
+        for r in self._ordered():
+            o, removing, enabled, auto, prio, style = self._state(r)
             gpg = self._gpg_text(r)
             it = RepoItem(["", r["name"], "", "", "", "", gpg, r["url"]])
             it.setData(0, Qt.ItemDataRole.UserRole, r)
@@ -545,21 +560,42 @@ class ReposPage(Page):
             it.setData(COL_PRIO, Qt.ItemDataRole.DisplayRole, prio)
             it.setToolTip(COL_NAME, r["alias"] + (f"  ({_('service')}: {r['service']})" if r["service"] else ""))
             it.setToolTip(COL_URL, r["url"])
-            style = None
             if o or removing:
                 f = it.font(COL_NAME)
                 f.setItalic(True)
                 f.setStrikeOut(removing)
                 it.setFont(COL_NAME, f)
-                color = RED if removing else "#1d99f3"
-                it.setForeground(COL_NAME, QBrush(QColor(color)))
-                style = f"color: {color}; font-style: italic;" + (" text-decoration: line-through;" if removing else "")
+                it.setForeground(COL_NAME, QBrush(QColor(RED if removing else "#1d99f3")))
             if not r["enabled"]:
                 for c in (COL_NAME, COL_URL):
                     it.setForeground(c, QBrush(QColor("gray")) if not o else it.foreground(c))
             self.tree.addTopLevelItem(it)
             self.items[r["alias"]] = it
+            self._show_health(r["alias"])
+        self.tree.setSortingEnabled(True)
+        self.tree.sortByColumn(col, order)
+        for c in range(7):
+            self.tree.resizeColumnToContents(c)
+        self._fit_columns()
+        if cur_alias in self.items:
+            self.tree.setCurrentItem(self.items[cur_alias])
+        # The cards are only built when they are shown: in the list view they would cost hundreds of widgets.
+        if self.v_cards.isChecked():
+            self._build_cards()
+        else:
+            self.cards = {}
+            self.grid.set_cards([], "")
+            self._cards_stale = True
+        self._apply_filter(self.filter.text())
+        self._update_tab_titles()
+        self._filling = False
 
+    def _build_cards(self):
+        self._cards_stale = False
+        cards = []
+        self.cards = {}
+        for r in self._ordered():
+            _o, _removing, enabled, auto, prio, style = self._state(r)
             card = RepoCard(r["alias"], self.grid.inner)
             facts = "  ·  ".join([_("priority {n}").format(n=prio), self._gpg_text(r)])
             card.set_header(r["name"], r["url"], facts, r["enabled"], style)
@@ -578,21 +614,32 @@ class ReposPage(Page):
             card.controls.addStretch(1)
             card.controls.addWidget(pr)
             card.clicked.connect(self._card_clicked)
-            card.set_selected(cur_alias == r["alias"])
+            card.set_selected(self._current == r["alias"])
+            card.set_health(self.health.get(f"zypper:{r['alias']}"))
             cards.append(card)
             self.cards[r["alias"]] = card
-            self._show_health(r["alias"])
-        self.tree.setSortingEnabled(True)
-        self.tree.sortByColumn(col, order)
-        for c in range(7):
-            self.tree.resizeColumnToContents(c)
-        self._fit_columns()
-        if cur_alias in self.items:
-            self.tree.setCurrentItem(self.items[cur_alias])
         self.grid.set_cards(cards, _("No repository matches."))
-        self._apply_filter(self.filter.text())
-        self._update_tab_titles()
-        self._filling = False
+
+    def _queue_changed(self):
+        """The queue changed: redraw once, after the click has finished (rebuilding the list inside itemChanged
+        deletes the item Qt is still handling, and crashes), and only when the page is in sight."""
+        if self._fill_pending:
+            return
+        self._fill_pending = True
+        QTimer.singleShot(0, self._fill_if_visible)
+
+    def _fill_if_visible(self):
+        if not self.isVisible():
+            self._fill_pending = False
+            self._stale = True
+            return
+        self._fill()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        if self._stale:
+            self._stale = False
+            QTimer.singleShot(0, self._fill)
 
     def _fit_columns(self):
         """Give the name what is left after the short columns, so the address stays in sight."""
@@ -665,6 +712,12 @@ class ReposPage(Page):
 
     def _view_changed(self, *_a):
         cards = self.v_cards.isChecked()
+        if cards and self._cards_stale and self.repos:
+            self._build_cards()
+        if cards and self._fcards_stale and self.remotes:
+            self._build_fcards()
+        if cards:
+            self._apply_filter(self.filter.text())
         self.z_stack.setCurrentIndex(1 if cards else 0)
         self.f_stack.setCurrentIndex(1 if cards else 0)
         self.hint.setText(_("Tick or untick to queue a change. Click “Priority…” to change the priority. "
@@ -699,7 +752,6 @@ class ReposPage(Page):
     # ------------------------------------------------------------ Flatpak remotes
     def _fill_flatpak(self):
         self.ftree.clear()
-        cards = []
         for rm in sorted(self.remotes, key=lambda x: (not x["enabled"], x["name"].lower())):
             inst = _("system") if rm["installation"] == "system" else _("user")
             it = QTreeWidgetItem([rm.get("title") or rm["name"], "", _("yes") if rm["enabled"] else _("no"), inst,
@@ -709,20 +761,32 @@ class ReposPage(Page):
             if not rm["enabled"]:
                 it.setForeground(FCOL_NAME, QBrush(QColor("gray")))
             self.ftree.addTopLevelItem(it)
-            card = RepoCard(self._fkey(rm), self.fgrid.inner)
-            card.setProperty("remote", rm)
-            card.set_header(rm.get("title") or rm["name"], rm["url"],
-                            "  ·  ".join([inst, _("enabled") if rm["enabled"] else _("disabled")]), rm["enabled"])
-            card.setCursor(Qt.CursorShape.ArrowCursor)
-            cards.append(card)
-        self.fgrid.set_cards(cards, _("No Flatpak remote matches.") if self.remotes else
-                             _("There is no Flatpak remote."))
+        if self.v_cards.isChecked():
+            self._build_fcards()
+        else:
+            self.fgrid.set_cards([], "")
+            self._fcards_stale = True
         for rm in self.remotes:
             self._show_fhealth(self._fkey(rm))
         for c in range(4):
             self.ftree.resizeColumnToContents(c)
         self._update_tab_titles()
         self._apply_filter(self.filter.text())  # new cards start hidden until the filter shows them
+
+    def _build_fcards(self):
+        self._fcards_stale = False
+        cards = []
+        for rm in sorted(self.remotes, key=lambda x: (not x["enabled"], x["name"].lower())):
+            inst = _("system") if rm["installation"] == "system" else _("user")
+            card = RepoCard(self._fkey(rm), self.fgrid.inner)
+            card.setProperty("remote", rm)
+            card.set_header(rm.get("title") or rm["name"], rm["url"],
+                            "  ·  ".join([inst, _("enabled") if rm["enabled"] else _("disabled")]), rm["enabled"])
+            card.setCursor(Qt.CursorShape.ArrowCursor)
+            card.set_health(self.health.get(self._fkey(rm)))
+            cards.append(card)
+        self.fgrid.set_cards(cards, _("No Flatpak remote matches.") if self.remotes else
+                             _("There is no Flatpak remote."))
 
     def _show_fhealth(self, key):
         res = self.health.get(key)
@@ -794,13 +858,15 @@ class ReposPage(Page):
             "until you apply the queue."))
         b_off = box.addButton(_("Disable them"), QMessageBox.ButtonRole.AcceptRole)
         b_rm = box.addButton(_("Remove them"), QMessageBox.ButtonRole.DestructiveRole)
-        box.addButton(QMessageBox.StandardButton.Cancel)
+        cancel = box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(cancel)  # Enter must never remove repositories
+        box.setEscapeButton(cancel)
         if not any(r["enabled"] for r in failing):
             b_off.setEnabled(False)
         if not own:
             b_rm.setEnabled(False)
             b_rm.setToolTip(_("They belong to a service: the service would add them again."))
-        box.exec()
+        plain(box).exec()
         if box.clickedButton() is b_off:
             for r in failing:
                 if r["enabled"]:
@@ -813,6 +879,33 @@ class ReposPage(Page):
         dlg = AddRepoDialog(self)
         if dlg.exec():
             self.ctx.queue.add(dlg.action())
+
+    def _online_banner(self):
+        """Searching online for a repository is what people come here for most: say it big, on top."""
+        box = QFrame(self)
+        box.setObjectName("onlinebanner")
+        box.setStyleSheet("#onlinebanner { background: rgba(39, 174, 96, 0.10); border: 1px solid rgba(39, 174, 96, 0.35);"
+                          " border-radius: 12px; }")
+        h = QHBoxLayout(box)
+        h.setContentsMargins(14, 10, 14, 10)
+        ic = QLabel(box)
+        ic.setPixmap(icon("internet-services", "edit-find").pixmap(40, 40))
+        h.addWidget(ic)
+        v = QVBoxLayout()
+        v.setSpacing(2)
+        title = QLabel(_("Looking for a program your repositories do not have?"), box)
+        f = title.font()
+        f.setBold(True)
+        f.setPointSizeF(f.pointSizeF() * 1.1)
+        title.setFont(f)
+        v.addWidget(title)
+        v.addWidget(muted(_("Search the openSUSE Build Service, Fedora COPR and Flathub. Zypp Desk says how far each "
+                            "source can be trusted, and adds the repository for you."), box))
+        h.addLayout(v, 1)
+        b = button(_("Search online…"), "edit-find", self.search_online, primary=True)
+        b.setMinimumHeight(38)
+        h.addWidget(b)
+        return box
 
     def search_online(self):
         """Look for a repository on OBS, Fedora COPR or Flathub (the dialog lives in findrepo.py)."""
@@ -864,7 +957,9 @@ class ReposPage(Page):
         box.setWindowTitle(_("Import a signing key"))
         box.setText(_("Check the fingerprint against the one published by the vendor on its official web site "
                       "before importing it. From then on, rpm trusts every package signed with this key."))
-        box.setInformativeText((uids[0] + "\n\n" if uids else "") + nice)
+        box.setInformativeText(_("Fingerprint: {fpr}").format(fpr=nice) + ("\n\n" + _("Name in the key: {uid}").format(
+            uid=uids[0]) if uids else ""))
+        plain(box)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if box.exec() == QMessageBox.StandardButton.Yes:
             self.ctx.run([Step("rpm-import", [path, fpr])], _("Import a signing key"))

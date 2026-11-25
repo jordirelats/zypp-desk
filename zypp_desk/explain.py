@@ -63,23 +63,29 @@ def _rules():
          _("Programs that were open during the update keep using the old files until they are closed. "
            "Nothing is broken."),
          _("Close and reopen them when it suits you. Restart the computer only if Zypp Desk says so.")),
+        (r"(Cannot read input: bad stream or EOF|No es pot llegir l'entrada|Eingabe kann nicht gelesen werden|"
+         r"Impossible de lire l'entrée)", WARN,
+         _("zypper asked a question that nobody could answer"),
+         _("zypper stopped to ask (for example “Continue?”), but it was not running in a terminal, so it could "
+           "not read an answer and gave up. Nothing was changed by that command."),
+         _("Run it again: Zypp Desk now adds -n so that zypper takes its default answers.")),
         (r"(about to do a distribution upgrade with all enabled repositories|"
          r"punt de fer una actualització de la distribució)", INFO,
          _("Reminder before a distribution upgrade"),
          _("zypper always says this before 'dup': it will use every enabled repository, so they should all be "
            "meant for your version of the system."),
          _("Nothing, if your repositories are the usual ones.")),
-        (r"(excluded from file conflict check|excloure .* de la comprovació de conflictes)", INFO,
+        (r"(excluded from file conflicts? check|excloure .* de la comprovació de conflictes)", INFO,
          _("Some packages were not checked for file conflicts"),
          _("In a simulation the packages are not downloaded, so zypper cannot look inside them. The real "
            "installation does check them."),
          _("Nothing.")),
-        (r"(System management is locked|gestió del sistema està bloquejada)", WARN,
+        (r"(System management is locked|gestió del sistema està (blocada|bloquejada))", WARN,
          _("Another program is using the package manager"),
          _("Only one program can install software at a time. Often it is Discover or PackageKit checking for "
            "updates in the background."),
          _("Wait a minute and try again, or close Discover.")),
-        (r"(Problem retrieving|Download \(curl\) error|Error en baixar|could not be refreshed|"
+        (r"(Problem retrieving|Problema obtenint els fitxers|Download \(curl\) error|Error en baixar|could not be refreshed|"
          r"no s'ha pogut refrescar|No s'han pogut refrescar|Repository .* is invalid|Timeout exceeded|"
          r"Could not resolve host)", WARN,
          _("A repository did not answer"),
@@ -87,7 +93,8 @@ def _rules():
            "it already knew about that repository."),
          _("Try again later. If it happens every time, that repository may no longer exist: disable it in "
            "Repositories.")),
-        (r"(nothing provides|res no proporciona|conflicts with|entra en conflicte amb|Problem: |Problema: )",
+        (r"(nothing provides|no hi ha res que proporcioni|conflicts with (?!file)|té conflicte amb (?!el fitxer)|"
+         r"Problem: |Problema: )",
          SERIOUS,
          _("A dependency problem"),
          _("What you asked for needs something that is missing, or clashes with something you have. zypper "
@@ -99,12 +106,14 @@ def _rules():
          _("The package was installed, but the small program that sets it up afterwards reported an error. "
            "Sometimes it does not matter; sometimes something stays unconfigured."),
          _("If the program does not work well, reinstall that package.")),
-        (r"(Reboot is suggested|reboot is required|Cal reiniciar|reinici suggerit|needs to be rebooted)", WARN,
+        (r"(Reboot is suggested|reboot is required|Caldrà reiniciar|caldria reiniciar el sistema|reinici suggerit|"
+         r"needs to be rebooted|(?<!No )core libraries or services have been updated|"
+         r"(?<!No )s'han actualitzat biblioteques o serveis de base)", WARN,
          _("Restart the computer"),
          _("An update changed something basic (for example the kernel or the system libraries) that only "
            "takes effect after a restart."),
          _("Restart when it suits you.")),
-        (r"(Not running as root you are limited|Sense executar com a root)", NONE,
+        (r"(Not running as root you are limited|Sense executar com a root|si no ho feu amb privilegis d'administrador)", NONE,
          _("Checked without administrator rights"),
          _("This check ran as your user, so it could only look at your own programs."),
          _("Nothing.")),
@@ -112,7 +121,8 @@ def _rules():
          _("Something no longer gets updates"),
          _("A Flatpak runtime or app has reached its end of life: it will not get security fixes any more."),
          _("Update the app; if it keeps using it, look for a newer version or an alternative.")),
-        (r"(File conflicts happen|conflictes entre fitxers .* (detectat|trobat)|file .* conflicts with file)",
+        (r"(File conflicts happen|conflictes entre fitxers .* (detectat|trobat)|conflicts with file|"
+         r"té conflicte amb el fitxer|Detected \d+ file conflicts?|S'ha(n)? detectat \d+ conflictes? de fitxer)",
          SERIOUS,
          _("Two packages want the same file"),
          _("Two packages contain a file with the same name. Installing both could overwrite one with the "

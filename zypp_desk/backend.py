@@ -262,18 +262,20 @@ def repos():
 
 def _add_repo_file_fields(repo_list):
     """keeppackages and the owning service are only in the .repo files (readable by everyone)."""
-    reposd = Path("/etc/zypp/repos.d")
-    for d in repo_list:
-        f = reposd / f"{d['alias']}.repo"
-        if not f.exists():
-            continue
+    # The file name does not have to match the alias (megasync.repo can hold [MEGAsync]): read every file
+    # and find each repository by its section name.
+    sections = {}
+    for f in sorted(Path("/etc/zypp/repos.d").glob("*.repo")):
         cp = configparser.ConfigParser(interpolation=None, strict=False)
         try:
             cp.read(f, encoding="utf-8")
-        except configparser.Error:
+        except (configparser.Error, OSError):
             continue
-        if cp.sections():
-            sec = cp[d["alias"]] if cp.has_section(d["alias"]) else cp[cp.sections()[0]]
+        for name in cp.sections():
+            sections.setdefault(name, cp[name])
+    for d in repo_list:
+        sec = sections.get(d["alias"])
+        if sec is not None:
             d["keeppackages"] = sec.get("keeppackages", "0").strip() == "1"
             d["service"] = sec.get("service", "")
 
@@ -337,18 +339,57 @@ def system_info():
                 locks=len(locks()), zypp_lock=zypp_lock())
 
 
+def _lock_holders():
+    return {"packagekitd": _("PackageKit (Discover)"), "zypper": _("zypper in a terminal"), "myrlyn": "Myrlyn",
+            "y2start": "YaST", "y2base": "YaST", "yast2": "YaST", "yast": "YaST"}
+
+
+def _cmd_names(pid):
+    """The program names of a process, from its command line (readable for every process; 'comm' is not
+    useful: libzypp names its thread 'Zypp-main' in zypper, PackageKit and Myrlyn alike)."""
+    try:
+        args = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")
+    except OSError:
+        return []
+    names = [os.path.basename(a.decode(errors="replace")) for a in args[:3] if a and not a.startswith(b"-")]
+    # an interpreter (python3 script, ruby y2start…): the script tells more than the interpreter
+    if len(names) > 1 and re.match(r"(python|ruby|perl|bash|sh)[\d.]*$", names[0]):
+        names = names[1:] + names[:1]
+    return names
+
+
+def _parent(pid):
+    try:
+        for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+            if line.startswith("PPid:"):
+                return int(line.split()[1])
+    except (OSError, ValueError, IndexError):
+        pass
+    return 0
+
+
 def zypp_lock():
-    """Which process holds the zypp lock, if any (another zypper, PackageKit…)."""
+    """Which program holds the zypp lock, if any (another zypper, PackageKit…), in words for people."""
     try:
         pid = Path("/run/zypp.pid").read_text().strip()
     except OSError:
         return None
     if not pid.isdigit() or not Path(f"/proc/{pid}").exists():
         return None
-    try:
-        return Path(f"/proc/{pid}/comm").read_text().strip() or pid
-    except OSError:
-        return pid
+    # zypper started by this window (helper → pkexec → us) is not "another program"
+    p = int(pid)
+    for _i in range(4):
+        p = _parent(p)
+        if p == os.getpid():
+            return _("Zypp Desk itself")
+        if p <= 1:
+            break
+    names = _cmd_names(pid)
+    holders = _lock_holders()
+    for n in names:
+        if n in holders:
+            return holders[n]
+    return names[0] if names else pid
 
 
 def processes_using_deleted_files():

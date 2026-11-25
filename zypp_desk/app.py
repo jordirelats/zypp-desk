@@ -2,14 +2,15 @@
 """Start the application."""
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QLibraryInfo, QLocale, Qt, QTimer, QTranslator
 from PySide6.QtGui import QCursor, QIcon
 from PySide6.QtWidgets import QApplication
 
-from . import APP_ID, APP_NAME, VERSION
+from . import APP_ID, APP_NAME, VERSION, tasks
 
 
 def app_icon():
@@ -36,6 +37,10 @@ def main(argv=None):
     app.setApplicationDisplayName(APP_NAME)
     app.setApplicationVersion(VERSION)
     app.setDesktopFileName(APP_ID)
+    # Qt's own words (Yes, No, Cancel in dialogs) in the user's language, also outside Plasma
+    qt_tr = QTranslator(app)
+    if qt_tr.load(QLocale(), "qtbase", "_", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        app.installTranslator(qt_tr)
     if QIcon.fromTheme("package-x-generic").isNull():
         QIcon.setThemeName("breeze")
     app.setWindowIcon(app_icon())
@@ -59,4 +64,10 @@ def main(argv=None):
             win.grab().save(args.screenshot)
             app.quit()
         QTimer.singleShot(int(args.screenshot_delay * 1000), shot)
-    return app.exec()
+    rc = app.exec()
+    # Leave at once: background threads may still be waiting for the network, and a normal teardown of Qt and
+    # Python with them alive can crash. Settings are saved as they change, so nothing is lost.
+    tasks.shutting_down()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc)

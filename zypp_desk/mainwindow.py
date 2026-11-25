@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The main window: sidebar, page header, pages, terminal panel and the queue bar."""
 
+import html
+
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QListWidget,
+                               QScrollArea, QSizePolicy,
                                QListWidgetItem, QMainWindow, QMessageBox, QSplitter, QStackedWidget,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
@@ -20,11 +23,11 @@ from .pages.updates import UpdatesPage
 from .pages.websources import WebSourcesPage
 from .runner import Runner, helper_path
 from .settings import Settings
-from .simulation import SimulationDialog, parse_dry_run, summary_lines
+from .simulation import SimulationDialog, merge_results, parse_dry_run, summary_lines
 from .tasks import run_async
 from .terminal import TerminalPanel
 from .txqueue import TxQueue
-from .ui import button, heading, icon, mono, muted
+from .ui import ask, button, error_box, heading, icon, info_box, mono, muted
 
 SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
@@ -50,8 +53,11 @@ class QueueDialog(QDialog):
         self.cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         lay.addWidget(self.cmd)
         bb = QDialogButtonBox(self)
-        bb.addButton(_("Drop the selected change"), QDialogButtonBox.ButtonRole.ActionRole).clicked.connect(self.drop)
-        bb.addButton(_("Close"), QDialogButtonBox.ButtonRole.RejectRole)
+        drop = bb.addButton(_("Drop the selected change"), QDialogButtonBox.ButtonRole.ActionRole)
+        drop.clicked.connect(self.drop)
+        drop.setAutoDefault(False)  # Enter must never throw a change away
+        close = bb.addButton(_("Close"), QDialogButtonBox.ButtonRole.RejectRole)
+        close.setDefault(True)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         self.fill()
@@ -88,10 +94,20 @@ class MainWindow(QMainWindow):
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
         self.pages = {}
         self.stack = QStackedWidget(self)
+        self._wrap = {}
         for cls in page_classes:
             p = cls(self)
             self.pages[cls.key] = p
-            self.stack.addWidget(p)
+            # each page scrolls on its own when the window is smaller than it (a laptop screen, a big font):
+            # the queue bar with Apply must always stay visible
+            sa = QScrollArea(self)
+            sa.setWidgetResizable(True)
+            sa.setFrameShape(QFrame.Shape.NoFrame)
+            sa.setWidget(p)
+            self._wrap[cls.key] = sa
+            self.stack.addWidget(sa)
+        # when what is known about the programs from the web changes, the list of updates looks again
+        self.pages["websources"].sources_changed.connect(self.pages["updates"]._web_changed)
 
         # ------------------------------------------------ sidebar
         self.sidebar = QListWidget(self)
@@ -150,6 +166,8 @@ class MainWindow(QMainWindow):
         self.terminal.setVisible(self.settings["show_terminal"])
 
         self.q_summary = QLabel(self)
+        # never wider than this: a long summary (German, many changes) is shortened instead of widening the window
+        self.q_summary.setMaximumWidth(380)
         self.q_cmd = QLabel(self)
         self.q_cmd.setFont(mono())
         self.q_cmd.setStyleSheet("background: #2a2e32; color: #e6e9ec; border-radius: 4px; padding: 4px 8px;")
@@ -206,7 +224,7 @@ class MainWindow(QMainWindow):
         page = self.pages[key]
         if self.sidebar.currentItem() is not self._rows[key]:
             self.sidebar.setCurrentItem(self._rows[key])
-        self.stack.setCurrentWidget(page)
+        self.stack.setCurrentWidget(self._wrap[key])
         self.page_title.setText(page.title)
         self.page_icon.setPixmap(icon(page.icon_name, "application-vnd.flatpak.ref", "package-x-generic").pixmap(28, 28))
         while self.actions_box.count():
@@ -254,7 +272,15 @@ class MainWindow(QMainWindow):
     def _explain_run(self):
         from .explain import explain
         text = "\n".join(s.output for s in self.runner.steps if not s.capture)
-        self.terminal.show_explanations(explain(text))
+        run_async(explain, text, on_done=lambda items, err: self._explained(items or []))
+
+    def _explained(self, items):
+        self.terminal.show_explanations(items)
+        if items:  # give the explanations room to be read
+            sizes = self.split.sizes()
+            total = sum(sizes)
+            if total and sizes[1] < total * 0.4:
+                self.split.setSizes([int(total * 0.55), int(total * 0.45)])
 
     def _note(self, text, kind):
         if kind == "prompt":
@@ -275,12 +301,19 @@ class MainWindow(QMainWindow):
         for b in (self.b_sim, self.b_apply, self.b_clear):
             b.setEnabled(not busy and len(self.queue) > 0)
         self.status_lbl.setText(_("Working…") if busy else self.status_lbl.text())
+        if not busy:
+            self._queue_changed()  # the queue may have changed while it ran
 
     # ------------------------------------------------ queue
     def _queue_changed(self):
         n = len(self.queue)
         parts = self.queue.summary()
-        self.q_summary.setText("<b>" + _("Queue") + "</b>  " + (" · ".join(parts) if parts else _("empty")))
+        rest = " · ".join(parts) if parts else _("empty")
+        fm_s = QFontMetrics(self.q_summary.font())
+        room = 380 - fm_s.horizontalAdvance(_("Queue") + "    ") - 8
+        self.q_summary.setText("<b>" + html.escape(_("Queue")) + "</b>  "
+                               + html.escape(fm_s.elidedText(rest, Qt.TextElideMode.ElideRight, room)))
+        self.q_summary.setToolTip(" · ".join(parts))
         preview = self.queue.preview() or _("Nothing to do yet: choose packages, locks or repository changes.")
         fm = QFontMetrics(self.q_cmd.font())
         self.q_cmd.setText(fm.elidedText(preview, Qt.TextElideMode.ElideRight, max(200, self.q_cmd.width() - 16)))
@@ -301,48 +334,93 @@ class MainWindow(QMainWindow):
         QueueDialog(self.queue, self).exec()
 
     def simulate_queue(self):
-        st = self.queue.simulation_step()
+        # what is simulated and shown is what will be applied: a snapshot of the queue at this moment
+        snapshot = list(self.queue.actions)
+        preview = self.queue.preview()
+        sims = self.queue.simulation_steps()
         others = [s for s in self.queue.steps() if not s.args[1:2] or s.args[1] not in ("install", "remove")]
         later = self.queue.not_simulable()
         if later:
             self.terminal.view.note(_("Not simulated, because their repository is only added when the queue is "
                                       "applied: {list}").format(list=", ".join(a.target for a in later)), "info")
-        if st is None:
-            QMessageBox.information(self, _("Simulate"), _("Changes to repositories, locks, languages and Flatpak "
-                                                           "apps cannot be simulated. These commands will run:")
-                                    + "\n\n"
-                                    + self.queue.preview())
+        if not sims:
+            info_box(self, _("Simulate"), _("Changes to repositories, locks, languages and Flatpak apps cannot be "
+                                            "simulated. These commands will run:") + "\n\n" + preview)
             return
-        self.run([st], _("Simulation of the queue"), on_done=lambda ok: self._simulated(st, others))
+        self.run(sims, _("Simulation of the queue"), on_done=lambda ok: self._simulated(sims, others, snapshot, preview))
 
-    def _simulated(self, st, others):
-        res = parse_dry_run(st.output)
+    def _simulated(self, sims, others, snapshot, preview):
+        if any(st.code in (126, 127) for st in sims):
+            return  # the password was not given: nothing was simulated, nothing to show
+        res = merge_results([parse_dry_run(st.output) for st in sims])
         for line in summary_lines(res):
             self.terminal.view.note(line, "error" if res["problems"] and line.startswith(_("Problem: {text}").split("{")[0]) else "ok")
-        dlg = SimulationDialog(res, self.queue.preview(), extra_steps=others, parent=self)
+        dlg = SimulationDialog(res, preview, extra_steps=others, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            self.apply_queue(confirm=False)
+            self.apply_queue(confirm=False, expected=snapshot)
 
-    def apply_queue(self, confirm=True):
+    def apply_queue(self, confirm=True, expected=None):
+        actions = list(self.queue.actions)
         steps = self.queue.steps()
         if not steps:
             return
-        if confirm and not QMessageBox.question(
-                self, _("Apply"), _("Run these commands now?") + "\n\n" + self.queue.preview()) == \
-                QMessageBox.StandardButton.Yes:
+        if expected is not None and actions != expected:
+            # something joined or left the queue after the simulation (a download finished): show it and ask again
+            confirm = True
+        if confirm and not ask(self, _("Apply"), _("Run these commands now?") + "\n\n" + self.queue.preview()):
             return
-        applied = list(self.queue.actions)
-        self.run(steps, _("Applying the queue"), on_done=lambda ok: self._applied(ok, applied))
+        if list(self.queue.actions) != actions:  # it changed while the question was open
+            return self.apply_queue(confirm=True)
+        if not self._files_unchanged(actions):
+            return
+        self.run(steps, _("Applying the queue"), on_done=lambda ok: self._applied(ok, actions))
+
+    def _files_unchanged(self, actions):
+        """Downloaded files must still be exactly the ones that were checked and accepted."""
+        for a in actions:
+            want = a.opts.get("sha256")
+            if a.kind != "install" or not want:
+                continue
+            try:
+                got = websources.sha256_of(a.target)
+            except OSError as e:
+                error_box(self, _("Apply"), _("{file} cannot be read any more: {error}").format(file=a.target, error=e))
+                return False
+            if got != want:
+                error_box(self, _("Apply"), _("{file} changed after it was checked, so it is not installed. Take it "
+                                              "out of the queue and download it again.").format(file=a.target))
+                return False
+        return True
 
     def _applied(self, ok, applied):
         if ok:
-            for a in applied:  # changes added while it ran stay in the queue
-                self.queue.discard_action(a)
-        for p in self.pages.values():
-            if p.loaded and p is not self.pages["history"]:
+            with self.queue.batch():
+                for a in applied:  # changes added while it ran stay in the queue
+                    self.queue.discard_action(a)
+            # files from the web wait in the private download folder until they are installed; now they join the
+            # folder where you keep them (often a local zypper repository, synced with a cloud)
+            web = []
+            for a in applied:
+                if a.kind == "install" and a.opts.get("move_to"):
+                    web.append(a.opts.get("package"))
+                    try:
+                        websources.place(a.target, {"folder": a.opts["move_to"]})
+                    except OSError as e:
+                        self.terminal.view.note(_("{file} could not be moved to {folder}: {error}").format(
+                            file=a.target, folder=a.opts["move_to"], error=e), "error")
+            if web:  # new versions of programs from the web: offer to throw the old ones away
+                QTimer.singleShot(800, lambda pk=set(filter(None, web)): self.pages["websources"].tidy(packages=pk))
+        # the page in front looks again now; the others when you open them (not all at once)
+        current = self.stack.currentWidget()
+        for key, p in self.pages.items():
+            if not p.loaded or key == "history":
+                continue
+            if self._wrap[key] is current:
                 p.reload()
-        if self.pages["packages"].results:
-            self.pages["packages"].search()
+                if key == "packages" and p.results:
+                    p.search()
+            else:
+                p.loaded = False
 
     # ------------------------------------------------ status
     def update_status(self):

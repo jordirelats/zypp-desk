@@ -4,8 +4,13 @@
 set -eu
 APP_ID=io.github.jordirelats.ZyppDesk
 echo "Removing the helper and the polkit action (root password needed):"
-sudo sh -c "rm -f /usr/local/libexec/zypp-desk/zypp-desk-helper /usr/share/polkit-1/actions/$APP_ID.policy && \
-            rmdir --ignore-fail-on-non-empty /usr/local/libexec/zypp-desk 2>/dev/null || true"
+# The polkit files go only if no package owns them (the zypp-desk package has its own).
+sudo sh -c 'rm -f /usr/local/libexec/zypp-desk/zypp-desk-helper
+            rmdir --ignore-fail-on-non-empty /usr/local/libexec/zypp-desk 2>/dev/null
+            for f in "$1" "$2"; do
+              if [ -e "$f" ] && ! rpm -qf "$f" >/dev/null 2>&1; then rm -f "$f"; fi
+            done
+            true' sh "/usr/share/polkit-1/actions/$APP_ID.local.policy" "/usr/share/polkit-1/actions/$APP_ID.policy"
 rm -f "$HOME/.local/bin/zypp-desk" "$HOME/.local/share/applications/$APP_ID.desktop" \
       "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg"
 # A stale icon index (icon-theme.cache) hides new icons from the menu and the desktop: rebuild it.

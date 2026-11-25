@@ -34,6 +34,10 @@ XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
 MAIN_CATEGORIES = ("AudioVideo", "Development", "Education", "Game", "Graphics", "Network", "Office", "Science",
                    "Settings", "System", "Utility")
 # Categories that only say which toolkit or desktop an app uses: not a theme.
+# the desktops the menu shows entries for (KDE on Plasma; GNOME, XFCE… elsewhere)
+CURRENT_DESKTOPS = {d for d in os.environ.get("XDG_CURRENT_DESKTOP", "KDE").split(":") if d} or {"KDE"}
+FLATPAK_ARCH = {"aarch64": "aarch64", "arm64": "aarch64", "i686": "i386", "i386": "i386"}.get(os.uname().machine,
+                                                                                            os.uname().machine)
 NOT_THEMES = {"Qt", "KDE", "GTK", "GNOME", "XFCE", "LXQt", "Java", "Motif", "ConsoleOnly", "Application",
               "X-SuSE-Core-Office", "Core"}
 FLATPAK_APPSTREAM_DIRS = (Path("/var/lib/flatpak/appstream"), Path.home() / ".local/share/flatpak/appstream")
@@ -67,9 +71,9 @@ def _desktop_entry(path, langs):
     if e.get("NoDisplay", "").lower() == "true" or e.get("Hidden", "").lower() == "true":
         return None
     only = [x for x in e.get("OnlyShowIn", "").split(";") if x]
-    if only and "KDE" not in only:
+    if only and not CURRENT_DESKTOPS & set(only):
         return None
-    if "KDE" in e.get("NotShowIn", "").split(";"):
+    if CURRENT_DESKTOPS & set(e.get("NotShowIn", "").split(";")):
         return None
 
     def loc(key):
@@ -121,13 +125,27 @@ def _owners(files):
     return out
 
 
-def _installed_repos():
-    """Installed package name → name of the repository its installed version belongs to."""
+def _installed_repos(repo_names):
+    """Installed package name → name of the repository its installed version belongs to.
+
+    A package whose installed version no repository carries any more shows as "(System Packages)": on
+    Tumbleweed that happens to every package between refreshing a new snapshot and running dup. Those
+    take the repository that carries another version of them, if there is one."""
     root, _code = backend.xml(["search", "--installed-only", "--details", "-t", "package"])
     out = {}
     for s in root.iter("solvable"):
         if s.get("status") == "installed":
             out.setdefault(s.get("name"), s.get("repository", ""))
+    orphans = sorted(n for n, r in out.items() if r not in repo_names)
+    for i in range(0, len(orphans), 200):
+        try:
+            root, _code = backend.xml(["search", "--details", "--match-exact", "-t", "package", "--", *orphans[i:i + 200]])
+        except backend.ZypperError:
+            continue
+        for s in root.iter("solvable"):
+            name, repo = s.get("name"), s.get("repository", "")
+            if name in out and out[name] not in repo_names and repo in repo_names:
+                out[name] = repo
     return out
 
 
@@ -162,8 +180,8 @@ def installed():
         owner = prog_owners.get(pair[0]) or prog_owners.get(pair[1])
         if owner:
             owners[path] = owner
-    pkg_repo = _installed_repos()
     repos = {r["name"]: r for r in backend.repos()}
+    pkg_repo = _installed_repos(set(repos))
     followed = {s["package"]: s for s in websources.load()}
     out = []
     for path, e in entries.items():
@@ -288,7 +306,7 @@ def _flatpak_catalogues():
         if not base.is_dir():
             continue
         for remote_dir in sorted(base.iterdir()):
-            active = remote_dir / "x86_64" / "active"
+            active = remote_dir / FLATPAK_ARCH / "active"
             for name in ("appstream.xml.gz", "appstream.xml"):
                 f = active / name
                 if f.is_file() and remote_dir.name not in seen:

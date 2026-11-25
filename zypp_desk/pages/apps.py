@@ -396,7 +396,7 @@ class AppsPage(Page):
         self._search_timer.timeout.connect(self._discover_search)
 
         ctx.queue.changed.connect(self._queue_changed)
-        ctx.runner.finished.connect(self._runner_finished)
+        # after a run the main window reloads the page in front and marks the others to load again
 
     # ------------------------------------------------------------ building
     def _build_mine(self):
@@ -495,7 +495,11 @@ class AppsPage(Page):
         self.cat_search.setPlaceholderText(_("Filter by name…"))
         self.cat_search.setClearButtonEnabled(True)
         self.cat_search.setMinimumWidth(220)
-        self.cat_search.textChanged.connect(lambda _t: self._fill_discover())
+        self._cat_timer = QTimer(self)  # wait for the typing to pause: refilling thousands of rows per key is slow
+        self._cat_timer.setSingleShot(True)
+        self._cat_timer.setInterval(250)
+        self._cat_timer.timeout.connect(self._fill_discover)
+        self.cat_search.textChanged.connect(lambda _t: self._cat_timer.start())
         head.addWidget(self.cat_search)
         lv.addLayout(head)
         self.sub_box = QWidget(list_page)
@@ -529,6 +533,12 @@ class AppsPage(Page):
         self.stale = False
         self.mine_hint.setText(_("Looking at what is installed…"))
         self.mine_hint.show()
+        if not self.installed and self.mine_list.count() == 0:
+            # the first look takes a while: say so where the list will be, not only in a small grey line
+            wait = QListWidgetItem(icon("view-refresh"), "   " + _("Looking at what is installed… it takes a few "
+                                                                  "seconds the first time."))
+            wait.setFlags(Qt.ItemFlag.NoItemFlags)
+            self.mine_list.addItem(wait)
         run_async(apps.installed, on_done=self._installed_loaded)
         run_async(apps.updates, on_done=self._updates_loaded)
         run_async(apps.web_updates, on_done=self._web_updates_loaded)
@@ -539,11 +549,6 @@ class AppsPage(Page):
         if self.stale and self.loaded:
             self.reload()
         super().activated()
-
-    def _runner_finished(self, _ok):
-        self.stale = True
-        if self.ctx.stack.currentWidget() is self:
-            self.reload()
 
     def _installed_loaded(self, res, err):
         if err:
@@ -794,17 +799,18 @@ class AppsPage(Page):
     def _drop(self, a):
         """Take this program's install, update or removal out of the queue (locks and the rest stay)."""
         q = self.ctx.queue
-        for act in list(q.actions):
-            if a["kind"] == "flatpak":
-                # "update every Flatpak app" (target *) also covers this one
-                same = act.kind in ("flatpak-install", "flatpak-uninstall", "flatpak-update") and \
-                    act.target in (a["package"], "*")
-            else:
-                name = act.opts.get("package") or act.target.split("=")[0]
-                same = act.kind in ("install", "remove") and (name == a["package"] or
-                                                               name.endswith(":" + a["package"]))
-            if same:
-                q.discard_action(act)
+        with q.batch():
+            for act in list(q.actions):
+                if a["kind"] == "flatpak":
+                    # "update every Flatpak app" (target *) also covers this one
+                    same = act.kind in ("flatpak-install", "flatpak-uninstall", "flatpak-update") and \
+                        act.target in (a["package"], "*")
+                else:
+                    name = act.opts.get("package") or act.target.split("=")[0]
+                    same = act.kind in ("install", "remove") and (name == a["package"] or
+                                                                   name.endswith(":" + a["package"]))
+                if same:
+                    q.discard_action(act)
 
     def _show_in_packages(self, a):
         page = self.ctx.pages["packages"]
