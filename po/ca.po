@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
-"PO-Revision-Date: 2026-11-25 12:00+0100\n"
+"PO-Revision-Date: 2026-11-25 12:30+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: Catalan\n"
 "Language: ca\n"
@@ -12,129 +12,346 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: zypp_desk/mainwindow.py:27
+#: zypp_desk/mainwindow.py:28
 msgid "Sources"
 msgstr "Fonts"
 
-#: zypp_desk/mainwindow.py:28
+#: zypp_desk/mainwindow.py:29
 msgid "System"
 msgstr "Sistema"
 
-#: zypp_desk/mainwindow.py:36
+#: zypp_desk/mainwindow.py:37
 msgid "Pending changes"
 msgstr "Canvis pendents"
 
-#: zypp_desk/mainwindow.py:40
+#: zypp_desk/mainwindow.py:41
 msgid "Change"
 msgstr "Canvi"
 
-#: zypp_desk/mainwindow.py:49
+#: zypp_desk/mainwindow.py:50
 msgid "Drop the selected change"
 msgstr "Treu el canvi seleccionat"
 
-#: zypp_desk/mainwindow.py:50 zypp_desk/simulation.py:204
+#: zypp_desk/mainwindow.py:51 zypp_desk/simulation.py:210
 msgid "Close"
 msgstr "Tanca"
 
-#: zypp_desk/mainwindow.py:113
+#: zypp_desk/mainwindow.py:114
 msgid "Show the terminal"
 msgstr "Mostra el terminal"
 
-#: zypp_desk/mainwindow.py:146
+#: zypp_desk/mainwindow.py:147
 msgid "Review"
 msgstr "Revisa"
 
-#: zypp_desk/mainwindow.py:147 zypp_desk/terminal.py:257
+#: zypp_desk/mainwindow.py:148 zypp_desk/terminal.py:257
 msgid "Clear"
 msgstr "Buida"
 
-#: zypp_desk/mainwindow.py:148 zypp_desk/mainwindow.py:273
+#: zypp_desk/mainwindow.py:149 zypp_desk/mainwindow.py:274
 #: zypp_desk/pages/system.py:315 zypp_desk/pages/updates.py:109
 msgid "Simulate"
 msgstr "Simula"
 
-#: zypp_desk/mainwindow.py:149 zypp_desk/mainwindow.py:292
-#: zypp_desk/simulation.py:202
+#: zypp_desk/mainwindow.py:150 zypp_desk/mainwindow.py:294
+#: zypp_desk/simulation.py:208
 msgid "Apply"
 msgstr "Aplica"
 
-#: zypp_desk/mainwindow.py:187
+#: zypp_desk/mainwindow.py:188
 msgid "zypper's own output appears here while it works."
 msgstr "Aquí surt la sortida de zypper mentre treballa."
 
-#: zypp_desk/mainwindow.py:216
+#: zypp_desk/mainwindow.py:217
 msgid "Wait until the current command finishes."
 msgstr "Espera que acabi l'ordre que s'està executant."
 
-#: zypp_desk/mainwindow.py:234
+#: zypp_desk/mainwindow.py:235
 msgid "Finished with errors."
 msgstr "Acabat amb errors."
 
-#: zypp_desk/mainwindow.py:234
+#: zypp_desk/mainwindow.py:235
 msgid "Finished."
 msgstr "Acabat."
 
-#: zypp_desk/mainwindow.py:243
+#: zypp_desk/mainwindow.py:244
 msgid "Working…"
 msgstr "Treballant…"
 
-#: zypp_desk/mainwindow.py:249
+#: zypp_desk/mainwindow.py:250
 msgid "Queue"
 msgstr "Cua"
 
-#: zypp_desk/mainwindow.py:249
+#: zypp_desk/mainwindow.py:250
 msgid "empty"
 msgstr "buida"
 
-#: zypp_desk/mainwindow.py:250
+#: zypp_desk/mainwindow.py:251
 msgid "Nothing to do yet: choose packages, locks or repository changes."
 msgstr "Encara no hi ha res a fer: tria paquets, bloquejos o canvis de repositoris."
 
-#: zypp_desk/mainwindow.py:273
-msgid "zypper cannot simulate changes to repositories, locks or languages. These commands will run:"
-msgstr "zypper no pot simular els canvis de repositoris, bloquejos o llengües. S'executaran aquestes ordres:"
+#: zypp_desk/mainwindow.py:274
+msgid "Changes to repositories, locks, languages and Flatpak apps cannot be simulated. These commands will run:"
+msgstr "Els canvis de repositoris, bloquejos, llengües i aplicacions Flatpak no es poden simular. S'executaran aquestes ordres:"
 
-#: zypp_desk/mainwindow.py:277
+#: zypp_desk/mainwindow.py:279
 msgid "Simulation of the queue"
 msgstr "Simulació de la cua"
 
-#: zypp_desk/mainwindow.py:282 zypp_desk/simulation.py:113
+#: zypp_desk/mainwindow.py:284 zypp_desk/simulation.py:119
 #, python-brace-format
 msgid "Problem: {text}"
 msgstr "Problema: {text}"
 
-#: zypp_desk/mainwindow.py:292
+#: zypp_desk/mainwindow.py:294
 msgid "Run these commands now?"
 msgstr "Vols executar ara aquestes ordres?"
 
-#: zypp_desk/mainwindow.py:295
+#: zypp_desk/mainwindow.py:297
 msgid "Applying the queue"
 msgstr "Aplicant la cua"
 
-#: zypp_desk/mainwindow.py:315
+#: zypp_desk/mainwindow.py:317
 msgid "Package manager free"
 msgstr "Gestor de paquets lliure"
 
-#: zypp_desk/mainwindow.py:315
+#: zypp_desk/mainwindow.py:317
 #, python-brace-format
 msgid "Package manager in use by {proc}"
 msgstr "Gestor de paquets ocupat per {proc}"
 
-#: zypp_desk/mainwindow.py:316
+#: zypp_desk/mainwindow.py:318
 msgid "No restart needed"
 msgstr "No cal reiniciar"
 
-#: zypp_desk/mainwindow.py:316
+#: zypp_desk/mainwindow.py:318
 msgid "Restart needed"
 msgstr "Cal reiniciar"
 
-#: zypp_desk/mainwindow.py:320
+#: zypp_desk/mainwindow.py:322
 msgid "The helper that runs zypper as root is not installed, so the window can search and show information but cannot change anything yet. Run install.sh from the source folder."
 msgstr "L'ajudant que executa zypper com a root no està instal·lat. Per això la finestra pot cercar i mostrar informació, però encara no pot canviar res. Executa install.sh des de la carpeta del codi."
 
-#: zypp_desk/mainwindow.py:326
+#: zypp_desk/mainwindow.py:328
 msgid "zypper is still running. Close the window anyway? zypper will be stopped."
 msgstr "zypper encara treballa. Vols tancar la finestra igualment? zypper s'aturarà."
+
+#: zypp_desk/pages/flatpak.py:34 zypp_desk/pages/flatpak.py:295
+msgid "Add a Flatpak remote"
+msgstr "Afegeix un remot de Flatpak"
+
+#: zypp_desk/pages/flatpak.py:41 zypp_desk/pages/repos.py:42
+msgid "Name:"
+msgstr "Nom:"
+
+#: zypp_desk/pages/flatpak.py:42
+msgid "Address (.flatpakrepo or repository URL):"
+msgstr "Adreça (.flatpakrepo o URL del repositori):"
+
+#: zypp_desk/pages/flatpak.py:43
+msgid "Installation:"
+msgstr "Instal·lació:"
+
+#: zypp_desk/pages/flatpak.py:52 zypp_desk/routine.py:61
+msgid "Flatpak"
+msgstr "Flatpak"
+
+#: zypp_desk/pages/flatpak.py:62
+msgid "Flatpak is not installed. Flatpak apps run isolated from the system and come from their own repositories, such as Flathub."
+msgstr "Flatpak no està instal·lat. Les aplicacions Flatpak funcionen aïllades del sistema i vénen dels seus propis repositoris, com Flathub."
+
+#: zypp_desk/pages/flatpak.py:64
+msgid "Install Flatpak"
+msgstr "Instal·la Flatpak"
+
+#: zypp_desk/pages/flatpak.py:72
+msgid "Show runtimes too"
+msgstr "Mostra també els entorns d'execució"
+
+#: zypp_desk/pages/flatpak.py:74 zypp_desk/pages/flatpak.py:100
+msgid "Branch"
+msgstr "Branca"
+
+#: zypp_desk/pages/flatpak.py:74 zypp_desk/pages/flatpak.py:100
+msgid "ID"
+msgstr "ID"
+
+#: zypp_desk/pages/flatpak.py:74 zypp_desk/pages/flatpak.py:115
+msgid "Installation"
+msgstr "Instal·lació"
+
+#: zypp_desk/pages/flatpak.py:74 zypp_desk/pages/flatpak.py:100
+#: zypp_desk/pages/flatpak.py:115 zypp_desk/pages/packages.py:88
+#: zypp_desk/pages/repos.py:80 zypp_desk/pages/system.py:82
+#: zypp_desk/pages/system.py:137
+msgid "Name"
+msgstr "Nom"
+
+#: zypp_desk/pages/flatpak.py:74
+msgid "Origin"
+msgstr "Origen"
+
+#: zypp_desk/pages/flatpak.py:74 zypp_desk/pages/flatpak.py:100
+#: zypp_desk/pages/packages.py:20 zypp_desk/pages/packages.py:88
+#: zypp_desk/pages/packages.py:142 zypp_desk/pages/system.py:233
+#: zypp_desk/pages/updates.py:117 zypp_desk/simulation.py:182
+msgid "Version"
+msgstr "Versió"
+
+#: zypp_desk/pages/flatpak.py:75
+msgid "Size"
+msgstr "Mida"
+
+#: zypp_desk/pages/flatpak.py:75 zypp_desk/pages/packages.py:21
+#: zypp_desk/pages/packages.py:88 zypp_desk/pages/packages.py:142
+msgid "Status"
+msgstr "Estat"
+
+#: zypp_desk/pages/flatpak.py:80 zypp_desk/pages/packages.py:130
+msgid "Update"
+msgstr "Actualitza"
+
+#: zypp_desk/pages/flatpak.py:81
+msgid "Also delete its data"
+msgstr "Esborra'n també les dades"
+
+#: zypp_desk/pages/flatpak.py:83
+msgid "Uninstall"
+msgstr "Desinstal·la"
+
+#: zypp_desk/pages/flatpak.py:86 zypp_desk/pages/packages.py:26
+#: zypp_desk/pages/packages.py:272
+msgid "Installed"
+msgstr "Instal·lat"
+
+#: zypp_desk/pages/flatpak.py:92
+msgid "Search Flatpak apps, for example krita"
+msgstr "Cerca aplicacions Flatpak, per exemple krita"
+
+#: zypp_desk/pages/flatpak.py:96 zypp_desk/pages/flatpak.py:111
+#: zypp_desk/pages/packages.py:54
+msgid "Search"
+msgstr "Cerca"
+
+#: zypp_desk/pages/flatpak.py:100
+msgid "Description"
+msgstr "Descripció"
+
+#: zypp_desk/pages/flatpak.py:100
+msgid "Remote"
+msgstr "Remot"
+
+#: zypp_desk/pages/flatpak.py:109 zypp_desk/pages/packages.py:129
+msgid "Install"
+msgstr "Instal·la"
+
+#: zypp_desk/pages/flatpak.py:115 zypp_desk/pages/repos.py:81
+#: zypp_desk/pages/system.py:138
+msgid "Address"
+msgstr "Adreça"
+
+#. TRANSLATORS: column headers; "Refresh" means "refreshed automatically".
+#: zypp_desk/pages/flatpak.py:115 zypp_desk/pages/repos.py:80
+#: zypp_desk/pages/system.py:137
+msgid "Enabled"
+msgstr "Actiu"
+
+#: zypp_desk/pages/flatpak.py:115
+msgid "Title"
+msgstr "Títol"
+
+#: zypp_desk/pages/flatpak.py:119 zypp_desk/pages/repos.py:100
+#: zypp_desk/pages/system.py:194
+msgid "Add…"
+msgstr "Afegeix…"
+
+#: zypp_desk/pages/flatpak.py:120 zypp_desk/pages/system.py:148
+msgid "Enable / disable"
+msgstr "Activa / desactiva"
+
+#: zypp_desk/pages/flatpak.py:121 zypp_desk/pages/flatpak.py:310
+#: zypp_desk/pages/packages.py:131 zypp_desk/pages/repos.py:100
+#: zypp_desk/pages/repos.py:205 zypp_desk/pages/system.py:194
+msgid "Remove"
+msgstr "Treu"
+
+#: zypp_desk/pages/flatpak.py:123
+msgid "Remotes"
+msgstr "Remots"
+
+#: zypp_desk/pages/flatpak.py:133
+msgid "Flatpak apps run isolated from the system and update separately from zypper. Changes go to the same queue; flatpak asks for the password itself when the app is for every user."
+msgstr "Les aplicacions Flatpak funcionen aïllades del sistema i s'actualitzen a part de zypper. Els canvis van a la mateixa cua; quan l'aplicació és per a tots els usuaris, flatpak demana la contrasenya ell mateix."
+
+#: zypp_desk/pages/flatpak.py:142
+msgid "Update everything"
+msgstr "Actualitza-ho tot"
+
+#: zypp_desk/pages/flatpak.py:144 zypp_desk/pages/flatpak.py:282
+#: zypp_desk/pages/flatpak.py:285
+msgid "Remove unused runtimes"
+msgstr "Treu els entorns d'execució que no es fan servir"
+
+#: zypp_desk/pages/flatpak.py:145 zypp_desk/pages/flatpak.py:146
+msgid "Refresh the catalogue"
+msgstr "Refresca el catàleg"
+
+#: zypp_desk/pages/flatpak.py:187
+msgid "Will be uninstalled"
+msgstr "Es desinstal·larà"
+
+#: zypp_desk/pages/flatpak.py:189 zypp_desk/pages/packages.py:264
+msgid "Will be updated"
+msgstr "S'actualitzarà"
+
+#: zypp_desk/pages/flatpak.py:191 zypp_desk/pages/packages.py:270
+msgid "Update available"
+msgstr "Actualització disponible"
+
+#: zypp_desk/pages/flatpak.py:201 zypp_desk/pages/system.py:159
+#: zypp_desk/pages/system.py:160
+msgid "no"
+msgstr "no"
+
+#: zypp_desk/pages/flatpak.py:201 zypp_desk/pages/system.py:159
+#: zypp_desk/pages/system.py:160
+msgid "yes"
+msgstr "sí"
+
+#: zypp_desk/pages/flatpak.py:210 zypp_desk/pages/packages.py:220
+msgid "Searching…"
+msgstr "Cercant…"
+
+#: zypp_desk/pages/flatpak.py:218 zypp_desk/pages/packages.py:238
+#, python-brace-format
+msgid "{n} found"
+msgstr "{n} trobats"
+
+#: zypp_desk/pages/flatpak.py:235 zypp_desk/pages/packages.py:302
+#: zypp_desk/pages/system.py:53
+msgid "Loading…"
+msgstr "Carregant…"
+
+#: zypp_desk/pages/flatpak.py:253
+msgid "Permissions"
+msgstr "Permisos"
+
+#: zypp_desk/pages/flatpak.py:282
+msgid "Uninstall the runtimes and extensions that no installed app uses any more?"
+msgstr "Vols desinstal·lar els entorns d'execució i les extensions que ja no fa servir cap aplicació instal·lada?"
+
+#: zypp_desk/pages/flatpak.py:306
+msgid "Change a Flatpak remote"
+msgstr "Canvia un remot de Flatpak"
+
+#: zypp_desk/pages/flatpak.py:310
+#, python-brace-format
+msgid "Remove the Flatpak remote {name}? Apps installed from it stay, but will not get updates."
+msgstr "Vols treure el remot de Flatpak {name}? Les aplicacions que s'hi van instal·lar es queden, però ja no s'actualitzaran."
+
+#: zypp_desk/pages/flatpak.py:313
+msgid "Remove a Flatpak remote"
+msgstr "Treu un remot de Flatpak"
 
 #: zypp_desk/pages/packages.py:17 zypp_desk/pages/packages.py:31
 msgid "Packages"
@@ -162,24 +379,13 @@ msgstr "Arquitectura"
 
 #: zypp_desk/pages/packages.py:20 zypp_desk/pages/packages.py:88
 #: zypp_desk/pages/packages.py:142 zypp_desk/pages/system.py:82
-#: zypp_desk/pages/updates.py:117 zypp_desk/simulation.py:176
+#: zypp_desk/pages/updates.py:117 zypp_desk/simulation.py:182
 msgid "Repository"
 msgstr "Repositori"
-
-#: zypp_desk/pages/packages.py:20 zypp_desk/pages/packages.py:88
-#: zypp_desk/pages/packages.py:142 zypp_desk/pages/system.py:233
-#: zypp_desk/pages/updates.py:117 zypp_desk/simulation.py:176
-msgid "Version"
-msgstr "Versió"
 
 #: zypp_desk/pages/packages.py:21
 msgid "Installed size"
 msgstr "Mida instal·lada"
-
-#: zypp_desk/pages/packages.py:21 zypp_desk/pages/packages.py:88
-#: zypp_desk/pages/packages.py:142
-msgid "Status"
-msgstr "Estat"
 
 #: zypp_desk/pages/packages.py:21
 msgid "Vendor"
@@ -229,10 +435,6 @@ msgstr "Complementa"
 msgid "Any status"
 msgstr "Qualsevol estat"
 
-#: zypp_desk/pages/packages.py:26 zypp_desk/pages/packages.py:272
-msgid "Installed"
-msgstr "Instal·lat"
-
 #: zypp_desk/pages/packages.py:26 zypp_desk/pages/packages.py:273
 msgid "Not installed"
 msgstr "No instal·lat"
@@ -244,10 +446,6 @@ msgstr "Cerca paquets, per exemple vlc"
 #: zypp_desk/pages/packages.py:53 zypp_desk/pages/packages.py:200
 msgid "All repositories"
 msgstr "Tots els repositoris"
-
-#: zypp_desk/pages/packages.py:54
-msgid "Search"
-msgstr "Cerca"
 
 #: zypp_desk/pages/packages.py:62
 msgid "Summary and description"
@@ -289,27 +487,9 @@ msgstr "Recomanats"
 msgid "Suggested"
 msgstr "Suggerits"
 
-#: zypp_desk/pages/packages.py:88 zypp_desk/pages/repos.py:80
-#: zypp_desk/pages/system.py:82 zypp_desk/pages/system.py:137
-msgid "Name"
-msgstr "Nom"
-
 #: zypp_desk/pages/packages.py:88
 msgid "Summary"
 msgstr "Resum"
-
-#: zypp_desk/pages/packages.py:129
-msgid "Install"
-msgstr "Instal·la"
-
-#: zypp_desk/pages/packages.py:130
-msgid "Update"
-msgstr "Actualitza"
-
-#: zypp_desk/pages/packages.py:131 zypp_desk/pages/repos.py:100
-#: zypp_desk/pages/repos.py:205 zypp_desk/pages/system.py:194
-msgid "Remove"
-msgstr "Treu"
 
 #: zypp_desk/pages/packages.py:132
 msgid "Leave as it is"
@@ -344,10 +524,6 @@ msgstr "Canvis"
 msgid "Unlock"
 msgstr "Desbloqueja"
 
-#: zypp_desk/pages/packages.py:220
-msgid "Searching…"
-msgstr "Cercant…"
-
 #: zypp_desk/pages/packages.py:230
 #, python-brace-format
 msgid "The search failed: {error}"
@@ -369,11 +545,6 @@ msgstr "Paquets recomanats que no estan instal·lats"
 msgid "Suggested packages that are not installed"
 msgstr "Paquets suggerits que no estan instal·lats"
 
-#: zypp_desk/pages/packages.py:238
-#, python-brace-format
-msgid "{n} found"
-msgstr "{n} trobats"
-
 #: zypp_desk/pages/packages.py:247
 #, python-brace-format
 msgid "{n} versions available"
@@ -383,10 +554,6 @@ msgstr "{n} versions disponibles"
 msgid "Will be installed"
 msgstr "S'instal·larà"
 
-#: zypp_desk/pages/packages.py:264
-msgid "Will be updated"
-msgstr "S'actualitzarà"
-
 #: zypp_desk/pages/packages.py:266 zypp_desk/simulation.py:23
 msgid "Will be removed"
 msgstr "Es traurà"
@@ -395,17 +562,9 @@ msgstr "Es traurà"
 msgid "Locked"
 msgstr "Bloquejat"
 
-#: zypp_desk/pages/packages.py:270
-msgid "Update available"
-msgstr "Actualització disponible"
-
 #: zypp_desk/pages/packages.py:297 zypp_desk/pages/system.py:254
 msgid "installed"
 msgstr "instal·lat"
-
-#: zypp_desk/pages/packages.py:302 zypp_desk/pages/system.py:53
-msgid "Loading…"
-msgstr "Carregant…"
 
 #: zypp_desk/pages/packages.py:315
 msgid "The file list is shown for installed packages."
@@ -470,10 +629,6 @@ msgstr "Adreça (URL):"
 msgid "Alias (short name, no spaces):"
 msgstr "Àlies (nom curt, sense espais):"
 
-#: zypp_desk/pages/repos.py:42
-msgid "Name:"
-msgstr "Nom:"
-
 #: zypp_desk/pages/repos.py:43
 msgid "Priority (lower wins):"
 msgstr "Prioritat (el número més baix guanya):"
@@ -491,11 +646,6 @@ msgstr "Calen l'adreça i un àlies sense espais."
 msgid "Repositories"
 msgstr "Repositoris"
 
-#. TRANSLATORS: column headers; "Refresh" means "refreshed automatically".
-#: zypp_desk/pages/repos.py:80 zypp_desk/pages/system.py:137
-msgid "Enabled"
-msgstr "Actiu"
-
 #: zypp_desk/pages/repos.py:80
 msgid "Keep packages"
 msgstr "Conserva els paquets"
@@ -509,10 +659,6 @@ msgstr "Prioritat"
 msgid "Refresh"
 msgstr "Refresca"
 
-#: zypp_desk/pages/repos.py:81 zypp_desk/pages/system.py:138
-msgid "Address"
-msgstr "Adreça"
-
 #: zypp_desk/pages/repos.py:81
 msgid "Signatures"
 msgstr "Signatures"
@@ -524,10 +670,6 @@ msgstr "Filtra per nom o adreça"
 #: zypp_desk/pages/repos.py:91
 msgid "Tick or untick to queue a change. Double-click the priority to change it. Lower priority numbers win."
 msgstr "Marca o desmarca per posar un canvi a la cua. Fes doble clic a la prioritat per canviar-la. El número de prioritat més baix guanya."
-
-#: zypp_desk/pages/repos.py:100 zypp_desk/pages/system.py:194
-msgid "Add…"
-msgstr "Afegeix…"
 
 #: zypp_desk/pages/repos.py:102
 msgid "Refresh all"
@@ -708,18 +850,6 @@ msgstr "Un servei és una llista de repositoris que manté al dia qui la proporc
 msgid "Refresh services"
 msgstr "Refresca els serveis"
 
-#: zypp_desk/pages/system.py:148
-msgid "Enable / disable"
-msgstr "Activa / desactiva"
-
-#: zypp_desk/pages/system.py:159 zypp_desk/pages/system.py:160
-msgid "no"
-msgstr "no"
-
-#: zypp_desk/pages/system.py:159 zypp_desk/pages/system.py:160
-msgid "yes"
-msgstr "sí"
-
 #: zypp_desk/pages/system.py:172
 #, python-brace-format
 msgid "Run 'zypper modifyservice {flag} {alias}'?"
@@ -782,7 +912,7 @@ msgid "Details"
 msgstr "Detalls"
 
 #: zypp_desk/pages/system.py:233 zypp_desk/pages/updates.py:117
-#: zypp_desk/simulation.py:176
+#: zypp_desk/simulation.py:182
 msgid "Package"
 msgstr "Paquet"
 
@@ -1046,31 +1176,31 @@ msgstr "Simulant…"
 msgid "Simulation of zypper dup"
 msgstr "Simulació de zypper dup"
 
-#: zypp_desk/pages/updates.py:269 zypp_desk/simulation.py:109
-#: zypp_desk/simulation.py:148
+#: zypp_desk/pages/updates.py:270 zypp_desk/simulation.py:115
+#: zypp_desk/simulation.py:154
 #, python-brace-format
 msgid "Download: {size}"
 msgstr "Baixada: {size}"
 
-#: zypp_desk/pages/updates.py:271 zypp_desk/simulation.py:111
-#: zypp_desk/simulation.py:150
+#: zypp_desk/pages/updates.py:272 zypp_desk/simulation.py:117
+#: zypp_desk/simulation.py:156
 #, python-brace-format
 msgid "Disk: {size}"
 msgstr "Disc: {size}"
 
-#: zypp_desk/pages/updates.py:273
+#: zypp_desk/pages/updates.py:274
 msgid "zypper found a problem:"
 msgstr "zypper ha trobat un problema:"
 
-#: zypp_desk/pages/updates.py:275
+#: zypp_desk/pages/updates.py:276
 msgid "Nothing to do: the system is up to date."
 msgstr "No cal fer res: el sistema està al dia."
 
-#: zypp_desk/pages/updates.py:277
+#: zypp_desk/pages/updates.py:278
 msgid "Nothing has been changed."
 msgstr "No s'ha canviat res."
 
-#: zypp_desk/pages/updates.py:281
+#: zypp_desk/pages/updates.py:282
 msgid "zypper dup"
 msgstr "zypper dup"
 
@@ -1096,10 +1226,6 @@ msgstr "Només s'accepten ordres de zypper i de flatpak (hi ha «{cmd}»)."
 #: zypp_desk/routine.py:60
 msgid "Update Flatpak apps"
 msgstr "Actualitza les aplicacions Flatpak"
-
-#: zypp_desk/routine.py:61
-msgid "Flatpak"
-msgstr "Flatpak"
 
 #: zypp_desk/routine.py:64
 msgid "Refresh the repositories"
@@ -1224,41 +1350,41 @@ msgstr "Canviaran de proveïdor"
 msgid "Will change architecture"
 msgstr "Canviaran d'arquitectura"
 
-#: zypp_desk/simulation.py:45
+#: zypp_desk/simulation.py:47
 msgid "zypper returned no output."
 msgstr "zypper no ha tornat cap sortida."
 
-#: zypp_desk/simulation.py:74
+#: zypp_desk/simulation.py:76
 msgid "A license must be accepted. Turn on “Accept licenses without asking” in Settings, or install it from a terminal."
 msgstr "Cal acceptar una llicència. Activa «Accepta les llicències sense preguntar» a la Configuració, o instal·la-ho des d'un terminal."
 
-#: zypp_desk/simulation.py:115 zypp_desk/simulation.py:152
+#: zypp_desk/simulation.py:121 zypp_desk/simulation.py:158
 msgid "Nothing to do."
 msgstr "No cal fer res."
 
-#: zypp_desk/simulation.py:124
+#: zypp_desk/simulation.py:130
 msgid "Simulation"
 msgstr "Simulació"
 
-#: zypp_desk/simulation.py:135
+#: zypp_desk/simulation.py:141
 msgid "It can be done. Nothing has been changed."
 msgstr "Es pot fer. No s'ha canviat res."
 
-#: zypp_desk/simulation.py:136
+#: zypp_desk/simulation.py:142
 msgid "zypper found a problem. Nothing has been changed."
 msgstr "zypper ha trobat un problema. No s'ha canviat res."
 
-#: zypp_desk/simulation.py:164
+#: zypp_desk/simulation.py:170
 msgid "Problems"
 msgstr "Problemes"
 
-#: zypp_desk/simulation.py:169
+#: zypp_desk/simulation.py:175
 msgid "Change the queue (for example, lock or remove a package) and simulate again. Choosing among zypper's proposed solutions inside the window will come in a later version."
 msgstr "Canvia la cua (per exemple, bloqueja o treu un paquet) i torna a simular. Poder triar des de la finestra entre les solucions que proposa zypper vindrà en una versió posterior."
 
-#: zypp_desk/simulation.py:196
-msgid "These commands are also in the queue. zypper cannot simulate them; they will run before the packages:"
-msgstr "Aquestes ordres també són a la cua. zypper no les pot simular; s'executaran abans dels paquets:"
+#: zypp_desk/simulation.py:202
+msgid "These commands are also in the queue and cannot be simulated. Everything runs in this order:"
+msgstr "Aquestes ordres també són a la cua i no es poden simular. Tot s'executa en aquest ordre:"
 
 #: zypp_desk/terminal.py:154
 #, python-brace-format
@@ -1334,21 +1460,55 @@ msgstr "Afegeix la llengua {code}"
 msgid "Remove language {code}"
 msgstr "Treu la llengua {code}"
 
-#: zypp_desk/txqueue.py:186
+#: zypp_desk/txqueue.py:46
+#, python-brace-format
+msgid "Install the Flatpak app {app} from {remote} ({installation})"
+msgstr "Instal·la l'aplicació Flatpak {app} de {remote} ({installation})"
+
+#: zypp_desk/txqueue.py:49
+#, python-brace-format
+msgid "Uninstall the Flatpak app {app}"
+msgstr "Desinstal·la l'aplicació Flatpak {app}"
+
+#: zypp_desk/txqueue.py:51
+msgid "Update every Flatpak app"
+msgstr "Actualitza totes les aplicacions Flatpak"
+
+#: zypp_desk/txqueue.py:51
+#, python-brace-format
+msgid "Update the Flatpak app {app}"
+msgstr "Actualitza l'aplicació Flatpak {app}"
+
+#: zypp_desk/txqueue.py:56
+msgid "for every user"
+msgstr "per a tots els usuaris"
+
+#: zypp_desk/txqueue.py:56
+msgid "only for you"
+msgstr "només per a tu"
+
+#: zypp_desk/txqueue.py:223
 #, python-brace-format
 msgid "{n} to install"
 msgid_plural "{n} to install"
 msgstr[0] "{n} per instal·lar"
 msgstr[1] "{n} per instal·lar"
 
-#: zypp_desk/txqueue.py:188
+#: zypp_desk/txqueue.py:225
 #, python-brace-format
 msgid "{n} to remove"
 msgid_plural "{n} to remove"
 msgstr[0] "{n} per treure"
 msgstr[1] "{n} per treure"
 
-#: zypp_desk/txqueue.py:190
+#: zypp_desk/txqueue.py:227
+#, python-brace-format
+msgid "{n} Flatpak change"
+msgid_plural "{n} Flatpak changes"
+msgstr[0] "{n} canvi de Flatpak"
+msgstr[1] "{n} canvis de Flatpak"
+
+#: zypp_desk/txqueue.py:229
 #, python-brace-format
 msgid "{n} other change"
 msgid_plural "{n} other changes"

@@ -98,6 +98,10 @@ def parse_dry_run(text):
     return res
 
 
+def self_order(extra_steps, command):
+    return command.replace(" && ", "\n")
+
+
 def summary_lines(result):
     """A plain-text summary of a dry run, for the terminal panel."""
     lines = []
@@ -195,8 +199,8 @@ class SimulationDialog(QDialog):
         lay.addWidget(tree, 1)
 
         if extra_steps:
-            lbl = QLabel(_("These commands are also in the queue. zypper cannot simulate them; they will run "
-                           "before the packages:") + "\n" + "\n".join(s.display() for s in extra_steps), self)
+            lbl = QLabel(_("These commands are also in the queue and cannot be simulated. Everything runs in "
+                           "this order:") + "\n" + self_order(extra_steps, command), self)
             lbl.setWordWrap(True)
             lay.addWidget(lbl)
 

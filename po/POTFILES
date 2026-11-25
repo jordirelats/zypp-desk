@@ -1,9 +1,11 @@
 zypp_desk/app.py
 zypp_desk/backend.py
+zypp_desk/flatpak.py
 zypp_desk/i18n.py
 zypp_desk/__init__.py
 zypp_desk/__main__.py
 zypp_desk/mainwindow.py
+zypp_desk/pages/flatpak.py
 zypp_desk/pages/__init__.py
 zypp_desk/pages/packages.py
 zypp_desk/pages/repos.py

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFrame, QHB
 
 from . import APP_NAME, backend
 from .i18n import _
+from .pages.flatpak import FlatpakPage
 from .pages.packages import PackagesPage
 from .pages.repos import ReposPage
 from .pages.system import (HistoryPage, HomePage, LocalesPage, LocksPage, MaintenancePage, ServicesPage,
@@ -23,7 +24,7 @@ from .txqueue import TxQueue
 from .ui import button, heading, icon, mono, muted
 
 SIDEBAR = [
-    (None, ["home", "packages", "updates"]),
+    (None, ["home", "packages", "updates", "flatpak"]),
     (_("Sources"), ["repos", "services"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
 ]
@@ -77,7 +78,7 @@ class MainWindow(QMainWindow):
         self._on_done = None
 
         # ------------------------------------------------ pages
-        page_classes = [HomePage, PackagesPage, UpdatesPage, ReposPage, ServicesPage, LocksPage, LocalesPage,
+        page_classes = [HomePage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage, LocksPage, LocalesPage,
                         HistoryPage, MaintenancePage, SettingsPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
@@ -104,7 +105,7 @@ class MainWindow(QMainWindow):
                 self.sidebar.addItem(hdr)
             for k in keys:
                 p = self.pages[k]
-                it = QListWidgetItem(icon(p.icon_name, "package-x-generic"), p.title)
+                it = QListWidgetItem(icon(p.icon_name, "application-vnd.flatpak.ref", "package-x-generic"), p.title)
                 it.setData(Qt.ItemDataRole.UserRole, k)
                 self.sidebar.addItem(it)
                 self._rows[k] = it
@@ -270,8 +271,9 @@ class MainWindow(QMainWindow):
         st = self.queue.simulation_step()
         others = [s for s in self.queue.steps() if not s.args[1:2] or s.args[1] not in ("install", "remove")]
         if st is None:
-            QMessageBox.information(self, _("Simulate"), _("zypper cannot simulate changes to repositories, locks "
-                                                           "or languages. These commands will run:") + "\n\n"
+            QMessageBox.information(self, _("Simulate"), _("Changes to repositories, locks, languages and Flatpak "
+                                                           "apps cannot be simulated. These commands will run:")
+                                    + "\n\n"
                                     + self.queue.preview())
             return
         self.run([st], _("Simulation of the queue"), on_done=lambda ok: self._simulated(st, others))

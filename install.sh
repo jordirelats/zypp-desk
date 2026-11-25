@@ -19,7 +19,8 @@ sudo sh -c "install -D -o root -g root -m 0755 '$SRC/helper/zypp-desk-helper' '$
             install -D -o root -g root -m 0644 '$tmp' '$POLICY'"
 rm -f "$tmp"
 
-mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
+cp "$SRC/data/icons/$APP_ID.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg"
 ln -sf "$SRC/zypp-desk" "$HOME/.local/bin/zypp-desk"
 sed "s|@EXEC@|$SRC/zypp-desk|" "$SRC/data/$APP_ID.desktop.in" > "$HOME/.local/share/applications/$APP_ID.desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" || true

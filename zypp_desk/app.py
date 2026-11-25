@@ -3,12 +3,22 @@
 
 import argparse
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from . import APP_ID, APP_NAME, VERSION
+
+
+def app_icon():
+    """The installed icon, or the one in the source tree when running from it."""
+    ic = QIcon.fromTheme(APP_ID)
+    if ic.isNull():
+        f = Path(__file__).resolve().parent.parent / "data" / "icons" / f"{APP_ID}.svg"
+        ic = QIcon(str(f)) if f.exists() else QIcon.fromTheme("package-x-generic")
+    return ic
 
 
 def main(argv=None):
@@ -27,7 +37,7 @@ def main(argv=None):
     app.setDesktopFileName(APP_ID)
     if QIcon.fromTheme("package-x-generic").isNull():
         QIcon.setThemeName("breeze")
-    app.setWindowIcon(QIcon.fromTheme("package-x-generic"))
+    app.setWindowIcon(app_icon())
 
     from .mainwindow import MainWindow  # after QApplication exists
     win = MainWindow()

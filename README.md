@@ -7,8 +7,8 @@ remove packages, upgrade the distribution, manage repositories, locks, languages
 maintenance — and always see the exact zypper command and its real output.
 
 > **Status: 0.1, early development.** Searching, package details, the change queue with
-> simulation, routines, repositories, locks, services, languages, history and maintenance work.
-> Still missing: a Flatpak section, choosing among zypper's proposed solutions to a conflict
+> simulation, routines, Flatpak apps, repositories, locks, services, languages, history and
+> maintenance work. Still missing: choosing among zypper's proposed solutions to a conflict
 > inside the window, and editing `zypp.conf`. Expect rough edges.
 
 ## Ideas behind it
@@ -21,6 +21,7 @@ maintenance — and always see the exact zypper command and its real output.
 - **Routines.** Write your update routine the way you type it, for example
   `zypper -v ref ; zypper -v dup -d -l && zypper -v dup ; flatpak update -y`, and run it with one
   click, step by step.
+- **Flatpak too.** Installed apps, search, updates and remotes, through the same queue.
 - **Native.** Qt 6 through PySide6, so it follows the Plasma theme (Breeze) and the system icons.
 
 ## How it gets root
@@ -46,6 +47,14 @@ remembered for a few minutes.
 ```
 
 `./uninstall.sh` removes what `install.sh` installed.
+
+## Building the RPM
+
+```bash
+tools/build-rpm.sh   # builds from the committed tree into build/rpmbuild/RPMS/noarch/
+```
+
+The spec file is `packaging/zypp-desk.spec`.
 
 ## Translations
 

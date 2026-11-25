@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="fons" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3fd17f"/><stop offset="1" stop-color="#1c9450"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="13" width="108" height="108" rx="24" fill="#000" opacity=".16"/>
+  <rect x="10" y="9" width="108" height="108" rx="24" fill="url(#fons)"/>
+  <rect x="10.75" y="9.75" width="106.5" height="106.5" rx="23.3" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.5"/>
+  <rect x="30" y="29" width="68" height="15" rx="5" fill="#fff"/>
+  <rect x="30" y="83" width="68" height="15" rx="5" fill="#fff"/>
+  <rect x="77.79" y="43.22" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 82.29 46.47)"/><rect x="77.21" y="55.03" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 81.71 58.28)"/><rect x="65.79" y="51.97" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 70.29 55.22)"/><rect x="65.21" y="63.78" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 69.71 67.03)"/><rect x="53.79" y="60.72" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 58.29 63.97)"/><rect x="53.21" y="72.53" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 57.71 75.78)"/><rect x="41.79" y="69.47" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 46.29 72.72)"/><rect x="41.21" y="81.28" width="9" height="6.5" rx="1.6" fill="#fff" transform="rotate(143.90 45.71 84.53)"/>
+  <g transform="rotate(-38.37 88 47)">
+    <rect x="80" y="40" width="16" height="14" rx="4" fill="#fff"/>
+    <rect x="94" y="43.5" width="15" height="7" rx="3.5" fill="#1c9450" stroke="#fff" stroke-width="2.2"/>
+  </g>
+</svg>

@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# The polkit action lets an administrator run the helper (zypper with a checked list of
+# commands), with auth_admin_keep. openSUSE Factory needs a security review before shipping
+# a new polkit action; for home: projects this check is only informative.
+addFilter("polkit-untracked-privilege")

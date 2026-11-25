@@ -42,7 +42,18 @@ class Action:
             return _("Add language {code}").format(code=t)
         if k == "locale-remove":
             return _("Remove language {code}").format(code=t)
+        if k == "flatpak-install":
+            return _("Install the Flatpak app {app} from {remote} ({installation})").format(
+                app=t, remote=self.opts.get("remote", ""), installation=installation_label(self.opts.get("installation")))
+        if k == "flatpak-uninstall":
+            return _("Uninstall the Flatpak app {app}").format(app=t)
+        if k == "flatpak-update":
+            return _("Update every Flatpak app") if t == "*" else _("Update the Flatpak app {app}").format(app=t)
         return f"{k} {t}"
+
+
+def installation_label(inst):
+    return _("for every user") if inst != "user" else _("only for you")
 
 
 class TxQueue(QObject):
@@ -62,7 +73,8 @@ class TxQueue(QObject):
                     self.changed.emit()
                     return
         opposite = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
-                    "locale-add": "locale-remove", "locale-remove": "locale-add"}.get(action.kind)
+                    "locale-add": "locale-remove", "locale-remove": "locale-add",
+                    "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install"}.get(action.kind)
         self.actions = [a for a in self.actions
                         if not (a.target == action.target and a.kind in (action.kind, opposite))]
         self.actions.append(action)
@@ -87,6 +99,12 @@ class TxQueue(QObject):
     def state_of(self, name):
         for a in self.actions:
             if a.kind in PKG_KINDS and a.target.split("=")[0] == name:
+                return a.kind
+        return None
+
+    def flatpak_state(self, app):
+        for a in self.actions:
+            if a.kind.startswith("flatpak-") and a.target in (app, "*"):
                 return a.kind
         return None
 
@@ -164,8 +182,26 @@ class TxQueue(QObject):
             codes = [a.target for a in self.of(kind)]
             if codes:
                 out.append(Step("zypper", ["-n", sub, *codes]))
+        out += self.flatpak_steps()
         for i, s in enumerate(out):
             s.cond = "always" if i == 0 else "success"
+        return out
+
+    def flatpak_steps(self):
+        out, groups = [], {}
+        for a in self.of("flatpak-install"):
+            groups.setdefault((a.opts.get("installation", "system"), a.opts.get("remote", "flathub")), []).append(a.target)
+        for (inst, remote), apps in groups.items():
+            out.append(Step("flatpak", ["install", "--noninteractive", "-y", f"--{inst}", remote, *apps]))
+        groups = {}
+        for a in self.of("flatpak-uninstall"):
+            groups.setdefault((a.opts.get("installation", "system"), bool(a.opts.get("delete_data"))), []).append(a.target)
+        for (inst, delete), apps in groups.items():
+            out.append(Step("flatpak", ["uninstall", "--noninteractive", "-y", f"--{inst}",
+                                        *(["--delete-data"] if delete else []), *apps]))
+        ups = [a.target for a in self.of("flatpak-update")]
+        if ups:
+            out.append(Step("flatpak", ["update", "--noninteractive", "-y", *([] if "*" in ups else ups)]))
         return out
 
     def simulation_step(self):
@@ -180,12 +216,15 @@ class TxQueue(QObject):
 
     def summary(self):
         n_in, n_rm = len(self.of("install")), len(self.of("remove"))
-        others = len(self.actions) - n_in - n_rm
+        n_fp = len([a for a in self.actions if a.kind.startswith("flatpak-")])
+        others = len(self.actions) - n_in - n_rm - n_fp
         parts = []
         if n_in:
             parts.append(ngettext("{n} to install", "{n} to install", n_in).format(n=n_in))
         if n_rm:
             parts.append(ngettext("{n} to remove", "{n} to remove", n_rm).format(n=n_rm))
+        if n_fp:
+            parts.append(ngettext("{n} Flatpak change", "{n} Flatpak changes", n_fp).format(n=n_fp))
         if others:
             parts.append(ngettext("{n} other change", "{n} other changes", others).format(n=others))
         return parts
