@@ -8,7 +8,7 @@ Lines are coloured with simple rules, a line repeated many times in a row is fol
 import re
 import time
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QPalette, QTextCharFormat, QTextCursor
 import html
 
@@ -25,7 +25,8 @@ COLORS = {"green": "#1cdc9a", "yellow": "#fdbc4b", "red": "#ed1515", "blue": "#1
 # Words zypper prints at the end of a progress bar, in a few languages.
 DONE_WORDS = ("done", "fet", "hecho", "fertig", "fait", "fatto", "concluído", "klaar", "gotowe")
 WARN_RE = re.compile(r"^(warning|avís|aviso|warnung|attention|avvertimento)\b", re.I)
-ERR_RE = re.compile(r"\b(error|err|problem|problema|fehler|erreur|errore|failed|ha fallat|falló)\b", re.I)
+ERR_RE = re.compile(r"(^|\s)(error|err|problem|problema|fehler|erreur|errore)\s*[:!]|\bfailed\b|\bha fallat\b"
+                    r"|\bfalló\b", re.I)
 
 
 def _fmt(color=None, bold=False, italic=False):
@@ -60,6 +61,8 @@ class TerminalView(QPlainTextEdit):
         self._repeats = 0
         self._fold_block = None    # block number of the "same line N more times" marker
         self.problem_lines = 0
+        self._pending_cr = False
+        self._relayout_pending = False
 
     # ------------------------------------------------------------ public
     def prompt(self, text):
@@ -75,6 +78,14 @@ class TerminalView(QPlainTextEdit):
 
     def feed(self, text):
         text = ANSI_RE.sub("", text)
+        # "\r\n" is a normal end of line, even when the "\r" and the "\n" arrive in different chunks
+        if self._pending_cr:
+            text = "\r" + text
+            self._pending_cr = False
+        text = text.replace("\r\n", "\n")
+        if text.endswith("\r"):
+            self._pending_cr = True
+            text = text[:-1]
         pieces = re.split(r"(\n|\r)", text)
         for piece in pieces:
             if piece == "\n":
@@ -159,15 +170,17 @@ class TerminalView(QPlainTextEdit):
             c = self._cursor_end()
             c.insertBlock()
             c.insertText(text, _fmt("grey", italic=True))
-            self._fold_block = doc.lastBlock().blockNumber()
+            self._fold_block = True
             doc.lastBlock().setUserState(0)
         else:
-            b = doc.findBlockByNumber(self._fold_block)
-            c = QTextCursor(b)
-            c.select(QTextCursor.SelectionType.BlockUnderCursor)
+            # the marker is always the last block when it is updated (the repeated line was just removed);
+            # block numbers are not used because old lines are dropped after 20,000
+            c = QTextCursor(doc.lastBlock())
             c.movePosition(QTextCursor.MoveOperation.StartOfBlock)
             c.movePosition(QTextCursor.MoveOperation.EndOfBlock, QTextCursor.MoveMode.KeepAnchor)
             c.insertText(text, _fmt("grey", italic=True))
+        if self.only_problems:
+            self._hide(doc.lastBlock())
         # the marker stands in for the repeated line; the next different line starts fresh
         self._partial = False
 
@@ -184,7 +197,23 @@ class TerminalView(QPlainTextEdit):
             cc.setCharFormat(f)
         block.setUserState({"prompt": 3, "error": 2}.get(kind, 0))
         if self.only_problems and kind not in ("prompt", "error"):
-            block.setVisible(False)
+            self._hide(block)
+        self._scroll()
+
+    def _hide(self, block):
+        block.setVisible(False)
+        # Hiding lines while text streams in leaves the view's layout stale (the first visible lines end up
+        # above the top and cannot be scrolled to). Relayout the whole document once, shortly after.
+        if not self._relayout_pending:
+            self._relayout_pending = True
+            QTimer.singleShot(60, self._relayout)
+
+    def _relayout(self):
+        self._relayout_pending = False
+        if self.only_problems:
+            # re-applying the filter from scratch is what resets QPlainTextEdit's first visible line
+            self.set_only_problems(False)
+            self.set_only_problems(True)
         self._scroll()
 
     @staticmethod
@@ -238,8 +267,8 @@ class TerminalView(QPlainTextEdit):
             c.setPosition(block.position() + start + length, QTextCursor.MoveMode.KeepAnchor)
             c.mergeCharFormat(f)
         block.setUserState({"error": 2, "warning": 1, "known-info": 1}.get(kind, 0))
-        if self.only_problems and kind == "normal":
-            block.setVisible(False)
+        if self.only_problems and kind not in ("error", "warning", "known-info"):
+            self._hide(block)
 
     def _scroll(self):
         sb = self.verticalScrollBar()

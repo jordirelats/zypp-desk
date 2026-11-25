@@ -153,8 +153,8 @@ class MainWindow(QMainWindow):
         self.q_cmd.setMinimumWidth(200)
         self.b_review = button(_("Review"), "view-list-details", self.review_queue)
         self.b_clear = button(_("Clear"), "edit-clear", self.queue.clear)
-        self.b_sim = button(_("Simulate"), "media-playback-start", self.simulate_queue)
-        self.b_apply = button(_("Apply"), "dialog-ok-apply", self.apply_queue, primary=True)
+        self.b_sim = button(_("Simulate"), "media-playback-start", lambda: self.simulate_queue())
+        self.b_apply = button(_("Apply"), "dialog-ok-apply", lambda: self.apply_queue(), primary=True)
         qbar = QFrame(self)
         qbar.setObjectName("queuebar")
         qh = QHBoxLayout(qbar)
@@ -249,13 +249,8 @@ class MainWindow(QMainWindow):
 
     def _explain_run(self):
         from .explain import explain
-        doc = self.terminal.view.document()
-        lines = []
-        b = doc.findBlockByNumber(max(0, getattr(self, "_run_start", 0) - 1))
-        while b.isValid():
-            lines.append(b.text())
-            b = b.next()
-        self.terminal.show_explanations(explain("\n".join(lines)))
+        text = "\n".join(s.output for s in self.runner.steps if not s.capture)
+        self.terminal.show_explanations(explain(text))
 
     def _note(self, text, kind):
         if kind == "prompt":
@@ -328,11 +323,13 @@ class MainWindow(QMainWindow):
                 self, _("Apply"), _("Run these commands now?") + "\n\n" + self.queue.preview()) == \
                 QMessageBox.StandardButton.Yes:
             return
-        self.run(steps, _("Applying the queue"), on_done=self._applied)
+        applied = list(self.queue.actions)
+        self.run(steps, _("Applying the queue"), on_done=lambda ok: self._applied(ok, applied))
 
-    def _applied(self, ok):
+    def _applied(self, ok, applied):
         if ok:
-            self.queue.clear()
+            for a in applied:  # changes added while it ran stay in the queue
+                self.queue.discard_action(a)
         for p in self.pages.values():
             if p.loaded and p is not self.pages["history"]:
                 p.reload()
@@ -359,8 +356,9 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, ev):
         if self.runner.busy:
-            if QMessageBox.question(self, APP_NAME, _("zypper is still running. Close the window anyway? zypper "
-                                                      "will be stopped.")) != QMessageBox.StandardButton.Yes:
-                ev.ignore()
-                return
+            # Stopping zypper half-way through installing could leave the system half updated.
+            QMessageBox.information(self, APP_NAME, _("zypper is still working. Wait until it finishes before "
+                                                      "closing the window."))
+            ev.ignore()
+            return
         super().closeEvent(ev)

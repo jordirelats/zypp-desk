@@ -6,10 +6,11 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: 0.1, early development.** Searching, package details, the change queue with
-> simulation, routines, Flatpak apps, repositories, locks, services, languages, history and
-> maintenance work. Still missing: choosing among zypper's proposed solutions to a conflict
-> inside the window, and editing `zypp.conf`. Expect rough edges.
+> **Status: 0.2, early development.** Searching, package details, the change queue with
+> simulation, routines, Flatpak apps, programs downloaded from GitHub, repositories, locks,
+> services, languages, history and maintenance work, and warnings are explained. Still missing:
+> choosing among zypper's proposed solutions to a conflict inside the window, and editing
+> `zypp.conf`. Expect rough edges.
 
 ## Ideas behind it
 
@@ -22,6 +23,11 @@ maintenance — and always see the exact zypper command and its real output.
   `zypper -v ref ; zypper -v dup -d -l && zypper -v dup ; flatpak update -y`, and run it with one
   click, step by step.
 - **Flatpak too.** Installed apps, search, updates and remotes, through the same queue.
+- **Programs from the web.** Follow programs you install from RPM files published on GitHub:
+  Zypp Desk finds new releases, downloads them, checks the SHA-256 and the signature, and
+  queues them.
+- **Warnings explained.** After every run, each message is shown with how serious it is, what it
+  means in plain words and what to do.
 - **Native.** Qt 6 through PySide6, so it follows the Plasma theme (Breeze) and the system icons.
 
 ## How it gets root
@@ -58,8 +64,8 @@ The spec file is `packaging/zypp-desk.spec`.
 
 ## Translations
 
-Source strings are in English. Translations live in `po/` (Catalan is complete). To add a
-language, copy `po/zypp-desk.pot` to `po/<code>.po` and translate it.
+Source strings are in English. Translations live in `po/`: Catalan, German and French are
+complete. To add a language, see [TRANSLATING.md](TRANSLATING.md).
 
 ## License
 

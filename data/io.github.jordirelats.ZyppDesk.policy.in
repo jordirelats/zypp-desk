@@ -9,8 +9,12 @@
   <action id="io.github.jordirelats.ZyppDesk.run">
     <description>Manage software with zypper</description>
     <description xml:lang="ca">Gestionar el programari amb zypper</description>
+    <description xml:lang="de">Software mit zypper verwalten</description>
+    <description xml:lang="fr">Gérer les logiciels avec zypper</description>
     <message>Authentication is required to install, remove or update software, or to change repositories</message>
     <message xml:lang="ca">Cal autenticar-se per instal·lar, treure o actualitzar programari, o per canviar els repositoris</message>
+    <message xml:lang="de">Zum Installieren, Entfernen oder Aktualisieren von Software oder zum Ändern der Paketquellen ist eine Authentifizierung erforderlich</message>
+    <message xml:lang="fr">Une authentification est nécessaire pour installer, supprimer ou mettre à jour des logiciels, ou pour modifier les dépôts</message>
     <icon_name>io.github.jordirelats.ZyppDesk</icon_name>
     <defaults>
       <allow_any>auth_admin</allow_any>

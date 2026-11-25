@@ -135,7 +135,12 @@ def severity_of_line(line):
     return None
 
 
-_WARN_RE = re.compile(r"(warning|avís|aviso|error|err:|failed|ha fallat|problem|problema)", re.I)
+# A line counts as an unknown warning only when it looks like one ("warning: …", "Error: …",
+# "… failed"), not when a package name contains the word (libgpg-error0, perl-Error).
+_WARN_RE = re.compile(r"(^|\s)(warning|warnung|avís|aviso|attention|error|erreur|fehler|err|problem|problema)\s*[:!]"
+                      r"|\bfailed\b|\bha fallat\b", re.I)
+_SKIP_RE = re.compile(r"^(\(\d+/\d+\)|Retrieving|Obtenint|Precarregant|Preloading|Installing|Instal·lant|Removing|"
+                      r"Suprimint|Comprovant|Checking|Loading|Carregant)")
 
 
 def explain(text):
@@ -161,7 +166,7 @@ def explain(text):
                 last = d
                 break
         else:
-            if _WARN_RE.search(s) and not s.startswith("CommitResult"):
+            if _WARN_RE.search(s) and not s.startswith("CommitResult") and not _SKIP_RE.match(s):
                 d = unknown.setdefault(s[:160], dict(
                     severity=UNKNOWN, title=_("A message Zypp Desk does not know yet"),
                     what=_("zypper (or a package) wrote this and Zypp Desk has no explanation for it. It is "

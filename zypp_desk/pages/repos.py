@@ -3,7 +3,7 @@
 
 import subprocess
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout,
                                QInputDialog, QLineEdit, QMessageBox, QSpinBox, QTreeWidget, QTreeWidgetItem,
@@ -94,12 +94,14 @@ class ReposPage(Page):
         lay.addWidget(self.filter)
         lay.addWidget(self.tree, 1)
         lay.addWidget(self.hint)
-        ctx.queue.changed.connect(self._fill)
+        # Rebuild the list after the click has finished: rebuilding it inside itemChanged deletes the item
+        # Qt is still handling, and crashes.
+        ctx.queue.changed.connect(lambda: QTimer.singleShot(0, self._fill))
 
     def header_actions(self):
         return [tool(_("Add…"), "list-add", self.add_repo), tool(_("Remove"), "list-remove", self.remove_repo),
                 tool(_("Refresh"), "view-refresh", self.refresh_selected),
-                tool(_("Refresh all"), "view-refresh", lambda: self.ctx.run([Step("zypper", ["-v", "refresh"])],
+                tool(_("Refresh all"), "view-refresh", lambda: self.ctx.run([Step("zypper", ["-n", "-v", "refresh"])],
                                                                             _("Refresh every repository"),
                                                                             on_done=lambda ok: self.reload())),
                 tool(_("Clean the cache"), "edit-clear", self.clean_cache),
@@ -208,7 +210,8 @@ class ReposPage(Page):
     def refresh_selected(self):
         r = self._selected()
         if r:
-            self.ctx.run([Step("zypper", ["-v", "refresh", r["alias"]])], _("Refresh {name}").format(name=r["name"]))
+            self.ctx.run([Step("zypper", ["-n", "-v", "refresh", r["alias"]])],
+                         _("Refresh {name}").format(name=r["name"]))
 
     def clean_cache(self):
         if ask(self, _("Clean the cache"), _("Delete the downloaded packages and the cached metadata of every "
@@ -220,16 +223,27 @@ class ReposPage(Page):
                                                _("Keys (*.asc *.key *.pub *.gpg);;All files (*)"))
         if not path:
             return
-        p = subprocess.run(["gpg", "--show-keys", "--with-fingerprint", path], capture_output=True, text=True)
-        if p.returncode != 0 or "pub" not in p.stdout:
+        # Read the file once: the fingerprint shown is the one of these bytes, and the helper checks it again
+        # as root before importing, so a file swapped in the meantime is refused.
+        try:
+            with open(path, "rb") as f:
+                data = f.read(1024 * 1024)
+        except OSError as e:
+            error_box(self, _("Import a signing key"), str(e))
+            return
+        p = subprocess.run(["gpg", "--batch", "--with-colons", "--show-keys"], input=data, capture_output=True)
+        fprs = [ln.split(b":")[9].decode() for ln in p.stdout.splitlines() if ln.startswith(b"fpr:")]
+        uids = [ln.split(b":")[9].decode("utf-8", "replace") for ln in p.stdout.splitlines() if ln.startswith(b"uid:")]
+        if p.returncode != 0 or not fprs:
             error_box(self, _("Import a signing key"), _("This file does not look like a public key."))
             return
+        fpr = fprs[0]
+        nice = " ".join(fpr[i:i + 4] for i in range(0, len(fpr), 4))
         box = QMessageBox(self)
         box.setWindowTitle(_("Import a signing key"))
         box.setText(_("Check the fingerprint against the one published by the vendor on its official web site "
                       "before importing it. From then on, rpm trusts every package signed with this key."))
-        box.setDetailedText(p.stdout)
-        box.setInformativeText(p.stdout.strip())
+        box.setInformativeText((uids[0] + "\n\n" if uids else "") + nice)
         box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if box.exec() == QMessageBox.StandardButton.Yes:
-            self.ctx.run([Step("rpm-import", [path])], _("Import a signing key"))
+            self.ctx.run([Step("rpm-import", [path, fpr])], _("Import a signing key"))

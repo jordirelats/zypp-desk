@@ -11,7 +11,7 @@ import codecs
 import os
 import shlex
 
-from PySide6.QtCore import QObject, QProcess, Signal
+from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Signal
 
 from . import HELPER_PATHS
 from .i18n import _, user_lang
@@ -64,7 +64,15 @@ class Step:
         self.label = label or self.display()
         self.state = "pending"  # pending, running, done, failed, skipped
         self.code = None
-        self.output = ""
+        self._chunks = []
+
+    @property
+    def output(self):
+        return "".join(self._chunks)
+
+    @output.setter
+    def output(self, text):
+        self._chunks = [text] if text else []
 
     def display(self):
         prog = {"rpm-import": "rpm --import", "history": "cat /var/log/zypp/history"}.get(self.program, self.program)
@@ -128,6 +136,9 @@ class Runner(QObject):
         self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
         self.proc = QProcess(self)
         self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        # Nobody types into the child: a question gets end-of-input and zypper takes its default answer
+        # (the same as -n), instead of waiting for ever.
+        self.proc.setStandardInputFile(QProcess.nullDevice())
         self.proc.readyReadStandardOutput.connect(self._read)
         self.proc.finished.connect(self._done)
         self.proc.errorOccurred.connect(self._error)
@@ -146,7 +157,7 @@ class Runner(QObject):
             verb = {"zypper": "zypper", "rpm-import": "rpm-import", "history": "history"}[st.program]
             self.proc.start("pkexec", [helper, "--lang", st.lang, verb, *st.args])
         else:
-            env = self.proc.processEnvironment()
+            env = QProcessEnvironment.systemEnvironment()
             env.insert("LANG", st.lang)
             env.insert("LC_ALL", st.lang)
             env.insert("COLUMNS", "120")
@@ -157,10 +168,8 @@ class Runner(QObject):
         data = bytes(self.proc.readAllStandardOutput())
         text = self._decoder.decode(data)
         st = self.steps[self.index]
-        if st.capture:
-            st.output += text
-        else:
-            st.output += text
+        st._chunks.append(text)
+        if not st.capture:
             self.output.emit(text)
 
     def _error(self, err):
@@ -179,7 +188,7 @@ class Runner(QObject):
         st = self.steps[self.index]
         tail = self._decoder.decode(b"", final=True)
         if tail:
-            st.output += tail
+            st._chunks.append(tail)
             if not st.capture:
                 self.output.emit(tail)
         if status == QProcess.ExitStatus.CrashExit:
@@ -189,10 +198,14 @@ class Runner(QObject):
         if st.root and code in PKEXEC_CANCELLED:
             self.note.emit(_("Authentication was cancelled or refused: nothing was changed by this step."), "error")
             ok = False
+            self.stop_requested = True  # do not ask for the password again for the next steps
         st.state = "done" if ok else "failed"
         self.last_ok = ok
         if not ok and code not in PKEXEC_CANCELLED:
-            self.note.emit(_("Exit code {code}: {meaning}").format(code=code, meaning=exit_meaning(code)), "error")
+            if st.program == "zypper":
+                self.note.emit(_("Exit code {code}: {meaning}").format(code=code, meaning=exit_meaning(code)), "error")
+            else:  # the meanings above are zypper's; other programs (rpm-import, flatpak) print their own reason
+                self.note.emit(_("The command ended with exit code {code}.").format(code=code), "error")
         self.proc.deleteLater()
         self.proc = None
         self.step_finished.emit(self.index, code)

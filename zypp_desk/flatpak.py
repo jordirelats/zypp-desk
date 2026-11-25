@@ -43,8 +43,10 @@ def updates():
 
 
 def search(term):
-    return _table(["search", term], ["application", "name", "version", "branch", "remotes", "description"],
+    rows = _table(["search", term], ["application", "name", "version", "branch", "remotes", "description"],
                   timeout=180)
+    # "No matches found" is printed on stdout with exit code 0: keep only real app IDs (reverse DNS)
+    return [r for r in rows if r["application"].count(".") >= 2 and " " not in r["application"]]
 
 
 def remotes():

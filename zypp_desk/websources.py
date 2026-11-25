@@ -14,12 +14,14 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import urllib.request
 from pathlib import Path
 
 from . import VERSION
 from .backend import ENV_C, vercmp
+from .i18n import _
 
 API = "https://api.github.com/repos/{repo}/releases/latest"
 USER_AGENT = f"zypp-desk/{VERSION} (+https://github.com/jordirelats/zypp-desk)"
@@ -92,17 +94,16 @@ def check(source):
 
 
 def download(source, found, progress=None):
-    """Download the release file into the source's folder and verify it.
+    """Download the release file into a private folder and verify it.
 
-    Returns dict(path, sha256_ok, signature). The file is written as '.part' and only renamed when
-    the SHA-256 matches (or when GitHub publishes none, which is reported).
+    Returns dict(path, sha256, sha256_checked, signature). The file stays in ~/.cache/zypp-desk/downloads
+    until the user accepts it (see place()); a file that fails a check is deleted.
     """
-    folder = Path(os.path.expanduser(source["folder"]))
-    folder.mkdir(parents=True, exist_ok=True)
+    folder = download_dir()
     final = folder / found["asset"]
     part = final.with_name(final.name + ".part")
     if not found["url"].startswith("https://"):
-        raise ValueError("only https downloads are allowed")
+        raise ValueError(_("Only https downloads are allowed."))
     req = urllib.request.Request(found["url"], headers={"User-Agent": USER_AGENT})
     h = hashlib.sha256()
     done = 0
@@ -120,15 +121,33 @@ def download(source, found, progress=None):
     digest = h.hexdigest()
     if found["sha256"] and digest != found["sha256"]:
         part.unlink(missing_ok=True)
-        raise ValueError(f"SHA-256 mismatch: expected {found['sha256']}, got {digest}")
+        raise ValueError(_("The SHA-256 does not match: GitHub publishes {expected}, the file has {got}. "
+                           "The file was deleted.").format(expected=found["sha256"], got=digest))
     name = subprocess.run(["rpm", "-qp", "--qf", "%{NAME}", str(part)], capture_output=True, text=True,
                           env=ENV_C).stdout.strip()
     if name != source["package"]:
         part.unlink(missing_ok=True)
-        raise ValueError(f"the file contains '{name}', not '{source['package']}'")
+        raise ValueError(_("The file contains the package “{found}”, not “{expected}”. It was deleted.")
+                         .format(found=name, expected=source["package"]))
     part.replace(final)
     return {"path": str(final), "sha256": digest, "sha256_checked": bool(found["sha256"]),
             "signature": signature_of_file(final)}
+
+
+def download_dir():
+    base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    d = base / "zypp-desk" / "downloads"
+    d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return d
+
+
+def place(path, source):
+    """Move an accepted download into the source's folder (often a local zypper repository)."""
+    folder = Path(os.path.expanduser(source["folder"]))
+    folder.mkdir(parents=True, exist_ok=True)
+    final = folder / Path(path).name
+    shutil.move(path, final)
+    return str(final)
 
 
 def signature_of_file(path):

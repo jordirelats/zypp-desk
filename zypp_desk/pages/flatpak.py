@@ -167,6 +167,8 @@ class FlatpakPage(Page):
         self.t_inst.setSortingEnabled(True)
         self.t_inst.sortByColumn(0, Qt.SortOrder.AscendingOrder)
         self._paint_installed()
+        if self.t_inst.topLevelItemCount() and self.t_inst.currentItem() is None:
+            self.t_inst.setCurrentItem(self.t_inst.topLevelItem(0))
         for c in range(7):
             self.t_inst.resizeColumnToContents(c)
 
@@ -213,7 +215,7 @@ class FlatpakPage(Page):
 
     def _searched(self, rows, err):
         if err:
-            self.s_info.setText(str(err))
+            self.s_info.setText(str(err)[:200])
             return
         self.s_info.setText(_("{n} found").format(n=len(rows)))
         self.t_search.setSortingEnabled(False)

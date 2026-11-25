@@ -13,6 +13,11 @@ from ..txqueue import Action
 from ..ui import Card, Page, ask, button, error_box, heading, muted, tool
 
 
+def kind_label(kind):
+    return {"package": _("package"), "pattern": _("pattern"), "patch": _("patch"), "product": _("product"),
+            "srcpackage": _("source package")}.get(kind, kind)
+
+
 def simple_tree(headers, parent):
     t = QTreeWidget(parent)
     t.setHeaderLabels(headers)
@@ -60,10 +65,11 @@ class LocksPage(Page):
         for lk in self.items:
             names.add(lk["name"])
             pend = _("will be unlocked") if any(a.target == lk["name"] for a in self.ctx.queue.of("unlock")) else ""
-            QTreeWidgetItem(self.tree, [lk["name"], lk["type"], lk["repo"], pend])
+            it = QTreeWidgetItem(self.tree, [lk["name"], kind_label(lk["type"]), lk["repo"], pend])
+            it.setData(0, Qt.ItemDataRole.UserRole, lk["type"])
         for a in self.ctx.queue.of("lock"):
             if a.target not in names:
-                QTreeWidgetItem(self.tree, [a.target, "package", "", _("will be locked")])
+                QTreeWidgetItem(self.tree, [a.target, kind_label("package"), "", _("will be locked")])
         self.tree.resizeColumnToContents(0)
 
     def add(self):
@@ -74,7 +80,7 @@ class LocksPage(Page):
     def remove(self):
         it = self.tree.currentItem()
         if it:
-            self.ctx.queue.add(Action("unlock", it.text(0)))
+            self.ctx.queue.add(Action("unlock", it.text(0), type=it.data(0, Qt.ItemDataRole.UserRole) or "package"))
 
 
 # ============================================================ services
@@ -94,7 +100,7 @@ class ServicesPage(Page):
 
     def header_actions(self):
         return [tool(_("Refresh services"), "view-refresh",
-                     lambda: self.ctx.run([Step("zypper", ["-v", "refresh-services"])], _("Refresh services"),
+                     lambda: self.ctx.run([Step("zypper", ["-n", "-v", "refresh-services"])], _("Refresh services"),
                                           on_done=lambda ok: self.reload())),
                 tool(_("Enable / disable"), "system-run", self.toggle)]
 
@@ -160,7 +166,9 @@ class LocalesPage(Page):
         for a in self.ctx.queue.of("locale-add"):
             QTreeWidgetItem(self.tree, [a.target, "", _("will be added")])
         if not self.items and not self.ctx.queue.of("locale-add"):
-            QTreeWidgetItem(self.tree, ["", _("No language has been requested."), ""])
+            empty = QTreeWidgetItem(self.tree, [_("No language has been requested.")])
+            empty.setFirstColumnSpanned(True)
+            empty.setFlags(Qt.ItemFlag.NoItemFlags)
 
     def add(self):
         code, ok = QInputDialog.getText(self, _("Add a language"), _("Language code, for example ca or ca_ES:"))
@@ -264,7 +272,7 @@ class MaintenancePage(Page):
             row = QHBoxLayout()
             if sim:
                 row.addWidget(button(_("Simulate"), "media-playback-start",
-                                     lambda _c=False, a=sim, t=title: self.ctx.run([Step("zypper", ["-v", *a])], t)))
+                                     lambda _c=False, a=sim, t=title: self.ctx.run([Step("zypper", ["-n", "-v", *a])], t)))
             row.addWidget(button(_("Run"), "system-run",
                                  lambda _c=False, a=run, t=title, s=sim: self._run(a, t, s)))
             row.addStretch(1)
@@ -281,7 +289,7 @@ class MaintenancePage(Page):
     def _run(self, args, title, sim):
         if sim and not ask(self, title, _("Run it for real? Use Simulate first to see what it would do.")):
             return
-        self.ctx.run([Step("zypper", ["-v", *args])], title)
+        self.ctx.run([Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])], title)
 
 
 # ============================================================ settings

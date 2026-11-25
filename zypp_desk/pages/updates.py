@@ -10,7 +10,7 @@ from ..i18n import _
 from ..runner import Step
 from ..simulation import CATEGORIES, human_size, parse_dry_run, summary_lines
 from ..tasks import run_async
-from ..ui import Card, Page, button, error_box, heading, mono, muted
+from ..ui import Card, Page, ask, button, error_box, heading, mono, muted
 
 STATE_STYLE = {
     "pending": ("", "palette(mid)", ""),
@@ -79,7 +79,8 @@ class UpdatesPage(Page):
         self.stop_btn.setEnabled(False)
         rb.addWidget(self.run_btn)
         rb.addWidget(self.stop_btn)
-        rb.addWidget(button(_("Edit the routine…"), "document-edit", self.edit_routine))
+        self.edit_btn = button(_("Edit the routine…"), "document-edit", self.edit_routine)
+        rb.addWidget(self.edit_btn)
         rb.addStretch(1)
         self.result_lbl = QLabel("", self)
         self.result_lbl.setWordWrap(True)
@@ -163,15 +164,22 @@ class UpdatesPage(Page):
         self.show_routine()
 
     def run_routine(self):
+        if self.ctx.runner.busy:
+            self.result_lbl.setText(_("Wait until the current command finishes."))
+            return
         self.show_routine()
         if not self.steps:
             return
+        self.run_steps = self.steps
         self._running = True
+        if not self.ctx.run(self.run_steps, _("Routine: {text}").format(text=self.ctx.settings["routine"]),
+                            on_done=self._routine_done):
+            self._running = False
+            return
         self.result_lbl.setText("")
         self.run_btn.setEnabled(False)
+        self.edit_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
-        self.ctx.run(self.steps, _("Routine: {text}").format(text=self.ctx.settings["routine"]),
-                     on_done=self._routine_done)
 
     def _step_started(self, i):
         if getattr(self, "_running", False) and i < len(self.boxes):
@@ -180,7 +188,7 @@ class UpdatesPage(Page):
     def _step_finished(self, i, code):
         if not getattr(self, "_running", False) or i >= len(self.boxes):
             return
-        st = self.steps[i]
+        st = self.run_steps[i]
         if st.state == "skipped":
             self.boxes[i].set_state("skipped", _("skipped"))
         elif st.state == "done":
@@ -191,6 +199,7 @@ class UpdatesPage(Page):
     def _routine_done(self, ok):
         self._running = False
         self.run_btn.setEnabled(True)
+        self.edit_btn.setEnabled(True)
         self.stop_btn.setEnabled(False)
         self.result_lbl.setText(_("Routine finished.") if ok else _("The routine stopped with errors: look at "
                                                                      "the terminal."))
@@ -279,4 +288,7 @@ class UpdatesPage(Page):
 
     def run_dup(self):
         lic = ["--auto-agree-with-licenses"] if self.ctx.settings["apply_accept_licenses"] else []
-        self.ctx.run([Step("zypper", ["-n", "-v", *self.dup_args(), *lic])], _("zypper dup"))
+        st = Step("zypper", ["-n", "-v", *self.dup_args(), *lic])
+        if ask(self, _("zypper dup"), _("Run this command now? It upgrades the whole system.") + "\n\n"
+               + st.display()):
+            self.ctx.run([st], _("zypper dup"))

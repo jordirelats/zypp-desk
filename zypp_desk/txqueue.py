@@ -39,7 +39,7 @@ class Action:
             return _("Remove repository {alias}").format(alias=t)
         if k == "repo-modify":
             return _("Change repository {alias}: {changes}").format(alias=t, changes=", ".join(
-                f"{key}={val}" for key, val in self.opts.items()))
+                _repo_change_text(key, val) for key, val in self.opts.items()))
         if k == "locale-add":
             return _("Add language {code}").format(code=t)
         if k == "locale-remove":
@@ -54,8 +54,25 @@ class Action:
         return f"{k} {t}"
 
 
+def _repo_change_text(key, val):
+    if key == "priority":
+        return _("priority {n}").format(n=val)
+    if key == "name":
+        return _("name «{name}»").format(name=val)
+    labels = {"enabled": (_("enable"), _("disable")), "autorefresh": (_("refresh automatically"),
+              _("do not refresh automatically")), "keeppackages": (_("keep downloaded packages"),
+              _("do not keep downloaded packages"))}
+    on, off = labels.get(key, (key, "no " + key))
+    return on if val else off
+
+
 def installation_label(inst):
     return _("for every user") if inst != "user" else _("only for you")
+
+
+def _key(action):
+    """What an action is about: the package name for 'vlc', 'vlc=3.0' or 'pattern:devel_basis'."""
+    return action.opts.get("package") or action.target.split("=")[0]
 
 
 class TxQueue(QObject):
@@ -77,8 +94,8 @@ class TxQueue(QObject):
         opposite = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
                     "locale-add": "locale-remove", "locale-remove": "locale-add",
                     "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install"}.get(action.kind)
-        self.actions = [a for a in self.actions
-                        if not (a.target == action.target and a.kind in (action.kind, opposite))]
+        key = _key(action)
+        self.actions = [a for a in self.actions if not (_key(a) == key and a.kind in (action.kind, opposite))]
         self.actions.append(action)
         self.changed.emit()
 
@@ -176,9 +193,11 @@ class TxQueue(QObject):
         if rr:
             out.append(Step("zypper", ["-n", "removerepo", *rr]))
         for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
-            names = [a.target for a in self.of(kind)]
-            if names:
-                out.append(Step("zypper", ["-n", sub, *names]))
+            by_type = {}
+            for a in self.of(kind):
+                by_type.setdefault(a.opts.get("type", "package"), []).append(a.target)
+            for typ, names in by_type.items():
+                out.append(Step("zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]), *names]))
         pkg = self.package_args()
         if pkg:
             out.append(Step("zypper", ["-n", *pkg]))

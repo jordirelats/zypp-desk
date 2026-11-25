@@ -4,7 +4,7 @@
 
 Usage:
     zypp-desk-helper [--lang LANG] zypper ARGS...
-    zypp-desk-helper [--lang LANG] rpm-import KEYFILE
+    zypp-desk-helper [--lang LANG] rpm-import KEYFILE FINGERPRINT
     zypp-desk-helper history
 
 It runs zypper with a fixed list of subcommands, and only with global options from a short
@@ -47,7 +47,9 @@ FORBIDDEN = {
     "-C", "--cache-dir", "--raw-cache-dir", "--solv-cache-dir", "--pkg-cache-dir",
     "--disable-system-resolvables",
 }
-LANG_RE = re.compile(r"^(C|POSIX|[A-Za-z]{2,3}(_[A-Za-z]{2})?(\.[A-Za-z0-9-]+)?(@[A-Za-z]+)?)$")
+LANG_RE = re.compile(r"(C|POSIX|[A-Za-z]{2,3}(_[A-Za-z]{2})?)(\.[A-Za-z0-9-]+)?(@[A-Za-z]+)?")
+FPR_RE = re.compile(r"[0-9A-F]{40}|[0-9A-F]{64}")
+GPG = "/usr/bin/gpg"
 
 
 def die(msg, code=2):
@@ -104,7 +106,25 @@ def run_zypper(args, lang):
     os.execve(ZYPPER, ["zypper", *args], clean_env(lang))
 
 
-def rpm_import(path, lang):
+def key_fingerprints(path):
+    """Fingerprints of the primary keys in a key file, read by gpg as root in an empty keyring."""
+    with tempfile.TemporaryDirectory(prefix="zypp-desk-gpg-", dir="/run") as home:
+        p = subprocess.run([GPG, "--batch", "--no-autostart", "--homedir", home, "--with-colons", "--show-keys",
+                            path], capture_output=True, text=True, env=clean_env("C"))
+    fprs, want = [], False
+    for line in p.stdout.splitlines():
+        f = line.split(":")
+        if f[0] == "pub":
+            want = True
+        elif f[0] == "sub":
+            want = False
+        elif f[0] == "fpr" and want and len(f) > 9:
+            fprs.append(f[9].upper())
+            want = False
+    return fprs
+
+
+def rpm_import(path, expected, lang):
     if not os.path.isabs(path):
         die("the key file must be an absolute path")
     try:
@@ -119,9 +139,16 @@ def rpm_import(path, lang):
         die("the key file is too big")
     if b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in data:
         die("the file does not contain a PGP public key")
+    expected = expected.upper().replace(" ", "")
+    if not FPR_RE.fullmatch(expected):
+        die("invalid fingerprint")
     with tempfile.NamedTemporaryFile(prefix="zypp-desk-key-", suffix=".asc", dir="/run") as tmp:
         tmp.write(data)
         tmp.flush()
+        # The user saw this fingerprint before saying yes; check that these bytes are that key, and only it.
+        fprs = key_fingerprints(tmp.name)
+        if fprs != [expected]:
+            die("the key file does not contain exactly the key that was shown (fingerprint mismatch)")
         p = subprocess.run([RPM, "--import", tmp.name], env=clean_env(lang))
     sys.exit(p.returncode)
 
@@ -139,7 +166,7 @@ def main(argv):
     if len(argv) >= 2 and argv[0] == "--lang":
         lang = argv[1]
         argv = argv[2:]
-        if not LANG_RE.match(lang):
+        if not LANG_RE.fullmatch(lang):
             die("invalid language")
     if not argv:
         die("missing command")
@@ -148,8 +175,8 @@ def main(argv):
     verb, rest = argv[0], argv[1:]
     if verb == "zypper":
         run_zypper(rest, lang)
-    elif verb == "rpm-import" and len(rest) == 1:
-        rpm_import(rest[0], lang)
+    elif verb == "rpm-import" and len(rest) == 2:
+        rpm_import(rest[0], rest[1], lang)
     elif verb == "history" and not rest:
         history()
     else:

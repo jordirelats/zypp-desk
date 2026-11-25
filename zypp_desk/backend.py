@@ -13,6 +13,8 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from .i18n import _
+
 ENV_C = dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C")
 
 # zypper exit codes that are not errors (see "man zypper", EXIT CODES).
@@ -27,7 +29,7 @@ class ZypperError(Exception):
 def run_c(args, timeout=600, check=False):
     p = subprocess.run(["zypper", *args], capture_output=True, text=True, env=ENV_C, timeout=timeout)
     if check and p.returncode not in OK_CODES:
-        raise ZypperError((p.stderr or p.stdout).strip() or f"zypper exited with code {p.returncode}")
+        raise ZypperError((p.stderr or p.stdout).strip() or _("zypper exited with code {code}.").format(code=p.returncode))
     return p
 
 
@@ -39,7 +41,7 @@ def xml_of(text):
         # Some commands print plain text before or after the XML stream.
         m = re.search(r"<stream>.*</stream>", text, re.S)
         if not m:
-            raise ZypperError(text.strip()[:2000] or "zypper returned no output")
+            raise ZypperError(text.strip()[:2000] or _("zypper returned no output."))
         root = ET.fromstring(m.group(0))
     msgs = [(m.get("type", "info"), (m.text or "").strip()) for m in root.iter("message")]
     return root, msgs
@@ -50,7 +52,7 @@ def xml(args, allow=(EXIT_NO_MATCH,)):
     root, msgs = xml_of(p.stdout)
     if p.returncode not in OK_CODES and p.returncode not in allow:
         errs = [t for k, t in msgs if k == "error"] or [p.stderr.strip()]
-        raise ZypperError("\n".join(e for e in errs if e) or f"zypper exited with code {p.returncode}")
+        raise ZypperError("\n".join(e for e in errs if e) or _("zypper exited with code {code}.").format(code=p.returncode))
     return root, p.returncode
 
 
@@ -112,7 +114,7 @@ def search(term="", *, kind="package", status="all", repo=None, descriptions=Fal
             opts.append(flag)
     if special in SPECIAL_LISTS:
         return special_list(special, repo=repo)
-    terms = [term] if term else []
+    terms = ["--", term] if term else []  # a term starting with "-" is not an option
 
     root, code = xml(["search", *opts, *terms])
     if code == EXIT_NO_MATCH:
@@ -271,7 +273,7 @@ def _add_repo_file_fields(repo_list):
         except configparser.Error:
             continue
         if cp.sections():
-            sec = cp[cp.sections()[0]]
+            sec = cp[d["alias"]] if cp.has_section(d["alias"]) else cp[cp.sections()[0]]
             d["keeppackages"] = sec.get("keeppackages", "0").strip() == "1"
             d["service"] = sec.get("service", "")
 
@@ -371,7 +373,7 @@ def parse_history(text):
         f = line.split("|")
         if len(f) < 3:
             continue
-        date, action = f[0], f[1]
+        date, action = f[0], f[1].strip()  # libzypp pads the action ("remove ", "radd   ")
         if action in ("install", "remove"):
             out.append(dict(date=date, action=action, name=f[2], edition=f[3] if len(f) > 3 else "",
                             arch=f[4] if len(f) > 4 else "", detail=f[6] if len(f) > 6 else ""))

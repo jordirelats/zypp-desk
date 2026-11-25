@@ -2,6 +2,8 @@
 """Packages: search with every zypper option, the package card, and adding changes to the queue."""
 
 import html
+import re
+from functools import cmp_to_key
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QColor, QBrush
@@ -25,6 +27,14 @@ INFO_LABELS = {"Repository": _("Repository"), "Version": _("Version"), "Arch": _
 DEP_LABELS = {"Provides": _("Provides"), "Requires": _("Requires"), "Recommends": _("Recommends"),
               "Suggests": _("Suggests"), "Conflicts": _("Conflicts"), "Obsoletes": _("Obsoletes"),
               "Supplements": _("Supplements")}
+def status_label(text):
+    """zypper info's Status field (in English, LC_ALL=C), in the user's language."""
+    m = re.match(r"out-of-date \(version (.+) installed\)", text)
+    if m:
+        return _("an update is available (installed: {version})").format(version=m.group(1))
+    return {"up-to-date": _("up to date"), "not installed": _("not installed")}.get(text, text)
+
+
 STATUS_LABELS = [("all", _("Any status")), ("installed", _("Installed")), ("not-installed", _("Not installed"))]
 
 
@@ -179,8 +189,8 @@ class PackagesPage(Page):
         state = self.ctx.queue.state_of(d["name"]) if d else None
         installed = bool(d and d["installed"])
         is_pkg = bool(d and d["kind"] == "package")
-        self.b_install.setVisible(bool(d) and not installed and state is None)
-        self.b_update.setVisible(bool(d) and d.get("updatable") and state is None)
+        self.b_install.setVisible(bool(d) and not installed and state is None and d["kind"] != "srcpackage")
+        self.b_update.setVisible(bool(d) and self._updatable(d) and state is None)
         self.b_remove.setVisible(installed and state is None and is_pkg)
         self.b_keep.setVisible(state is not None)
         self.b_lock.setVisible(bool(d) and is_pkg)
@@ -198,10 +208,11 @@ class PackagesPage(Page):
         if err:
             return
         self.updates = {u["name"]: u for u in updates}
-        for i in range(self.tree.topLevelItemCount()):
-            d = self.tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
-            d["updatable"] = d["name"] in self.updates
         self.update_statuses()
+
+    def _updatable(self, d):
+        # Qt hands back a copy of the dict stored in an item, so this is computed, never stored.
+        return bool(d and d["installed"] and d["name"] in self.updates)
 
     def _repos_loaded(self, repos, err):
         if err:
@@ -239,7 +250,7 @@ class PackagesPage(Page):
         if sid != self.search_id:
             return  # an older search finished late
         if err:
-            self.info.setText(_("The search failed: {error}").format(error=err))
+            self.info.setText(_("The search failed: {error}").format(error=str(err)[:200]))
             return
         self.results = results
         what = {"orphaned": _("Orphaned packages (installed, but in no repository)"),
@@ -250,7 +261,6 @@ class PackagesPage(Page):
         self.info.setText((what + " · " if what else "") + _("{n} found").format(n=n))
         self.tree.setSortingEnabled(False)
         for d in results:
-            d["updatable"] = d["name"] in self.updates and d["installed"] is not None
             ref = d["installed"] or d["best"] or (d["versions"][0] if d["versions"] else None)
             it = QTreeWidgetItem(self.tree, ["", d["name"], d["summary"], ref["edition"] if ref else "",
                                              ref["repo"] if ref else ""])
@@ -312,7 +322,7 @@ class PackagesPage(Page):
             return _("Will be removed"), "#da4453", "list-remove"
         if d["name"] in self.locked_names:
             return _("Locked"), None, "object-locked"
-        if d.get("updatable"):
+        if self._updatable(d):
             return _("Update available"), "#1d99f3", "update-low"
         if d["installed"]:
             return _("Installed"), None, "checkmark"
@@ -341,7 +351,8 @@ class PackagesPage(Page):
         self._show_state(d)
         self._set_buttons(d)
         self.t_versions.clear()
-        for v in sorted(d["versions"], key=lambda v: v["edition"], reverse=True):
+        for v in sorted(d["versions"], key=cmp_to_key(lambda a, b: backend.vercmp(a["edition"], b["edition"])),
+                        reverse=True):
             st = {"installed": _("installed"), "not-installed": "", "other-version": ""}.get(v["status"], v["status"])
             vi = QTreeWidgetItem(self.t_versions, [v["edition"], v["arch"], v["repo"], st])
             vi.setData(0, Qt.ItemDataRole.UserRole, v)
@@ -369,7 +380,7 @@ class PackagesPage(Page):
         if d["installed"]:
             parts.append(_("installed {version} from {repo}").format(version=d["installed"]["edition"],
                                                                      repo=d["installed"]["repo"]))
-        up = self.updates.get(d["name"]) if d.get("updatable") else None
+        up = self.updates.get(d["name"]) if self._updatable(d) else None
         if up:
             parts.append(_("{version} available in {repo}").format(version=up["edition"], repo=up["repo"]))
         self.d_state.setText(" · ".join(parts))
@@ -383,7 +394,7 @@ class PackagesPage(Page):
         rows = []
         for key in INFO_LABELS:
             if info.get(key):
-                val = html.escape(info[key])
+                val = html.escape(status_label(info[key]) if key == "Status" else info[key])
                 if key == "Upstream URL":
                     val = f'<a href="{val}">{val}</a>'
                 rows.append(f"<tr><td style='padding-right:14px;color:gray'>{html.escape(INFO_LABELS[key])}</td>"
@@ -413,14 +424,18 @@ class PackagesPage(Page):
 
     # ------------------------------------------------------------ queue
     def queue_current(self, kind):
-        if self.current:
-            self.ctx.queue.add(Action(kind, self.current["name"]))
+        d = self.current
+        if not d:
+            return
+        # patterns, patches and products are installed as "pattern:name"
+        target = d["name"] if d["kind"] == "package" else f"{d['kind']}:{d['name']}"
+        self.ctx.queue.add(Action(kind, target, package=d["name"]))
 
     def unqueue_current(self):
         if self.current:
             for kind in ("install", "remove"):
                 for a in list(self.ctx.queue.of(kind)):
-                    if a.target.split("=")[0] == self.current["name"]:
+                    if (a.opts.get("package") or a.target.split("=")[0]) == self.current["name"]:
                         self.ctx.queue.discard_action(a)
 
     def lock_current(self):
@@ -440,4 +455,4 @@ class PackagesPage(Page):
             return
         target = f"{self.current['name']}={v['edition']}"
         old = bool(self.current["installed"] and backend.vercmp(v["edition"], self.current["installed"]["edition"]) < 0)
-        self.ctx.queue.add(Action("install", target, oldpackage=old, repo=v["repo"]))
+        self.ctx.queue.add(Action("install", target, oldpackage=old, repo=v["repo"], package=self.current["name"]))

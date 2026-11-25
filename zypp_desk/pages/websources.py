@@ -118,10 +118,13 @@ class SourceDialog(QDialog):
         name = self.package.currentText().strip()
         if not name:
             return
-        try:
-            hits = github_guess(name)
-        except OSError as e:
-            error_box(self, self.windowTitle(), str(e))
+        self.repo.setPlaceholderText(_("Searching…"))
+        run_async(github_guess, name, on_done=self._found)
+
+    def _found(self, hits, err):
+        self.repo.setPlaceholderText(_("owner/project, for example rustdesk/rustdesk"))
+        if err:
+            error_box(self, self.windowTitle(), str(err)[:300])
             return
         if hits:
             self.repo.setText(hits[0])
@@ -154,6 +157,7 @@ class WebSourcesPage(Page):
         super().__init__(ctx, parent)
         self.sources = websources.load()
         self.found = {}
+        self.downloading = False
         self.local = {}
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels([_("Package"), _("Installed"), _("Latest"), _("Published"), _("Source"),
@@ -197,7 +201,8 @@ class WebSourcesPage(Page):
     # ------------------------------------------------------------ table
     def _fill(self):
         cur = self.tree.currentItem()
-        cur_pkg = cur.data(0, Qt.ItemDataRole.UserRole)["package"] if cur else None
+        cur_data = cur.data(0, Qt.ItemDataRole.UserRole) if cur else None
+        cur_pkg = cur_data["package"] if cur_data else None
         self.tree.clear()
         for s in self.sources:
             f = self.found.get(s["package"], {})
@@ -221,7 +226,11 @@ class WebSourcesPage(Page):
         for c in range(6):
             self.tree.resizeColumnToContents(c)
         if not self.sources:
-            QTreeWidgetItem(self.tree, [_("No web source yet. Use “Add…”."), "", "", "", "", ""])
+            empty = QTreeWidgetItem(self.tree, [_("No web source yet. Use “Add…”.")])
+            empty.setFirstColumnSpanned(True)
+            empty.setFlags(Qt.ItemFlag.NoItemFlags)
+        elif self.tree.currentItem() is None:
+            self.tree.setCurrentItem(self.tree.topLevelItem(0))
 
     def _current(self):
         it = self.tree.currentItem()
@@ -243,7 +252,7 @@ class WebSourcesPage(Page):
                 (_("Release page"), f"<a href='{html.escape(f.get('page', ''))}'>{html.escape(f.get('tag', ''))}</a>")]
         self.details.setHtml(f"<h3>{html.escape(s['package'])}</h3><table>" + "".join(
             f"<tr><td style='color:gray;padding-right:12px'>{k}</td><td>{v}</td></tr>" for k, v in rows) + "</table>")
-        self.get_btn.setEnabled(bool(f.get("asset")) and not self.ctx.runner.busy)
+        self.get_btn.setEnabled(bool(f.get("asset")) and not self.ctx.runner.busy and not self.downloading)
 
     # ------------------------------------------------------------ checking
     def check_all(self):
@@ -275,7 +284,8 @@ class WebSourcesPage(Page):
         dlg = SourceDialog(self.local, s, parent=self)
         if dlg.exec():
             new = dlg.source()
-            self.sources = [new if x is s else x for x in self.sources]
+            # Qt gives back copies of the stored dicts: compare by package name
+            self.sources = [new if x["package"] == s["package"] else x for x in self.sources]
             websources.save(self.sources)
             self.check_all()
 
@@ -283,7 +293,7 @@ class WebSourcesPage(Page):
         s = self._current()
         if s and ask(self, _("Remove"), _("Stop looking for new versions of {name}? Nothing is uninstalled.")
                      .format(name=s["package"])):
-            self.sources = [x for x in self.sources if x is not s]
+            self.sources = [x for x in self.sources if x["package"] != s["package"]]
             websources.save(self.sources)
             self._fill()
 
@@ -298,17 +308,19 @@ class WebSourcesPage(Page):
         self.ctx.terminal.set_title(_("Download {file}").format(file=f["asset"]))
         view.prompt(f"$ curl -LO {f['url']}")
         self.get_btn.setEnabled(False)
+        self.downloading = True
         view.note(_("Downloading {size} MiB…").format(size=f"{(f.get('size') or 0) / 1048576:.1f}"), "info")
         run_async(websources.download, s, f, on_done=lambda res, err: self._downloaded(s, f, res, err))
 
     def _downloaded(self, s, f, res, err):
         view = self.ctx.terminal.view
+        self.downloading = False
         self.get_btn.setEnabled(True)
         if err:
             view.note(_("Download failed: {error}").format(error=err), "error")
             error_box(self, self.title, str(err))
             return
-        view.note(_("Saved as {path}").format(path=res["path"]), "ok")
+        view.note(_("Downloaded to {path}").format(path=res["path"]), "ok")
         if res["sha256_checked"]:
             view.note(_("SHA-256 matches the one GitHub publishes: {sum}").format(sum=res["sha256"]), "ok")
         else:
@@ -316,6 +328,10 @@ class WebSourcesPage(Page):
         sig = res["signature"]
         view.note(_("Signature: {text}").format(text=sig_text(sig)), "ok" if sig == "verified" else "error")
         allow_unsigned = False
+        if sig == "bad":
+            os.unlink(res["path"])
+            error_box(self, self.title, _("The signature of the file does not verify: it was deleted."))
+            return
         if sig != "verified":
             box = QMessageBox(self)
             box.setIcon(QMessageBox.Icon.Warning)
@@ -328,7 +344,11 @@ class WebSourcesPage(Page):
                 + " " + _("Add it to the queue anyway?"))
             box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
             if box.exec() != QMessageBox.StandardButton.Yes:
+                os.unlink(res["path"])
+                view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
-            allow_unsigned = sig in ("unsigned", "bad") or sig.startswith("nokey:")
-        self.ctx.queue.add(Action("install", res["path"], package=s["package"], allow_unsigned=allow_unsigned))
+            allow_unsigned = sig == "unsigned" or sig.startswith("nokey:")
+        path = websources.place(res["path"], s)
+        view.note(_("Saved as {path}").format(path=path), "ok")
+        self.ctx.queue.add(Action("install", path, package=s["package"], allow_unsigned=allow_unsigned))
         view.note(_("Added to the queue. Simulate it, then apply it."), "info")
