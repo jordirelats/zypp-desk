@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- SPDX-License-Identifier: GPL-3.0-or-later
+     Zypp Desk: lets an administrator run zypp-desk-helper (zypper with a checked list of commands).
+     auth_admin_keep: the password is asked once and remembered for a few minutes. -->
+<policyconfig>
+  <vendor>Zypp Desk</vendor>
+  <action id="io.github.jordirelats.ZyppDesk.run">
+    <description>Manage software with zypper</description>
+    <description xml:lang="ca">Gestionar el programari amb zypper</description>
+    <message>Authentication is required to install, remove or update software, or to change repositories</message>
+    <message xml:lang="ca">Cal autenticar-se per instal·lar, treure o actualitzar programari, o per canviar els repositoris</message>
+    <icon_name>package-x-generic</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@HELPER@</annotate>
+  </action>
+</policyconfig>

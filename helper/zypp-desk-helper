@@ -1,0 +1,160 @@
+#!/usr/bin/python3 -I
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""zypp-desk-helper: the only part of Zypp Desk that runs as root (through pkexec).
+
+Usage:
+    zypp-desk-helper [--lang LANG] zypper ARGS...
+    zypp-desk-helper [--lang LANG] rpm-import KEYFILE
+    zypp-desk-helper history
+
+It runs zypper with a fixed list of subcommands, and only with global options from a short
+list: nothing that points zypper at another root, configuration or cache directory. The polkit
+action (data/*.policy) names this file, so pkexec asks for the administrator password before
+it runs. Keep it small and easy to review.
+"""
+
+import os
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+
+ZYPPER = "/usr/bin/zypper"
+RPM = "/usr/bin/rpm"
+HISTORY = "/var/log/zypp/history"
+
+ALLOWED_SUBCOMMANDS = {
+    "refresh", "ref", "dist-upgrade", "dup", "update", "up", "patch", "list-patches", "lp",
+    "list-updates", "lu", "patch-check", "pchk", "install", "in", "remove", "rm", "verify", "ve",
+    "install-new-recommends", "inr", "source-install", "si", "removeptf", "rmptf",
+    "addrepo", "ar", "removerepo", "rr", "renamerepo", "nr", "modifyrepo", "mr", "clean", "cc",
+    "addservice", "as", "modifyservice", "ms", "removeservice", "rs", "refresh-services", "refs",
+    "addlock", "al", "removelock", "rl", "cleanlocks", "cl", "addlocale", "aloc", "removelocale", "rloc",
+    "purge-kernels", "ps", "needs-rebooting", "download", "source-download", "licenses",
+}
+# Global options (before the subcommand) that are allowed. Values follow the ones in WITH_VALUE.
+GLOBAL_FLAGS = {
+    "-v", "--verbose", "-q", "--quiet", "-n", "--non-interactive", "-x", "--xmlout", "-t", "--terse",
+    "-A", "--no-abbrev", "--color", "--no-color", "--no-refresh", "-i", "--ignore-unknown", "--no-cd",
+    "--no-remote", "--gpg-auto-import-keys", "--non-interactive-include-reboot-patches",
+}
+GLOBAL_WITH_VALUE = {"--userdata", "-p", "--plus-repo", "--plus-content", "--releasever"}
+SHORT_COMBINABLE = set("vqnxtAi")
+# Never accepted anywhere on the command line.
+FORBIDDEN = {
+    "-R", "--root", "--installroot", "-c", "--config", "-D", "--reposd-dir", "--servicesd-dir",
+    "-C", "--cache-dir", "--raw-cache-dir", "--solv-cache-dir", "--pkg-cache-dir",
+    "--disable-system-resolvables",
+}
+LANG_RE = re.compile(r"^(C|POSIX|[A-Za-z]{2,3}(_[A-Za-z]{2})?(\.[A-Za-z0-9-]+)?(@[A-Za-z]+)?)$")
+
+
+def die(msg, code=2):
+    print(f"zypp-desk-helper: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def clean_env(lang):
+    return {
+        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+        "HOME": "/root",
+        "TERM": "dumb",
+        "COLUMNS": "120",
+        "LANG": lang,
+        "LC_ALL": lang,
+        "LANGUAGE": lang.split(".")[0] if lang not in ("C", "POSIX") else lang,
+    }
+
+
+def check_zypper_args(args):
+    if not args:
+        die("no zypper arguments")
+    for a in args:
+        if "\0" in a or "\n" in a:
+            die("invalid character in arguments")
+        # Long forbidden options are refused anywhere. Short ones (-R, -c, -D, -C) only matter
+        # before the subcommand, where the whitelist below already refuses them; after it they
+        # mean other things (for example 'dup -D' is --dry-run).
+        name = a.split("=", 1)[0]
+        if name.startswith("--") and name in FORBIDDEN:
+            die(f"option not allowed: {name}")
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if not a.startswith("-"):
+            break
+        name = a.split("=", 1)[0]
+        if name in GLOBAL_WITH_VALUE:
+            i += 1 if "=" in a else 2
+            continue
+        if name in GLOBAL_FLAGS or (a.startswith("-") and not a.startswith("--") and len(a) > 1
+                                    and set(a[1:]) <= SHORT_COMBINABLE):
+            i += 1
+            continue
+        die(f"global option not allowed: {a}")
+    if i >= len(args):
+        die("no zypper subcommand")
+    if args[i] not in ALLOWED_SUBCOMMANDS:
+        die(f"zypper subcommand not allowed: {args[i]}")
+
+
+def run_zypper(args, lang):
+    check_zypper_args(args)
+    os.execve(ZYPPER, ["zypper", *args], clean_env(lang))
+
+
+def rpm_import(path, lang):
+    if not os.path.isabs(path):
+        die("the key file must be an absolute path")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as e:
+        die(f"cannot open the key file: {e.strerror}")
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            die("the key file is not a regular file")
+        data = f.read(1024 * 1024 + 1)
+    if len(data) > 1024 * 1024:
+        die("the key file is too big")
+    if b"-----BEGIN PGP PUBLIC KEY BLOCK-----" not in data:
+        die("the file does not contain a PGP public key")
+    with tempfile.NamedTemporaryFile(prefix="zypp-desk-key-", suffix=".asc", dir="/run") as tmp:
+        tmp.write(data)
+        tmp.flush()
+        p = subprocess.run([RPM, "--import", tmp.name], env=clean_env(lang))
+    sys.exit(p.returncode)
+
+
+def history():
+    try:
+        with open(HISTORY, "rb") as f:
+            sys.stdout.buffer.write(f.read())
+    except OSError as e:
+        die(f"cannot read {HISTORY}: {e.strerror}", 1)
+
+
+def main(argv):
+    lang = "C"
+    if len(argv) >= 2 and argv[0] == "--lang":
+        lang = argv[1]
+        argv = argv[2:]
+        if not LANG_RE.match(lang):
+            die("invalid language")
+    if not argv:
+        die("missing command")
+    if os.geteuid() != 0:
+        die("must run as root (through pkexec)")
+    verb, rest = argv[0], argv[1:]
+    if verb == "zypper":
+        run_zypper(rest, lang)
+    elif verb == "rpm-import" and len(rest) == 1:
+        rpm_import(rest[0], lang)
+    elif verb == "history" and not rest:
+        history()
+    else:
+        die(f"unknown command: {verb}")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
