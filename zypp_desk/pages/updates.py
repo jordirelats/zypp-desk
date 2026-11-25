@@ -4,13 +4,13 @@ and a simulation of 'zypper dup' with its options in its own window."""
 
 import html
 
-from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt
+from PySide6.QtCore import QEvent, QPointF, QRect, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPen
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QListWidget, QListWidgetItem, QSplitter, QStyle, QStyledItemDelegate,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import appicons, backend, flatpak, routine, websources
+from .. import appicons, backend, firmware, flatpak, routine, websources
 from ..i18n import _, ngettext
 from ..txqueue import Action
 from ..runner import Step
@@ -20,7 +20,8 @@ from ..tasks import run_async
 from ..ui import Card, Page, ask, button, error_box, heading, icon, mono, muted
 from .pkgdetails import PackageDetails
 
-ORIGIN_COLORS = {"repo": BLUE, "flatpak": PURPLE, "web": ORANGE}
+FIRMWARE_COLOR = "#16a085"
+ORIGIN_COLORS = {"repo": BLUE, "flatpak": PURPLE, "web": ORANGE, "firmware": FIRMWARE_COLOR}
 ROW_ROLE = Qt.ItemDataRole.UserRole
 
 
@@ -316,22 +317,12 @@ class UpdatesPage(Page):
             self.strip.addWidget(box, 1)
 
     def edit_routine(self):
-        # the label treats '&' as a keyboard accelerator: '&&' must be written '&&&&' to show '&&'
-        text, ok = QInputDialog.getText(
-            self, _("Edit the routine"),
-            _("Write it as in a terminal. ';' runs the next command anyway, '&&' only if the previous one "
-              "worked. Only zypper and flatpak commands are allowed.").replace("&", "&&"),
-            text=self.ctx.settings["routine"])
-        if not ok:
-            return
-        try:
-            routine.parse(text)
-        except routine.RoutineError as e:
-            error_box(self, _("Edit the routine"), str(e))
-            return
-        self.ctx.settings["routine"] = text.strip()
-        self.ctx.settings.save()
-        self.show_routine()
+        from .routine_editor import RoutineEditorDialog
+        dlg = RoutineEditorDialog(self.ctx.settings["routine"], self)
+        if dlg.exec():
+            self.ctx.settings["routine"] = dlg.text()
+            self.ctx.settings.save()
+            self.show_routine()
 
     def run_routine(self):
         if self.ctx.runner.busy:
@@ -367,6 +358,8 @@ class UpdatesPage(Page):
             self.boxes[i].set_state("failed", _("failed (exit code {code})").format(code=code))
 
     def _routine_done(self, ok):
+        from .. import tray
+        tray.poke("check")
         self._running = False
         self.run_btn.setEnabled(True)
         self.edit_btn.setEnabled(True)
@@ -400,9 +393,9 @@ class UpdatesPage(Page):
         self.up_lbl.setText(_("Looking…"))
         # the last answers stay on screen until the new ones arrive
         if not hasattr(self, "up_found"):
-            self.up_found = {"repo": None, "flatpak": None, "web": None}
+            self.up_found = {"repo": None, "flatpak": None, "web": None, "firmware": None}
         self.up_errors = {}
-        self.up_pending = {"repo", "flatpak", "web"}
+        self.up_pending = {"repo", "flatpak", "web", "firmware"}
         self.up_round = getattr(self, "up_round", 0) + 1
         rnd = self.up_round
         run_async(backend.list_updates, on_done=lambda res, err: self._up_part(rnd, "repo", res, err))
@@ -411,6 +404,11 @@ class UpdatesPage(Page):
         else:
             self.up_found["flatpak"] = []
             self.up_pending.discard("flatpak")
+        if firmware.available():
+            run_async(firmware.updates, on_done=lambda res, err: self._up_part(rnd, "firmware", res, err))
+        else:
+            self.up_found["firmware"] = []
+            self.up_pending.discard("firmware")
         sources = [x for x in websources.load() if x.get("type") != "manual"]
 
         def web():
@@ -470,6 +468,10 @@ class UpdatesPage(Page):
                    version=(_("could not check") if u.get("error") else
                             f"{u['old']} → {u['new']}" if u["new"] else _("{old} → file changed").format(old=u["old"])))
               for u in (f["web"] or [])]),
+            ("firmware", _("Firmware"),
+             [dict(kind="firmware", name=u["name"], version=f"{u['version']} → {u['new_version']}",
+                   where=" · ".join(x for x in (u.get("release_vendor") or u.get("vendor"), "LVFS") if x), data=u)
+              for u in (f.get("firmware") or [])]),
         ]
         total, select = 0, None
         for key, label, rows in groups:
@@ -497,7 +499,7 @@ class UpdatesPage(Page):
             self.up_list.setCurrentItem(select)
         if not hasattr(self, "_desk_icons"):
             self._desk_icons = {}
-        names = sorted({r["name"] for _k, _l, rows in groups for r in rows if r["kind"] != "flatpak"}
+        names = sorted({r["name"] for _k, _l, rows in groups for r in rows if r["kind"] in ("repo", "web")}
                        - set(self._desk_icons))
         if names:
             run_async(appicons.desktop_icons, names, on_done=self._icons_loaded)
@@ -533,6 +535,8 @@ class UpdatesPage(Page):
             self.details.refresh_icon()
 
     def row_icon(self, row):
+        if row["kind"] == "firmware":
+            return icon(*(row["data"].get("icons") or []), "computer", "cpu", "application-x-firmware")
         if row["kind"] == "flatpak":
             ic = QIcon.fromTheme(row["name"])
             if ic.isNull():
@@ -548,6 +552,9 @@ class UpdatesPage(Page):
         self.details.set_custom(None)
         if row.get("error"):
             self.details.show_simple(row["name"], _("could not check"), self.row_icon(row), html.escape(row["where"]))
+            return
+        if row["kind"] == "firmware":
+            self._show_firmware(row)
             return
         if row["kind"] == "flatpak":
             u = row["data"]
@@ -578,6 +585,44 @@ class UpdatesPage(Page):
         self.details.load(quick, extra_html=extra)
         run_async(backend.search, name, exact=True, on_done=lambda res, err, r=row: self._row_package(r, res, err))
 
+    def _show_firmware(self, row):
+        u = row["data"]
+        self._detail_for = ("firmware", row["name"])
+        esc = html.escape
+        rows = [(_("You have"), esc(u["version"])), (_("New version"), f"<b>{esc(u['new_version'])}</b>")]
+        if u.get("size"):
+            rows.append((_("Size"), esc(human_size(u["size"]))))
+        rows.append((_("Comes from"), esc(_("LVFS (fwupd.org), where {vendor} publishes its firmware").format(
+            vendor=u.get("release_vendor") or u.get("vendor") or "?"))))
+        rows.append((_("Installed"), esc(_("when the computer restarts, before Linux starts") if u.get("needs_reboot")
+                                        else _("at once, while you work"))))
+        if u.get("urgency") in ("high", "critical"):
+            rows.append((_("Urgency"), f"<b style='color:#da4453'>{esc(_('high: install it soon'))}</b>"))
+        table = "".join(f"<tr><td style='padding-right:14px;color:gray'>{k}</td><td>{v}</td></tr>" for k, v in rows)
+        what = u.get("description") or u.get("release_summary") or ""
+        notes = (f"<p><b>{esc(_('What changes'))}</b><br>{esc(what).replace(chr(10), '<br>')}</p>" if what else "")
+        warn = (f"<p style='background:#fdf1e6;color:#7a4300;padding:6px'>⚠ "
+                f"{esc(_('Plug in the charger and do not switch the computer off while it updates.'))}</p>")
+        cmd = f"<p style='color:gray;font-family:monospace'>fwupdmgr update {esc(u['id'][:12])}…</p>"
+        devs = ""
+        if getattr(self, "_fw_devices", None):
+            items = "".join(f"<li>{esc(d['name'])} <span style='color:gray'>{esc(d['version'])}</span></li>"
+                            for d in self._fw_devices)
+            devs = f"<p><b>{esc(_('Every device fwupd knows'))}</b></p><ul>{items}</ul>"
+        elif firmware.available() and not getattr(self, "_fw_devices_asked", False):
+            self._fw_devices_asked = True
+            run_async(firmware.devices, on_done=lambda res, err, r=row: self._fw_devices_loaded(r, res))
+        self.details.show_simple(u["name"], u.get("release_summary") or u.get("vendor") or _("Firmware"),
+                                 self.row_icon(row), f"<table>{table}</table>{warn}{notes}{cmd}{devs}")
+        self.details.set_custom(_("Add it to the queue"),
+                                lambda: self.ctx.queue.add(Action("firmware", u["id"], name=u["name"],
+                                                                  version=u["new_version"])))
+
+    def _fw_devices_loaded(self, row, res):
+        self._fw_devices = res or []
+        if getattr(self, "_detail_for", None) == ("firmware", row["name"]):
+            self._show_firmware(row)
+
     def _row_package(self, row, res, err):
         if getattr(self, "_detail_for", None) != (row["kind"], row["name"]):
             return  # another row was selected meanwhile
@@ -603,6 +648,10 @@ class UpdatesPage(Page):
                     n += 1
                 elif row["kind"] == "flatpak":
                     self.ctx.queue.add(Action("flatpak-update", row["name"]))
+                    n += 1
+                elif row["kind"] == "firmware":
+                    u = row["data"]
+                    self.ctx.queue.add(Action("firmware", u["id"], name=u["name"], version=u["new_version"]))
                     n += 1
                 else:
                     web.append(row["name"])
@@ -726,7 +775,7 @@ class UpdatesPage(Page):
             self.sim_lbl.setText(_("Not simulated: the administrator password was not given."))
             return
         self.sim_tree.clear()
-        res = parse_dry_run(st.output)
+        res = parse_dry_run(st.output, source="zypper dup")
         for line in summary_lines(res):
             self.ctx.terminal.view.note(line, "ok")
         self.sim_tree.clear()
@@ -750,12 +799,28 @@ class UpdatesPage(Page):
             counts.append(_("Download: {size}").format(size=human_size(res["download"])))
         if res["disk"]:
             counts.append(disk_text(res["disk"]))
-        if res["problems"]:
+        items = [p for p in res.get("problem_items") or [] if any(x.get("possible") for x in p.get("solutions") or [])]
+        if items:
+            self.sim_lbl.setText(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
+            QTimer.singleShot(0, lambda: self._resolve(items))
+        elif res["problems"]:
             self.sim_lbl.setText(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:5]))
         elif not counts:
             self.sim_lbl.setText(_("Nothing to do: the system is up to date."))
         else:
             self.sim_lbl.setText(_("Nothing has been changed.") + "  " + "  ·  ".join(counts))
+
+    def _resolve(self, items):
+        """The dup cannot go on: choose a solution; it runs at once (a lock, a removal), then simulate again."""
+        try:
+            from .problems import ProblemDialog
+        except ImportError:
+            return
+        dlg = ProblemDialog(items, self.dup_dialog, apply_label=_("Do it now and simulate again"),
+                            note=_("The dup is only simulated: what you choose here runs at once (with the "
+                                   "password), and then the dup is simulated again."))
+        if dlg.exec():
+            self.ctx.apply_solutions(dlg.chosen(), then=self.simulate_dup, now=True)
 
     def run_dup(self):
         lic = ["--auto-agree-with-licenses"] if self.ctx.settings["apply_accept_licenses"] else []

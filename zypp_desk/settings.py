@@ -19,6 +19,12 @@ DEFAULTS = {
     "dup_from_repo": "",
     "after_routine_check_restart": True,
     "web_folder": "",
+    # the tray icon (tray.py) and its notifications
+    "notify_enabled": True,
+    "notify_interval_hours": 6,
+    "notify_firmware": True,
+    "tray_autostart": True,
+    "tray_autostart_done": False,
 }
 
 

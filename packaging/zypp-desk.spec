@@ -9,7 +9,7 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.3.1
+Version:        0.4.0
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
@@ -21,6 +21,7 @@ BuildRequires:  AppStream
 BuildRequires:  desktop-file-utils
 BuildRequires:  gettext-tools
 BuildRequires:  hicolor-icon-theme
+BuildRequires:  pkgconfig(systemd)
 BuildRequires:  python3 >= 3.11
 Requires:       gpg2
 Requires:       pkexec
@@ -31,6 +32,7 @@ Requires:       python3-rpm
 Requires:       zypper
 Recommends:     flatpak
 Recommends:     kf6-breeze-icons
+%{?systemd_ordering}
 
 %description
 Zypp Desk is a graphical front end for zypper, the package manager of
@@ -41,8 +43,11 @@ locks, languages, Flatpak apps, history and maintenance.
 Every change goes to a queue that shows the exact zypper command, can be
 simulated with --dry-run and is applied at once. A terminal panel shows
 zypper's own output while it works. Update routines are written the way
-they are typed in a terminal and run step by step. Programs installed from
-files downloaded from the web can be followed for new versions.
+they are typed in a terminal, or built step by step, and run step by step.
+Programs installed from files downloaded from the web can be followed for
+new versions. A tray icon tells about updates, firmware included (fwupd),
+and a system timer refreshes the repositories; it never installs anything.
+The history shows the snapper snapshots of each change and can undo it.
 
 %prep
 %autosetup -p1
@@ -74,6 +79,17 @@ install -d %{buildroot}%{_datadir}/polkit-1/actions
 sed 's|@HELPER@|%{helperdir}/%{name}-helper|' data/%{app_id}.policy.in \
   > %{buildroot}%{_datadir}/polkit-1/actions/%{app_id}.policy
 
+# the system timer that refreshes the repositories as root (never installs anything), on by default (preset)
+install -D -m 0755 helper/%{name}-refresh %{buildroot}%{helperdir}/%{name}-refresh
+install -d %{buildroot}%{_unitdir} %{buildroot}%{_presetdir}
+sed 's|@REFRESH@|%{helperdir}/%{name}-refresh|' data/%{name}-refresh.service \
+  > %{buildroot}%{_unitdir}/%{name}-refresh.service
+install -m 0644 data/%{name}-refresh.timer %{buildroot}%{_unitdir}/%{name}-refresh.timer
+echo "enable %{name}-refresh.timer" > %{buildroot}%{_presetdir}/90-%{name}.preset
+# the flag the helper writes to download updates ahead: owned (not installed) so that removing the package removes it
+install -d %{buildroot}%{_sysconfdir}/%{name}
+touch %{buildroot}%{_sysconfdir}/%{name}/download-ahead
+
 # menu entry, icon and AppStream metadata
 install -d %{buildroot}%{_datadir}/applications
 sed 's|@EXEC@|%{name}|' data/%{app_id}.desktop.in > %{buildroot}%{_datadir}/applications/%{app_id}.desktop
@@ -87,10 +103,24 @@ for mo in locale/*/LC_MESSAGES/%{name}.mo; do
 done
 %find_lang %{name}
 
+%pre
+%service_add_pre %{name}-refresh.service %{name}-refresh.timer
+
+%post
+%service_add_post %{name}-refresh.service %{name}-refresh.timer
+
+%preun
+%service_del_preun %{name}-refresh.service %{name}-refresh.timer
+
+%postun
+# no restart on upgrade: a restarted oneshot would run zypper while the upgrade still holds the zypp lock
+%service_del_postun_without_restart %{name}-refresh.service %{name}-refresh.timer
+
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/%{app_id}.desktop
 appstreamcli validate --no-net %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
 python3 -m py_compile helper/%{name}-helper $(find zypp_desk -name '*.py')
+sh -n helper/%{name}-refresh
 find . -name '__pycache__' -prune -exec rm -rf {} +
 
 %files -f %{name}.lang
@@ -100,6 +130,12 @@ find . -name '__pycache__' -prune -exec rm -rf {} +
 %{_datadir}/%{name}
 %dir %{helperdir}
 %{helperdir}/%{name}-helper
+%{helperdir}/%{name}-refresh
+%{_unitdir}/%{name}-refresh.service
+%{_unitdir}/%{name}-refresh.timer
+%{_presetdir}/90-%{name}.preset
+%dir %{_sysconfdir}/%{name}
+%ghost %{_sysconfdir}/%{name}/download-ahead
 %{_datadir}/polkit-1/actions/%{app_id}.policy
 %{_datadir}/applications/%{app_id}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg

@@ -5,16 +5,15 @@ Each repository (and each Flatpak remote) is also checked in the background: doe
 answer? The list can be shown as a table or as cards.
 """
 
-import subprocess
 import threading
 import urllib.parse
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics
-from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QFormLayout, QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QMenu, QMessageBox, QPushButton, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
+                               QMenu, QMessageBox, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import backend, flatpak, repocheck
@@ -23,7 +22,7 @@ from ..runner import Step
 from ..style import GREEN, RED, dot
 from ..tasks import emit_safely, run_async
 from ..txqueue import Action
-from ..ui import Chip, Page, ask, button, error_box, icon, muted, plain, tool
+from ..ui import Chip, Page, ask, button, error_box, icon, info_box, muted, plain, tool
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
 FCOL_NAME, FCOL_HEALTH, FCOL_ON, FCOL_INST, FCOL_URL = range(5)
@@ -175,11 +174,22 @@ class RepoCard(QFrame):
         self.name.setFont(f)
         top.addWidget(self.dot)
         top.addWidget(self.name, 1)
-        v.addLayout(top)
         self.health = QLabel(self)
-        v.addWidget(self.health)
+        left = QVBoxLayout()
+        left.setSpacing(2)
+        left.addLayout(top)
+        left.addWidget(self.health)
+        head = QHBoxLayout()
+        head.addLayout(left, 1)
+        self.side = QVBoxLayout()  # the page puts the priority here
+        head.addLayout(self.side)
+        v.addLayout(head)
         self.url = muted("", self, wrap=False)
-        v.addWidget(self.url)
+        self.url_row = QHBoxLayout()
+        self.url_row.setSpacing(6)
+        self.url_row.addWidget(self.url, 1)
+        v.addLayout(self.url_row)
+        self.side_width = 0  # room taken by the priority, for shortening the name
         self.facts = muted("", self)
         v.addWidget(self.facts)
         self.controls = QHBoxLayout()
@@ -200,9 +210,11 @@ class RepoCard(QFrame):
     def _elide(self):
         room = max(80, self.width() - 28)
         self.name.setText(QFontMetrics(self.name.font()).elidedText(self._name_full, Qt.TextElideMode.ElideRight,
-                                                                    room - 26))
+                                                                    room - 26 - self.side_width))
+        link = sum(self.url_row.itemAt(i).widget().sizeHint().width() + 6 for i in range(1, self.url_row.count())
+                   if self.url_row.itemAt(i).widget())
         self.url.setText(QFontMetrics(self.url.font()).elidedText(self._url_full, Qt.TextElideMode.ElideMiddle,
-                                                                  room))
+                                                                  max(60, room - link)))
 
     def resizeEvent(self, ev):
         super().resizeEvent(ev)
@@ -322,8 +334,14 @@ class ReposPage(Page):
         group.addButton(self.v_cards)
         (self.v_cards if ctx.settings.get("repos_view", "list") == "cards" else self.v_list).setChecked(True)
         self.v_list.toggled.connect(self._view_changed)
+        self.sort = QComboBox(self)
+        self.sort.addItem(_("Sort by name"), "name")
+        self.sort.addItem(_("Sort by priority"), "priority")
+        self.sort.setCurrentIndex(1 if ctx.settings.get("repos_sort") == "priority" else 0)
+        self.sort.currentIndexChanged.connect(self._sort_changed)
         top = QHBoxLayout()
         top.addWidget(self.filter, 1)
+        top.addWidget(self.sort)
         top.addWidget(self.only_fail)
         top.addSpacing(12)
         top.addWidget(self.v_list)
@@ -359,6 +377,7 @@ class ReposPage(Page):
         zl.addWidget(self.z_stack, 1)
         self.hint = muted(_("Tick or untick to queue a change. Double-click the priority to change it. "
                             "Lower priority numbers win."), self)
+        zl.insertWidget(0, self._priority_band())
         zl.addWidget(self.hint)
 
         # ---- Flatpak remotes
@@ -412,6 +431,8 @@ class ReposPage(Page):
         menu = QMenu(more)
         menu.addAction(icon("view-refresh"), _("Refresh all"), self.refresh_all)
         menu.addAction(icon("edit-clear"), _("Clean the cache"), self.clean_cache)
+        menu.addAction(icon("document-edit"), _("Change the address…"), self.change_url)
+        menu.addAction(icon("view-sort-ascending"), _("Suggest an order of priority…"), self.propose_order)
         menu.addSeparator()
         menu.addAction(icon("object-locked"), _("Import a signing key…"), self.import_key)
         more.setMenu(menu)
@@ -538,9 +559,80 @@ class ReposPage(Page):
                 o.get("priority", r["priority"]), style)
 
     def _ordered(self):
+        if self.sort.currentData() == "priority":
+            return sorted(self.repos, key=lambda r: (not r["enabled"], int(self._state(r)[4]), r["name"].lower()))
         return sorted(self.repos, key=lambda r: (not r["enabled"], r["name"].lower()))
 
+    def _sort_changed(self, *_a):
+        self.ctx.settings["repos_sort"] = self.sort.currentData()
+        self.ctx.settings.save()
+        if self.sort.currentData() == "priority":
+            self.tree.sortByColumn(COL_PRIO, Qt.SortOrder.AscendingOrder)
+        else:
+            self.tree.sortByColumn(COL_ON, Qt.SortOrder.AscendingOrder)
+        self._fill()
+
+    def _priority_band(self):
+        band = QFrame(self)
+        band.setObjectName("card")
+        h = QHBoxLayout(band)
+        h.setContentsMargins(12, 8, 12, 8)
+        arrows = QLabel("⇅", band)
+        f = arrows.font()
+        f.setPointSizeF(f.pointSizeF() * 1.6)
+        arrows.setFont(f)
+        arrows.setStyleSheet("color: #1d99f3;")
+        h.addWidget(arrows)
+        v = QVBoxLayout()
+        v.setSpacing(0)
+        title = QLabel("<b>" + _("Priority: the lowest number wins.") + "</b>", band)
+        v.addWidget(title)
+        self.prio_text = muted("", band)
+        v.addWidget(self.prio_text)
+        h.addLayout(v, 1)
+        h.addWidget(button(_("How it works"), "help-about", self._how_it_works))
+        h.addWidget(button(_("Suggest an order…"), "view-sort-ascending", self.propose_order, primary=True))
+        return band
+
+    def _update_priority_text(self):
+        prios = [int(r["priority"]) for r in self.repos if r["enabled"]]
+        same = max(set(prios), key=prios.count) if prios else 99
+        n_same = prios.count(same)
+        if prios and n_same >= len(prios) - 1:
+            text = _("When a package is in more than one repository, zypper takes it from the one with the lowest "
+                     "number. Now almost all of yours are {n}: the newest version wins, wherever it comes "
+                     "from.").format(n=same)
+        else:
+            text = _("When a package is in more than one repository, zypper takes it from the one with the lowest "
+                     "number.")
+        self.prio_text.setText(text)
+
+    def _how_it_works(self):
+        from .repotools import _how_it_works
+        _how_it_works(self)
+
+    def propose_order(self):
+        from .repotools import ProposeOrderDialog
+        dlg = ProposeOrderDialog(self.repos, lambda r: self._state(r)[4], self)
+        if dlg.exec():
+            with self.ctx.queue.batch():
+                for r, prio in dlg.chosen():
+                    self._queue_change(r, "priority", prio)
+
+    def change_url(self, r=None):
+        r = r or self._selected()
+        if not r:
+            info_box(self, _("Change the address…"), _("Choose a repository first."))
+            return
+        from .repotools import ChangeUrlDialog
+        dlg = ChangeUrlDialog(r, self.health.get(f"zypper:{r['alias']}"), self)
+        if dlg.exec():
+            ch = self.ctx.queue.repo_change(r["alias"])
+            pending = dict(ch.opts) if ch and ch.kind in ("repo-modify", "repo-url") else {}
+            self.ctx.queue.add(dlg.action(pending))
+
     def _fill(self):
+        self._update_priority_text()
         self._fill_pending = False
         self._filling = True
         col, order = self.tree.sortColumn(), self.tree.header().sortIndicatorOrder()
@@ -597,7 +689,7 @@ class ReposPage(Page):
         for r in self._ordered():
             _o, _removing, enabled, auto, prio, style = self._state(r)
             card = RepoCard(r["alias"], self.grid.inner)
-            facts = "  ·  ".join([_("priority {n}").format(n=prio), self._gpg_text(r)])
+            facts = _("signatures: {what}").format(what=self._gpg_text(r))
             card.set_header(r["name"], r["url"], facts, r["enabled"], style)
             on = QCheckBox(_("Enabled"), card)
             on.setChecked(enabled)
@@ -606,13 +698,23 @@ class ReposPage(Page):
             ref.setToolTip(_("Refresh it automatically"))
             ref.setChecked(auto)
             ref.toggled.connect(lambda v, r=r: self._queue_change(r, "autorefresh", v))
-            pr = QPushButton(_("Priority…"), card)
-            pr.setFlat(True)
-            pr.clicked.connect(lambda _c=False, r=r: self._ask_priority(r))
+            from .repotools import PriorityStepper
+            pr = PriorityStepper(prio, card)
+            pr.changed.connect(lambda val, r=r: self._queue_change(r, "priority", val))
+            card.side.addWidget(pr, 0, Qt.AlignmentFlag.AlignTop)
+            card.side_width = pr.sizeHint().width() + 8
+            addr = QToolButton(card)
+            addr.setText(_("✎ Address…"))
+            addr.setAutoRaise(True)
+            addr.setToolTip(_("Change the address of this repository, or find it again"))
+            addr.setStyleSheet("color: #2980b9;")
+            addr.clicked.connect(lambda _c=False, r=r: self.change_url(r))
+            card.url_row.addWidget(addr)
+            if r["service"]:
+                addr.setEnabled(False)
             card.controls.addWidget(on)
             card.controls.addWidget(ref)
             card.controls.addStretch(1)
-            card.controls.addWidget(pr)
             card.clicked.connect(self._card_clicked)
             card.set_selected(self._current == r["alias"])
             card.set_health(self.health.get(f"zypper:{r['alias']}"))
@@ -720,7 +822,7 @@ class ReposPage(Page):
             self._apply_filter(self.filter.text())
         self.z_stack.setCurrentIndex(1 if cards else 0)
         self.f_stack.setCurrentIndex(1 if cards else 0)
-        self.hint.setText(_("Tick or untick to queue a change. Click “Priority…” to change the priority. "
+        self.hint.setText(_("Tick or untick to queue a change. Use − and + to change the priority. "
                             "Lower priority numbers win.") if cards else
                           _("Tick or untick to queue a change. Double-click the priority to change it. "
                             "Lower priority numbers win."))
@@ -933,33 +1035,5 @@ class ReposPage(Page):
             self.ctx.run([Step("zypper", ["clean", "--all"])], _("Clean the cache"))
 
     def import_key(self):
-        path, _f = QFileDialog.getOpenFileName(self, _("Choose the public key file"), "",
-                                               _("Keys (*.asc *.key *.pub *.gpg);;All files (*)"))
-        if not path:
-            return
-        # Read the file once: the fingerprint shown is the one of these bytes, and the helper checks it again
-        # as root before importing, so a file swapped in the meantime is refused.
-        try:
-            with open(path, "rb") as f:
-                data = f.read(1024 * 1024)
-        except OSError as e:
-            error_box(self, _("Import a signing key"), str(e))
-            return
-        p = subprocess.run(["gpg", "--batch", "--with-colons", "--show-keys"], input=data, capture_output=True)
-        fprs = [ln.split(b":")[9].decode() for ln in p.stdout.splitlines() if ln.startswith(b"fpr:")]
-        uids = [ln.split(b":")[9].decode("utf-8", "replace") for ln in p.stdout.splitlines() if ln.startswith(b"uid:")]
-        if p.returncode != 0 or not fprs:
-            error_box(self, _("Import a signing key"), _("This file does not look like a public key."))
-            return
-        fpr = fprs[0]
-        nice = " ".join(fpr[i:i + 4] for i in range(0, len(fpr), 4))
-        box = QMessageBox(self)
-        box.setWindowTitle(_("Import a signing key"))
-        box.setText(_("Check the fingerprint against the one published by the vendor on its official web site "
-                      "before importing it. From then on, rpm trusts every package signed with this key."))
-        box.setInformativeText(_("Fingerprint: {fpr}").format(fpr=nice) + ("\n\n" + _("Name in the key: {uid}").format(
-            uid=uids[0]) if uids else ""))
-        plain(box)
-        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if box.exec() == QMessageBox.StandardButton.Yes:
-            self.ctx.run([Step("rpm-import", [path, fpr])], _("Import a signing key"))
+        from .keys import open_import_dialog
+        open_import_dialog(self.ctx, self)

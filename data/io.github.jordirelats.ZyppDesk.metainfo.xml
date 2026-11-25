@@ -39,6 +39,15 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
+    <release version="0.4.0" date="2026-11-25">
+      <description>
+        <p>A tray icon that tells you about updates, firmware updates through fwupd, the history with
+          snapper snapshots and undo, solutions to dependency problems in plain words, signing keys, the
+          settings of zypp.conf, a graphical routine editor, repository priorities with a suggested order,
+          new addresses for repositories that moved, opening downloaded RPM files, and removing what only
+          a package needed.</p>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-11-25">
       <description>
         <p>Routines run zypper without questions, programs from the web can be simulated, and fixes from a

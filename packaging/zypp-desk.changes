@@ -1,4 +1,26 @@
 -------------------------------------------------------------------
+Wed Nov 25 22:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.4.0:
+  * Tray icon with a daily notification about updates (repositories,
+    Flatpak, programs from the web, firmware), and a system timer
+    (zypp-desk-refresh.timer) that refreshes the repositories as root
+    and never installs anything
+  * Firmware updates through fwupd in the Updates page
+  * History with snapper snapshots: compare the files, undo a change,
+    keep the snapshot you started from
+  * Choose one of zypper's solutions to a dependency problem
+  * Signing keys page: see who signs what, delete unused keys, import
+    keys from a web address, a file or a fingerprint
+  * zypp.conf settings, written to /etc/zypp/zypp.conf.d/50-zypp-desk.conf
+  * Graphical routine editor
+  * Repository priorities on the cards, a suggested order, and a new
+    address for a repository that moved
+  * Open downloaded RPM files (Zypp Desk is one more application for
+    application/x-rpm), and only one window at a time
+  * Remove also what only a package needed (--clean-deps)
+
+-------------------------------------------------------------------
 Wed Nov 25 16:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.3.1:

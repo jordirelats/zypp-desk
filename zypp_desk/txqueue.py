@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from PySide6.QtCore import QObject, Signal
 
 from .i18n import _, ngettext
-from .runner import Step
+from .runner import Step, rpm_major
 
 PKG_KINDS = ("install", "remove")
 
@@ -53,6 +53,22 @@ class Action:
             return _("Uninstall the Flatpak app {app}").format(app=t)
         if k == "flatpak-update":
             return _("Update every Flatpak app") if t == "*" else _("Update the Flatpak app {app}").format(app=t)
+        if k == "key-import":
+            return _("Import the signing key of {name} ({keyid})").format(name=self.opts.get("name") or "?",
+                                                                         keyid=t[-8:])
+        if k == "key-remove":
+            return _("Delete the signing key of {name} ({keyid})").format(name=self.opts.get("name") or "?",
+                                                                         keyid=t[-8:])
+        if k == "zypp-conf":
+            st = self.opts.get("settings") or {}
+            if not st:
+                return _("zypp.conf: back to openSUSE's settings")
+            return _("zypp.conf: {changes}").format(changes=", ".join(f"{a} = {b}" for a, b in st.items()))
+        if k == "firmware":
+            return _("Update the firmware of {name} to {version}").format(name=self.opts.get("name") or t,
+                                                                         version=self.opts.get("version") or "?")
+        if k == "repo-url":
+            return _("Change the address of repository {alias} to {url}").format(alias=t, url=self.opts.get("url"))
         return f"{k} {t}"
 
 
@@ -66,6 +82,25 @@ def _repo_change_text(key, val):
               _("do not keep downloaded packages"))}
     on, off = labels.get(key, (key, "no " + key))
     return on if val else off
+
+
+def _addrepo_args(o, alias=None):
+    """zypper addrepo options for a repository's settings (a new one, or one added again at a new address)."""
+    args = ["addrepo", "--name", o.get("name") or alias or ""]
+    if o.get("autorefresh", True):
+        args.append("--refresh")
+    if o.get("enabled") is False:
+        args.append("--disable")
+    if o.get("keeppackages"):
+        args.append("--keep-packages")
+    if o.get("priority") not in (None, 99):
+        args += ["--priority", str(o["priority"])]
+    gpg = o.get("gpg", "default")
+    if gpg == "allow-unsigned-repo":
+        args.append("--gpgcheck-allow-unsigned-repo")
+    elif gpg == "off":
+        args.append("--no-gpgcheck")
+    return args
 
 
 def installation_label(inst):
@@ -109,13 +144,21 @@ class TxQueue(QObject):
     def add(self, action):
         if action.kind == "repo-modify":
             for a in self.actions:
+                if a.kind == "repo-url" and a.target == action.target:  # the re-added repository takes it
+                    a.opts.update(action.opts)
+                    self._changed()
+                    return
+            for a in self.actions:
                 if a.kind == "repo-modify" and a.target == action.target:
                     a.opts.update(action.opts)
                     self._changed()
                     return
         opposite = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
                     "locale-add": "locale-remove", "locale-remove": "locale-add",
-                    "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install"}.get(action.kind)
+                    "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install",
+                    "key-import": "key-remove", "key-remove": "key-import"}.get(action.kind)
+        if action.kind == "repo-url":  # a new address replaces a pending change of the same repository
+            opposite = "repo-modify"
         key = _key(action)
         self.actions = [a for a in self.actions if not (_key(a) == key and a.kind in (action.kind, opposite))]
         self.actions.append(action)
@@ -152,6 +195,9 @@ class TxQueue(QObject):
     def repo_change(self, alias):
         return next((a for a in self.actions if a.kind.startswith("repo-") and a.target == alias), None)
 
+    def key_state(self, fpr):
+        return next((a.kind for a in self.actions if a.kind in ("key-import", "key-remove") and a.target == fpr), None)
+
     def __len__(self):
         return len(self.actions)
 
@@ -170,10 +216,12 @@ class TxQueue(QObject):
         as when you remove a package alone), then installs. Each one is a list of arguments."""
         skip = self.not_simulable() if dry_run else []
         inst = [a for a in self.of("install") if a not in skip]
-        rem = [a.target for a in self.of("remove")]
         out = []
-        if rem:
-            out.append(["remove", *(["--dry-run"] if dry_run else []), "--", *rem])
+        for clean in (False, True):  # 'remove --clean-deps' also takes away what only these packages needed
+            rem = [a.target for a in self.of("remove") if bool(a.opts.get("clean_deps")) == clean]
+            if rem:
+                out.append(["remove", *(["--clean-deps"] if clean else []), *(["--dry-run"] if dry_run else []),
+                            "--", *rem])
         if inst:
             args = ["install"]
             if any(a.opts.get("oldpackage") for a in inst):
@@ -190,21 +238,20 @@ class TxQueue(QObject):
         return out
 
     def steps(self):
-        """Every command, in order: repositories first, then locks, packages and languages."""
+        """Every command, in order: signing keys and zypp.conf first, then repositories, locks, packages,
+        languages, Flatpak, keys to delete and, last, firmware (it may want a restart)."""
         out = []
+        for a in self.of("key-import"):
+            out.append(Step("rpm-import", [a.opts["path"], a.target]))
+        for a in self.of("zypp-conf"):
+            st = a.opts.get("settings") or {}
+            out.append(Step("zypp-conf", [f"{k}={v}" for k, v in st.items()] if st else ["--reset"]))
+        for a in self.of("repo-url"):
+            # zypper cannot change an address: the repository is removed and added again with its settings
+            out.append(Step("zypper", ["-n", "removerepo", a.target]))
+            out.append(Step("zypper", ["-n", *_addrepo_args(a.opts), a.opts["url"], a.target]))
         for a in self.of("repo-add"):
-            o = a.opts
-            args = ["addrepo", "--name", o.get("name") or a.target]
-            if o.get("autorefresh", True):
-                args.append("--refresh")
-            if o.get("priority") not in (None, 99):
-                args += ["--priority", str(o["priority"])]
-            gpg = o.get("gpg", "default")
-            if gpg == "allow-unsigned-repo":
-                args.append("--gpgcheck-allow-unsigned-repo")
-            elif gpg == "off":
-                args.append("--no-gpgcheck")
-            out.append(Step("zypper", ["-n", *args, o["url"], a.target]))
+            out.append(Step("zypper", ["-n", *_addrepo_args(a.opts, a.target), a.opts["url"], a.target]))
         for a in self.of("repo-modify"):
             args = ["modifyrepo"]
             o = a.opts
@@ -236,6 +283,12 @@ class TxQueue(QObject):
             if codes:
                 out.append(Step("zypper", ["-n", sub, *codes]))
         out += self.flatpak_steps()
+        for a in self.of("key-remove"):
+            nvr = a.opts.get("nvr") or ""
+            key = nvr[len("gpg-pubkey-"):] if nvr.startswith("gpg-pubkey-") and rpm_major() < 6 else a.target
+            out.append(Step("key-remove", [a.target], shown=f"rpmkeys --delete {key}"))
+        for a in self.of("firmware"):
+            out.append(Step("fwupdmgr", ["update", a.target, "--assume-yes", "--no-reboot-check"]))
         for i, s in enumerate(out):
             s.cond = "always" if i == 0 else "success"
         return out

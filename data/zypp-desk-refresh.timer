@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Zypp Desk: refresh the repositories every few hours (zypp-desk-refresh.service). It never installs anything.
+[Unit]
+Description=Refresh the zypper repositories for Zypp Desk regularly
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=6h
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

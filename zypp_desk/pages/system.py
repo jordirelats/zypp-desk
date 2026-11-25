@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Home, locks, services, languages, history, maintenance and settings."""
+"""Locks, services, languages, maintenance and settings (History is in history.py)."""
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QScrollArea, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QInputDialog, QScrollArea, QTreeWidget,
+                               QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, routine
+from .. import backend
 from ..i18n import _
 from ..runner import Step
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Card, Page, ask, button, error_box, heading, muted, tool
+from ..ui import Card, Page, ask, button, error_box, muted, tool
 
 
 def kind_label(kind):
@@ -184,56 +184,6 @@ class LocalesPage(Page):
             self.ctx.queue.add(Action("locale-remove", it.text(0)))
 
 
-# ============================================================ history
-class HistoryPage(Page):
-    key = "history"
-    title = _("History")
-    icon_name = "view-history"
-
-    def __init__(self, ctx, parent=None):
-        super().__init__(ctx, parent)
-        self.tree = simple_tree([_("Date"), _("Action"), _("Package"), _("Version"), _("Details")], self)
-        self.filter = QLineEdit(self)
-        self.filter.setPlaceholderText(_("Filter"))
-        self.filter.setClearButtonEnabled(True)
-        self.filter.textChanged.connect(self._apply_filter)
-        lay = QVBoxLayout(self)
-        lay.addWidget(muted(_("zypper's history file (/var/log/zypp/history) can only be read by root, so loading "
-                              "it asks for the password.")))
-        lay.addWidget(self.filter)
-        lay.addWidget(self.tree, 1)
-        self.loaded = True  # loading needs the password: only on request
-
-    def header_actions(self):
-        return [tool(_("Load the history"), "view-refresh", self.load)]
-
-    def load(self):
-        st = Step("history", [], capture=True)
-        self.ctx.run([st], _("Read the history"), on_done=lambda ok: self._loaded(st))
-
-    def _loaded(self, st):
-        if st.code != 0:
-            return  # the password was not given or reading failed: keep what is shown
-        rows = backend.parse_history(st.output)
-        labels = {"install": _("installed"), "remove": _("removed"), "command": _("command"),
-                  "radd": _("repository added"), "rremove": _("repository removed")}
-        self.tree.setSortingEnabled(False)
-        self.tree.clear()
-        for r in reversed(rows[-5000:]):
-            QTreeWidgetItem(self.tree, [r["date"], labels.get(r["action"], r["action"]), r["name"], r["edition"],
-                                        r["detail"]])
-        self.tree.setSortingEnabled(True)
-        self.tree.sortByColumn(0, Qt.SortOrder.DescendingOrder)
-        for c in range(4):
-            self.tree.resizeColumnToContents(c)
-
-    def _apply_filter(self, text):
-        t = text.lower()
-        for i in range(self.tree.topLevelItemCount()):
-            it = self.tree.topLevelItem(i)
-            it.setHidden(bool(t) and t not in " ".join(it.text(c) for c in range(5)).lower())
-
-
 # ============================================================ maintenance
 MAINTENANCE = [
     ("verify", _("Check dependencies"),
@@ -327,14 +277,20 @@ class SettingsPage(Page):
         c2.lay.addWidget(self.fold)
         c2.lay.addWidget(self.after)
         lay.addWidget(c2)
-        c3 = Card(_("zypper and libzypp configuration"), self)
-        c3.lay.addWidget(muted(_("Editing /etc/zypp/zypp.conf and /etc/zypp/zypper.conf from here (recommended "
-                                 "packages, kernels to keep, parallel downloads…) will come in a later version.")))
-        lay.addWidget(c3)
+        from .notifysettings import NotifyCard
+        self.notify = NotifyCard(ctx, self)
+        lay.addWidget(self.notify)
+        from .zyppconf import ZyppConfCard
+        self.zconf = ZyppConfCard(ctx, self)
+        lay.addWidget(self.zconf, 0, Qt.AlignmentFlag.AlignLeft)
         lay.addStretch(1)
         for cb, key in ((self.no_rec, "apply_no_recommends"), (self.lic, "apply_accept_licenses"),
                         (self.fold, "fold_repeated_lines"), (self.after, "after_routine_check_restart")):
             cb.toggled.connect(lambda on, k=key: self._set(k, on))
+
+    def reload(self):
+        self.notify.reload()
+        self.zconf.reload()
 
     def _set(self, key, value):
         self.ctx.settings[key] = value

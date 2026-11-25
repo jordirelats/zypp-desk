@@ -69,7 +69,7 @@ class PackageDetails(QWidget):
         self.b_custom.clicked.connect(lambda: self._custom_slot and self._custom_slot())
         self.b_install = button(_("Install"), "list-add", lambda: self.queue_current("install"))
         self.b_update = button(_("Update"), "system-software-update", lambda: self.queue_current("install"))
-        self.b_remove = button(_("Remove"), "edit-delete", lambda: self.queue_current("remove"))
+        self.b_remove = button(_("Remove…"), "edit-delete", self.remove_current)
         self.b_keep = button(_("Leave as it is"), "edit-undo", self.unqueue_current)
         self.b_lock = button(_("Lock"), "object-locked", self.lock_current)
         for b in (self.b_custom, self.b_install, self.b_update, self.b_remove, self.b_keep, self.b_lock):
@@ -289,6 +289,17 @@ class PackageDetails(QWidget):
         # patterns, patches and products are installed as "pattern:name"
         target = d["name"] if d["kind"] == "package" else f"{d['kind']}:{d['name']}"
         self.ctx.queue.add(Action(kind, target, package=d["name"]))
+
+    def remove_current(self):
+        """Remove asks first whether what only this package needed goes too (zypper remove --clean-deps)."""
+        d = self.current
+        if not d:
+            return
+        if d["kind"] != "package":
+            self.queue_current("remove")
+            return
+        from .removedlg import RemoveDialog
+        RemoveDialog(self.ctx, d, self.host.pkg_icon(d), d["name"], self).exec()
 
     def unqueue_current(self):
         if self.current:

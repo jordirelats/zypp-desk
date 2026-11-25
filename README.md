@@ -6,13 +6,13 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: 0.3, early development.** Searching, package details, the change queue with
-> simulation, routines, your applications by origin, discovering programs by theme, Flatpak apps,
-> programs downloaded from the web, repositories with a health check, searching the openSUSE
-> Build Service, Fedora COPR and Flathub, locks, services, languages, history and maintenance
-> work, and warnings are explained. Still missing:
-> choosing among zypper's proposed solutions to a conflict inside the window, and editing
-> `zypp.conf`. Expect rough edges.
+> **Status: 0.4, early development.** Searching, package details, the change queue with
+> simulation and solutions to dependency problems, routines (written or built step by step), your
+> applications by origin, discovering programs by theme, Flatpak apps, firmware updates, programs
+> downloaded from the web, repositories with a health check and priorities, signing keys,
+> `zypp.conf`, a tray icon that tells you about updates, searching the openSUSE Build Service,
+> Fedora COPR and Flathub, locks, services, languages, the history with snapper snapshots and
+> maintenance work, and warnings are explained. Expect rough edges.
 
 ## Ideas behind it
 
@@ -36,6 +36,16 @@ maintenance — and always see the exact zypper command and its real output.
   a list or a cards view, the Flatpak remotes next to them, and a search in the openSUSE Build
   Service, Fedora COPR and Flathub for what your repositories do not have — with a plain word on
   how far each source can be trusted.
+- **Told when there is something new.** Without Discover nobody tells you about updates: a tray
+  icon counts them (repositories, Flatpak, the web, firmware) and a notification says so once a
+  day. A system timer refreshes the repositories as root; it never installs anything.
+- **Undo, with snapper.** The history shows the snapshots before and after each change, compares
+  their files and undoes a change.
+- **Problems in plain words.** When a simulation finds a dependency problem, zypper's solutions
+  are explained and you choose one; it goes to the queue and the queue is simulated again.
+- **Keys and settings.** Which signing key signs which repository and which of your packages,
+  delete the ones nobody uses, import new ones after checking the fingerprint; and the settings
+  of `zypp.conf`, written to a drop-in file of its own.
 - **Warnings explained.** After every run, each message is shown with how serious it is, what it
   means in plain words and what to do.
 - **Native.** Qt 6 through PySide6, so it follows the Plasma theme (Breeze) and the system icons.

@@ -1,0 +1,59 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# zypp-desk-refresh: run as root by zypp-desk-refresh.service, which zypp-desk-refresh.timer starts every few hours.
+#
+# It keeps fresh what Zypp Desk and its tray icon read as the user, so that they can tell you about updates:
+#   1. zypper refresh: the lists of packages of the repositories;
+#   2. only if /etc/zypp-desk/download-ahead exists (Zypp Desk, Settings > Notifications) and the connection is
+#      not metered: zypper dist-upgrade --download-only, the packages of the next upgrade go to zypper's cache;
+#   3. fwupdmgr refresh, if fwupd is installed: the list of firmware updates.
+# It never installs anything. Failures go to the journal (journalctl -u zypp-desk-refresh) and it always exits
+# with 0: the next run of the timer simply tries again.
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C.UTF-8
+# Another program may be using zypper (Zypp Desk, a terminal, YaST): wait for it a little, never for long.
+ZYPP_LOCK_TIMEOUT=30
+export PATH LC_ALL ZYPP_LOCK_TIMEOUT
+
+FLAG=/etc/zypp-desk/download-ahead
+ZYPPER_EXIT_ZYPP_LOCKED=7
+
+log() {
+  printf 'zypp-desk-refresh: %s\n' "$*" >&2
+}
+
+metered() {
+  # NetworkManager says 1 (yes) or 3 (guessed yes) for a phone hotspot or a connection marked as metered.
+  m=$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+        org.freedesktop.NetworkManager Metered 2>/dev/null) || return 1
+  case "$m" in
+    "u 1"|"u 3") return 0 ;;
+  esac
+  return 1
+}
+
+zypper --non-interactive --quiet refresh
+rc=$?
+[ "$rc" -eq 0 ] || log "zypper refresh failed (exit code $rc)"
+
+if [ -e "$FLAG" ]; then
+  if [ "$rc" -eq "$ZYPPER_EXIT_ZYPP_LOCKED" ]; then
+    log "zypper is busy with another program: nothing is downloaded ahead this time"
+  elif metered; then
+    log "metered connection: nothing is downloaded ahead this time"
+  else
+    zypper --non-interactive --quiet dist-upgrade --download-only --auto-agree-with-licenses
+    rc=$?
+    [ "$rc" -eq 0 ] || log "zypper dist-upgrade --download-only failed (exit code $rc)"
+  fi
+fi
+
+if command -v fwupdmgr >/dev/null 2>&1; then
+  fwupdmgr refresh --assume-yes
+  rc=$?
+  # 2: the list was already up to date
+  [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || log "fwupdmgr refresh failed (exit code $rc)"
+fi
+
+exit 0

@@ -25,6 +25,40 @@ USER_SUBCOMMANDS = {"ps", "needs-rebooting", "lu", "list-updates", "lp", "list-p
                     "targetos", "tos", "system-architecture", "patch-check", "pchk"}
 
 
+# Commands of the helper other than zypper (they always run as root), and how each one is shown.
+ROOT_VERBS = {
+    "rpm-import": "rpm --import",
+    "history": "cat /var/log/zypp/history",
+    "key-remove": "rpmkeys --delete",
+    "snapper-list": "snapper list",
+    "snapper-status": "snapper status",
+    "snapper-undo": "snapper undochange",
+    "snapper-rollback": "snapper rollback",
+    "zypp-conf": "zypp.conf",
+    "download-ahead": "download-ahead",
+}
+# Programs that run as the user (fwupd asks for the password itself, through polkit).
+USER_PROGRAMS = {"flatpak", "fwupdmgr"}
+
+
+_RPM_MAJOR = None
+
+
+def rpm_major():
+    """rpm's major version (4 or 6): rpm 6 names keys by fingerprint, rpm 4 by the gpg-pubkey version-release."""
+    global _RPM_MAJOR
+    if _RPM_MAJOR is None:
+        import re
+        import subprocess
+        try:
+            out = subprocess.run(["rpm", "--version"], capture_output=True, text=True, timeout=10).stdout
+            m = re.search(r"(\d+)\.", out)
+            _RPM_MAJOR = int(m.group(1)) if m else 4
+        except (OSError, subprocess.SubprocessError):
+            _RPM_MAJOR = 4
+    return _RPM_MAJOR
+
+
 def helper_path():
     return next((p for p in HELPER_PATHS if os.path.exists(p)), None)
 
@@ -52,19 +86,20 @@ class Step:
     """One command. 'cond' is 'always' (like ';') or 'success' (like '&&')."""
 
     def __init__(self, program, args, *, cond="success", root=None, lang=None, capture=False, label=None,
-                 strict=False):
-        self.program = program  # "zypper", "flatpak", "rpm-import", "history"
+                 strict=False, shown=None):
+        self.program = program  # "zypper", a USER_PROGRAMS entry or a ROOT_VERBS entry
         self.args = list(args)
         self.cond = cond
         # strict: only exit code 0 counts as success, as in a shell ('&&' in routines). Otherwise zypper's
         # informational codes (100-107: updates available, restart needed, a repository skipped…) also do.
         self.strict = strict
         if root is None:
-            root = program in ("rpm-import", "history") or (
+            root = program in ROOT_VERBS or (
                 program == "zypper" and zypper_subcommand(self.args) not in USER_SUBCOMMANDS)
         self.root = root
         self.lang = lang or user_lang()
         self.capture = capture
+        self.shown = shown  # what the command looks like, when the helper turns the arguments into another one
         self.label = label or self.display()
         self.state = "pending"  # pending, running, done, failed, skipped
         self.code = None
@@ -79,8 +114,20 @@ class Step:
         self._chunks = [text] if text else []
 
     def display(self):
-        prog = {"rpm-import": "rpm --import", "history": "cat /var/log/zypp/history"}.get(self.program, self.program)
-        return " ".join([prog, *(shlex.quote(a) for a in self.args)])
+        if self.shown:
+            return self.shown
+        a = self.args
+        if self.program in ("snapper-status", "snapper-undo") and len(a) == 2:
+            return f"{ROOT_VERBS[self.program]} {a[0]}..{a[1]}"
+        if self.program == "zypp-conf":
+            if a == ["--reset"]:
+                return "rm /etc/zypp/zypp.conf.d/50-zypp-desk.conf"
+            return "/etc/zypp/zypp.conf.d/50-zypp-desk.conf ← " + " ".join(shlex.quote(x) for x in a)
+        if self.program == "download-ahead":
+            flag = "/etc/zypp-desk/download-ahead"
+            return f"touch {flag}" if a == ["on"] else f"rm {flag}"
+        prog = ROOT_VERBS.get(self.program, self.program)
+        return " ".join([prog, *(shlex.quote(x) for x in a)])
 
 
 class Runner(QObject):
@@ -159,7 +206,9 @@ class Runner(QObject):
                 self.step_finished.emit(self.index, -1)
                 self._next()
                 return
-            verb = {"zypper": "zypper", "rpm-import": "rpm-import", "history": "history"}[st.program]
+            if st.program != "zypper" and st.program not in ROOT_VERBS:
+                raise ValueError(f"not a helper command: {st.program}")
+            verb = st.program
             self.proc.start("/usr/bin/pkexec", [helper, "--lang", st.lang, verb, *st.args])  # not a pkexec earlier in PATH
         else:
             env = QProcessEnvironment.systemEnvironment()
@@ -200,7 +249,12 @@ class Runner(QObject):
         if status == QProcess.ExitStatus.CrashExit:
             code = -1
         st.code = code
-        ok = code in SUCCESS if st.program == "zypper" and not st.strict else code == 0
+        if st.program == "zypper" and not st.strict:
+            ok = code in SUCCESS
+        elif st.program == "fwupdmgr" and not st.strict:
+            ok = code in (0, 2)  # 2: nothing to do (already up to date)
+        else:
+            ok = code == 0
         if st.root and code in PKEXEC_CANCELLED:
             self.note.emit(_("Authentication was cancelled or refused: nothing was changed by this step."), "error")
             ok = False

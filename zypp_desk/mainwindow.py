@@ -2,6 +2,8 @@
 """The main window: sidebar, page header, pages, terminal panel and the queue bar."""
 
 import html
+import os
+import shutil
 
 from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QFontMetrics, QKeySequence, QShortcut
@@ -14,24 +16,25 @@ from . import APP_NAME, appicons, backend, websources
 from .i18n import _
 from .pages.apps import AppsPage
 from .pages.flatpak import FlatpakPage
+from .pages.keys import KeysPage
 from .pages.packages import PackagesPage
 from .pages.repos import ReposPage
 from .pages.home import HomePage
-from .pages.system import (HistoryPage, LocalesPage, LocksPage, MaintenancePage, ServicesPage,
-                           SettingsPage)
+from .pages.history import HistoryPage
+from .pages.system import LocalesPage, LocksPage, MaintenancePage, ServicesPage, SettingsPage
 from .pages.updates import UpdatesPage
 from .pages.websources import WebSourcesPage
-from .runner import Runner, helper_path
+from .runner import Runner, Step, helper_path
 from .settings import Settings
 from .simulation import SimulationDialog, merge_results, parse_dry_run, summary_lines
 from .tasks import run_async
 from .terminal import TerminalPanel
-from .txqueue import TxQueue
+from .txqueue import Action, TxQueue
 from .ui import ask, button, error_box, heading, icon, info_box, mono, muted
 
 SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
-    (_("Sources"), ["repos", "services", "websources"]),
+    (_("Sources"), ["repos", "keys", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
 ]
 
@@ -89,7 +92,7 @@ class MainWindow(QMainWindow):
         self.icon_catalog = {}
 
         # ------------------------------------------------ pages
-        page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, ServicesPage,
+        page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, KeysPage, ServicesPage,
                         WebSourcesPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage, SettingsPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
@@ -240,6 +243,37 @@ class MainWindow(QMainWindow):
         if run_routine and key == "updates":
             page.run_routine()
 
+    def handle_request(self, req):
+        """What the command line asked for, from this start or from a later one (app.py forwards it)."""
+        token = req.get("token")
+        if isinstance(token, str) and token:
+            os.environ["XDG_ACTIVATION_TOKEN"] = token  # Qt uses it once, to bring this window to the front
+        if self.isMinimized():
+            self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        page = req.get("page")
+        if page in self.pages:
+            self.go(page)
+        if req.get("search"):
+            self.go("packages")
+            self.pages["packages"].term.setText(str(req["search"]))
+            self.pages["packages"].search()
+        if req.get("run_routine"):
+            self.go("updates", run_routine=not self.runner.busy)
+        files = [f for f in req.get("files") or [] if isinstance(f, str)]
+        if files:
+            QTimer.singleShot(0, lambda: self.open_files(files))
+
+    def open_files(self, paths):
+        """Downloaded .rpm files (opened from Dolphin, or given on the command line)."""
+        try:
+            from .pages.localrpm import LocalRpmDialog
+        except ImportError as e:
+            error_box(self, APP_NAME, _("This part is not available: {error}").format(error=e))
+            return
+        LocalRpmDialog(self, paths, self).exec()
+
     def _catalog_loaded(self, catalog, err):
         if catalog:
             self.icon_catalog = catalog
@@ -363,12 +397,70 @@ class MainWindow(QMainWindow):
     def _simulated(self, sims, others, snapshot, preview):
         if any(st.code in (126, 127) for st in sims):
             return  # the password was not given: nothing was simulated, nothing to show
-        res = merge_results([parse_dry_run(st.output) for st in sims])
+        res = merge_results([parse_dry_run(st.output, source="zypper " + (st.args[2] if len(st.args) > 2 else ""))
+                             for st in sims])
         for line in summary_lines(res):
             self.terminal.view.note(line, "error" if res["problems"] and line.startswith(_("Problem: {text}").split("{")[0]) else "ok")
-        dlg = SimulationDialog(res, preview, extra_steps=others, parent=self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+        dlg = SimulationDialog(res, preview, extra_steps=others, parent=self,
+                               problem_note=_("A lock or an unlock you choose runs at once (a simulation only knows "
+                                              "the locks that exist); the rest goes to the queue."))
+        rc = dlg.exec()
+        if rc == QDialog.DialogCode.Accepted:
             self.apply_queue(confirm=False, expected=snapshot)
+        elif rc == getattr(SimulationDialog, "RESOLVE", 2):
+            self.apply_solutions(getattr(dlg, "chosen", None) or [], then=self.simulate_queue)
+
+    def apply_solutions(self, solutions, then=None, now=False):
+        """What Jordi chose for each problem of a simulation, then `then` (simulate again).
+
+        Queue simulation (now=False): removals and installs join the queue, a "discard" takes an install or a
+        removal out of it, and locks and unlocks run at once, because a dry run only knows the locks that exist.
+        Dup simulation (now=True): there is no queue to edit, so everything runs at once (a discarded install
+        becomes a lock: zypper must not install it)."""
+        def pkg(a):
+            return a.opts.get("package") or a.target.split("=")[0]
+        run_now = []
+        with self.queue.batch():
+            for sol in solutions:
+                for a in sol.get("actions") or []:
+                    if isinstance(a, dict):
+                        if a.get("kind") != "discard":
+                            continue
+                        if now:
+                            if a.get("of", "install") == "install":
+                                run_now.append(Action("lock", a["target"]))
+                            continue
+                        kinds = (a["of"],) if a.get("of") else ("install", "remove")
+                        for x in list(self.queue.of(*kinds)):
+                            if pkg(x) == a.get("target"):
+                                self.queue.discard_action(x)
+                    elif a.kind in ("lock", "unlock") or (now and a.kind in ("remove", "install")):
+                        run_now.append(a)
+                    else:
+                        self.queue.add(a)
+        steps = []
+        for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
+            groups = {}
+            for a in run_now:
+                if a.kind == kind:
+                    groups.setdefault(a.opts.get("type", "package"), []).append(a.target)
+            for typ, names in groups.items():
+                steps.append(Step("zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]), "--", *names]))
+        for a in run_now:
+            if a.kind in ("remove", "install"):
+                steps.append(Step("zypper", ["-n", a.kind, *(["--oldpackage"] if a.opts.get("oldpackage") else []),
+                                             "--", a.target]))
+        if steps:
+            text = "\n".join(s.display() for s in steps)
+            locks = any(a.kind == "lock" for a in run_now)
+            if not ask(self, _("Choose a solution"), _("These commands run now, before simulating again:") + "\n\n"
+                       + text + ("\n\n" + _("You can unlock it later in Locks.") if locks else "")):
+                return
+            for i, st in enumerate(steps):
+                st.cond = "always" if i == 0 else "success"
+            self.run(steps, _("Choose a solution"), on_done=lambda ok: ok and then and then())
+        elif then:
+            then()
 
     def apply_queue(self, confirm=True, expected=None):
         actions = list(self.queue.actions)
@@ -412,6 +504,14 @@ class MainWindow(QMainWindow):
             # folder where you keep them (often a local zypper repository, synced with a cloud)
             web = []
             for a in applied:
+                if a.kind == "install" and a.opts.get("copy_to"):  # a file you opened: keep a copy with the others
+                    try:
+                        dest = os.path.join(a.opts["copy_to"], os.path.basename(a.target))
+                        if os.path.abspath(dest) != os.path.abspath(a.target) and not os.path.exists(dest):
+                            shutil.copy2(a.target, dest)
+                    except OSError as e:
+                        self.terminal.view.note(_("{file} could not be copied to {folder}: {error}").format(
+                            file=a.target, folder=a.opts["copy_to"], error=e), "error")
                 if a.kind == "install" and a.opts.get("move_to"):
                     web.append(a.opts.get("package"))
                     try:
@@ -421,6 +521,8 @@ class MainWindow(QMainWindow):
                             file=a.target, folder=a.opts["move_to"], error=e), "error")
             if web:  # new versions of programs from the web: offer to throw the old ones away
                 QTimer.singleShot(800, lambda pk=set(filter(None, web)): self.pages["websources"].tidy(packages=pk))
+        from . import tray
+        tray.poke("check")  # the tray icon counts again (nothing happens if there is none)
         # the page in front looks again now; the others when you open them (not all at once)
         current = self.stack.currentWidget()
         for key, p in self.pages.items():
