@@ -5,20 +5,25 @@ Nothing is changed until the queue is applied. The queue turns itself into the e
 commands it will run, so the window can always show them.
 """
 
+import configparser
+import os
 import re
 import shlex
 
 from contextlib import contextmanager
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QLocale, QObject, Signal
 
-from .i18n import _, ngettext
+from .i18n import _, ngettext, pgettext
 from .runner import Step, rpm_major, zypper_subcommand
 
 PKG_KINDS = ("install", "remove")
 # This many package installs (or removals, locks…) or more are one line in the Apply question, with the names under
 # "Show them", instead of hundreds of rows.
 GROUP_FROM = 6
+# The queue review shows each change with its own button; from this many of one kind on, they are one row with
+# "Show them" and one button (a window of 2,000 rows took seconds to draw: code review 0.5, #4).
+REVIEW_GROUP_FROM = 30
 # The order the queue runs in (TxQueue.steps); the review window numbers the changes in this order.
 RUN_ORDER = ("key-import", "zypp-conf", "repo-url", "repo-add", "repo-modify", "repo-remove", "unlock", "lock",
              "install", "remove", "locale-add", "locale-remove", "flatpak-install", "flatpak-uninstall",
@@ -29,6 +34,7 @@ SOLVABLE_KINDS = ("package", "patch", "pattern", "product", "srcpackage", "appli
 # A repository whose address changes is added again under its alias plus this, then takes the old one's alias.
 # The change-address dialog writes its .repo file with the section [<alias>-zdnew].
 REPO_URL_TEMP_SUFFIX = "-zdnew"
+REPOS_D = "/etc/zypp/repos.d"
 
 
 def is_file_target(target, opts=None):
@@ -53,6 +59,60 @@ def pkg_ident(action):
     return t
 
 
+def nice_fpr(fpr):
+    """'0FF9 D4D2 6264 C149 3957 0657 FD53 6322 2423 2811': a whole fingerprint in groups of 4 (security review
+    0.5, #3: 8 digits are a short key ID, easy to fake). Each half never breaks; a line may break between them."""
+    fpr = (fpr or "").upper().replace(" ", "")
+    groups = [fpr[i:i + 4] for i in range(0, len(fpr), 4)]
+    half = (len(groups) + 1) // 2
+    return " ".join(groups[:half]) + (" " + " ".join(groups[half:]) if groups[half:] else "")
+
+
+def quoted(name):
+    """A name in the quotes of the language of the window."""
+    # TRANSLATORS: quotes around a name inside a sentence (ca «{name}», de „{name}“, fr « {name} »)
+    return _("“{name}”").format(name=name)
+
+
+def language_name(code):
+    """'français (fr)' for 'fr': the name a language gives itself, with its code; the code alone when Qt does
+    not know it."""
+    loc = QLocale(code)
+    name = loc.nativeLanguageName() if loc.language() not in (QLocale.Language.C, QLocale.Language.AnyLanguage) \
+        else ""
+    return f"{name} ({code})" if name and name != code else code
+
+
+_repo_cache = {"stamp": None, "repos": {}}
+
+
+def repo_info(alias):
+    """dict(name, url) of a repository zypper knows, from its .repo file (readable by everyone); {} when there
+    is none. Read again only when a file in repos.d changed."""
+    try:
+        entries = sorted((e.name, e.stat().st_mtime_ns) for e in os.scandir(REPOS_D) if e.name.endswith(".repo"))
+    except OSError:
+        return {}
+    if entries != _repo_cache["stamp"]:
+        repos = {}
+        for name, _mtime in entries:
+            cp = configparser.ConfigParser(interpolation=None, strict=False)
+            try:
+                cp.read(os.path.join(REPOS_D, name), encoding="utf-8")
+            except (configparser.Error, OSError, UnicodeDecodeError):
+                continue
+            for sec in cp.sections():
+                repos.setdefault(sec, dict(name=cp[sec].get("name", "").strip() or sec,
+                                           url=(cp[sec].get("baseurl", "") or "").strip()))
+        _repo_cache.update(stamp=entries, repos=repos)
+    return _repo_cache["repos"].get(alias, {})
+
+
+def repo_name(alias, opts=None):
+    """The name a person knows a repository by ('Main Repository (OSS)'), not its alias ('repo-oss')."""
+    return (opts or {}).get("name") or repo_info(alias).get("name") or alias
+
+
 class Action:
     def __init__(self, kind, target, **opts):
         self.kind = kind  # install, remove, lock, unlock, repo-add, repo-modify, repo-remove, locale-add, locale-remove
@@ -60,53 +120,8 @@ class Action:
         self.opts = opts
 
     def describe(self):
-        k, t = self.kind, self.target
-        if k == "install" and is_file_target(t, self.opts):
-            return _("Install {name} from the downloaded file {file}").format(name=self.opts.get("package") or t,
-                                                                             file=t)
-        if k == "install":
-            return _("Install {name}").format(name=t)
-        if k == "remove":
-            return _("Remove {name}").format(name=t)
-        if k == "lock":
-            return _("Lock {name}").format(name=t)
-        if k == "unlock":
-            return _("Unlock {name}").format(name=t)
-        if k == "repo-add":
-            return _("Add repository {alias}").format(alias=t)
-        if k == "repo-remove":
-            return _("Remove repository {alias}").format(alias=t)
-        if k == "repo-modify":
-            return _("Change repository {alias}: {changes}").format(alias=t, changes=", ".join(
-                _repo_change_text(key, val) for key, val in self.opts.items()))
-        if k == "locale-add":
-            return _("Add language {code}").format(code=t)
-        if k == "locale-remove":
-            return _("Remove language {code}").format(code=t)
-        if k == "flatpak-install":
-            return _("Install the Flatpak app {app} from {remote} ({installation})").format(
-                app=t, remote=self.opts.get("remote", ""), installation=installation_label(self.opts.get("installation")))
-        if k == "flatpak-uninstall":
-            return _("Uninstall the Flatpak app {app}").format(app=t)
-        if k == "flatpak-update":
-            return _("Update every Flatpak app") if t == "*" else _("Update the Flatpak app {app}").format(app=t)
-        if k == "key-import":
-            return _("Import the signing key of {name} ({keyid})").format(name=self.opts.get("name") or "?",
-                                                                         keyid=t[-8:])
-        if k == "key-remove":
-            return _("Delete the signing key of {name} ({keyid})").format(name=self.opts.get("name") or "?",
-                                                                         keyid=t[-8:])
-        if k == "zypp-conf":
-            st = self.opts.get("settings") or {}
-            if not st:
-                return _("zypp.conf: back to openSUSE's settings")
-            return _("zypp.conf: {changes}").format(changes=", ".join(f"{a} = {b}" for a, b in st.items()))
-        if k == "firmware":
-            return _("Update the firmware of {name} to {version}").format(name=self.opts.get("name") or t,
-                                                                         version=self.opts.get("version") or "?")
-        if k == "repo-url":
-            return _("Change the address of repository {alias} to {url}").format(alias=t, url=self.opts.get("url"))
-        return f"{k} {t}"
+        """This change in one line: the title of words()."""
+        return self.words()["title"]
 
     def words(self, actions=(), installed=None, in_transaction=None):
         """This change in words, for someone who does not know zypper: dict(icon, title, detail, more, package).
@@ -114,31 +129,41 @@ class Action:
         repository that waits in the queue names it). installed: the names that are installed (an install of one
         of them is an update). in_transaction: True when removals run as 'install -- !name' (None: as the queue
         runs them). icon is a theme icon name ('a|b': the first one the theme has); package: the package whose
-        own icon the window may show instead."""
+        own icon the window may show instead.
+
+        Every title has the context "change" (language review 0.5, #1): the same English words are also buttons
+        ("Remove {name}"), and Catalan says a change in a list with the infinitive ("Treure {name}")."""
         k, t, o = self.kind, self.target, self.opts
         if k == "key-import":
-            project = _obs_key_project(self)
-            end = _fpr_end(t)
+            fpr = nice_fpr(t)
+            project = key_project(self, actions)
             if project:
-                return _w("security-high", _("Trust the key of the project {project}").format(project=project),
-                          _("Then the computer accepts the programs that come from this project. Fingerprint "
-                            "{end}.").format(end=end))
-            return _w("security-high", _("Trust the signing key «{name}»").format(name=o.get("name") or t[-8:]),
-                      _("Then the computer accepts the packages signed with it. Fingerprint {end}.").format(end=end))
+                return _w("security-high", pgettext("change", "Trust the key of the project {project}").format(
+                    project=project), _("Then the computer accepts the programs that come from this project. "
+                                        "Fingerprint {end}.").format(end=fpr))
+            repo = _key_repo(self, actions)
+            if repo is not None:
+                title = pgettext("change", "Trust the key of the repository “{name}”").format(
+                    name=repo.opts.get("name") or repo.target)
+            else:
+                title = pgettext("change", "Trust the signing key “{name}”").format(name=o.get("name") or t[-8:])
+            return _w("security-high", title, _("Then the computer accepts the packages signed with it. Fingerprint "
+                                                "{end}.").format(end=fpr))
         if k == "key-remove":
-            return _w("security-low", _("Stop trusting the signing key «{name}»").format(name=o.get("name") or t[-8:]),
-                      _("New packages signed with it are refused until you trust it again. Fingerprint {end}.").format(
-                          end=_fpr_end(t)))
+            return _w("security-low", pgettext("change", "Stop trusting the signing key “{name}”").format(
+                name=o.get("name") or t[-8:]),
+                _("New packages signed with it are refused until you trust it again. Fingerprint {end}.").format(
+                    end=nice_fpr(t)))
         if k == "zypp-conf":
             st = o.get("settings") or {}
             detail = ", ".join(f"{a} = {b}" for a, b in st.items()) if st else _("Back to openSUSE's settings.")
-            return _w("configure", _("Change zypper's settings (zypp.conf)"), detail)
+            return _w("configure", pgettext("change", "Change zypper's settings (zypp.conf)"), detail)
         if k == "repo-url":
             name = o.get("name") or t
             detail = (_("New address from the file {file}.").format(file=o["repo_file"]) if o.get("repo_file")
                       else _("New address: {url}").format(url=o.get("url") or ""))
-            return _w("folder-cloud|folder-network", _("Change the address of the repository «{name}»").format(
-                name=name), detail)
+            return _w("folder-cloud|folder-network", pgettext(
+                "change", "Change the address of the repository “{name}”").format(name=name), detail)
         if k == "repo-add":
             url = o.get("url") or ""
             local = url.startswith(("dir:", "file:", "/"))
@@ -147,26 +172,26 @@ class Action:
             gpg = o.get("gpg", "default")
             if gpg == "allow-unsigned-repo":
                 detail += " " + _("Its list of packages is not signed; each package is still checked.")
+            elif gpg == "allow-unsigned-package":
+                detail += " " + _("Its list of packages is checked; the packages themselves are not.")
             elif gpg == "off":
                 detail += " " + _("Nothing from it is checked against a signature.")
             return _w("folder" if local else "folder-cloud|folder-network",
-                      _("Add the repository «{name}»").format(name=o.get("name") or t), detail)
+                      pgettext("change", "Add the repository “{name}”").format(name=o.get("name") or t), detail)
         if k == "repo-modify":
-            changes = ", ".join(_repo_change_text(key, val) for key, val in o.items())
-            return _w("document-edit|configure", _("Change the repository «{alias}»").format(alias=t),
-                      changes[:1].upper() + changes[1:] + ("." if changes else ""))
+            return _repo_modify_words(t, o)
         if k == "repo-remove":
-            return _w("folder-remove|edit-delete", _("Remove the repository «{alias}»").format(alias=t),
-                      _("zypper stops looking for programs and updates there. What you installed from it stays "
-                        "installed."))
+            return _w("folder-remove|edit-delete", pgettext("change", "Remove the repository “{name}”").format(
+                name=repo_name(t, o)), _("zypper stops looking for programs and updates there. What you installed "
+                                         "from it stays installed."))
         if k in ("lock", "unlock"):
             name = t if o.get("type", "package") == "package" else f"{o['type']}:{t}"
             if k == "lock":
-                title, detail = _("Lock {name}").format(name=name), _("zypper will not install, update or remove "
-                                                                       "it until you unlock it.")
+                title, detail = pgettext("change", "Lock {name}").format(name=name), _(
+                    "zypper will not install, update or remove it until you unlock it.")
             else:
-                title, detail = _("Unlock {name}").format(name=name), _("zypper may install, update or remove it "
-                                                                         "again.")
+                title, detail = pgettext("change", "Unlock {name}").format(name=name), _(
+                    "zypper may install, update or remove it again.")
             if o.get("repo"):
                 detail += " " + _("Only in the repository {repo}.").format(repo=o["repo"])
             return _w("object-locked" if k == "lock" else "object-unlocked", title, detail)
@@ -174,39 +199,40 @@ class Action:
             return self._install_words(actions, installed)
         if k == "remove":
             name = o.get("package") or pkg_ident(self)
-            return _w("package-remove|edit-delete", _("Remove {name}").format(name=name),
+            return _w("package-remove|edit-delete", pgettext("change", "Remove {name}").format(name=name),
                       _removal_detail(o.get("clean_deps"), _removals_in_transaction(actions, in_transaction), 1),
                       package=name)
         if k == "locale-add":
-            return _w("preferences-desktop-locale", _("Add the language {code}").format(code=t),
-                      _("zypper installs the translations of your programs into it."))
+            return _w("preferences-desktop-locale", pgettext("change", "Add the language {language}").format(
+                language=language_name(t)), _("zypper installs the translations of your programs into it."))
         if k == "locale-remove":
-            return _w("preferences-desktop-locale", _("Remove the language {code}").format(code=t),
-                      _("The translations into it are removed."))
+            return _w("preferences-desktop-locale", pgettext("change", "Remove the language {language}").format(
+                language=language_name(t)), _("The translations into it are removed."))
         if k == "flatpak-install":
-            return _w("flatpak-discover", _("Install the Flatpak app {app}").format(app=t),
+            return _w("flatpak-discover", pgettext("change", "Install the Flatpak app {app}").format(app=t),
                       _("From {remote}, {installation}.").format(remote=o.get("remote") or "flathub",
                                                                  installation=installation_label(o.get("installation"))))
         if k == "flatpak-uninstall":
-            return _w("flatpak-discover", _("Uninstall the Flatpak app {app}").format(app=t),
+            return _w("flatpak-discover", pgettext("change", "Uninstall the Flatpak app {app}").format(app=t),
                       _("Its data in your home folder is deleted too.") if o.get("delete_data") else
                       _("Its data stays in your home folder."))
         if k == "flatpak-update":
             if t == "*":
-                return _w("flatpak-discover", _("Update every Flatpak app"), _("And the runtimes they use."))
-            return _w("flatpak-discover", _("Update the Flatpak app {app}").format(app=t),
+                return _w("flatpak-discover", pgettext("change", "Update every Flatpak app"),
+                          _("And the runtimes they use."))
+            return _w("flatpak-discover", pgettext("change", "Update the Flatpak app {app}").format(app=t),
                       _("And the runtime it uses, if it needs a new one."))
         if k == "firmware":
-            return _w("cpu|computer", _("Update the firmware of {name} to {version}").format(
+            return _w("cpu|computer", pgettext("change", "Update the firmware of {name} to {version}").format(
                 name=o.get("name") or t, version=o.get("version") or "?"),
                 _("Keep the computer plugged in. It may need a restart to finish."))
-        return _w("system-run", self.describe())
+        return _w("system-run", f"{k} {t}")
 
     def _install_words(self, actions, installed):
         t, o = self.target, self.opts
         if o.get("bridge_for"):
             return _w("application-x-rpm|package-x-generic",
-                      _("Install the bridge package for {program}").format(program=o["bridge_for"]),
+                      pgettext("change", "Install the bridge package for {program}").format(program=o["bridge_for"]),
                       _("Made by Zypp Desk on this computer: it tells zypper that what {program} asks for by its "
                         "Fedora names is here. It is not signed, because it was made here.").format(
                           program=o["bridge_for"]), package=o.get("package"))
@@ -217,14 +243,15 @@ class Action:
                 parts.append(_("It is not signed: you accepted it as it is."))
             if o.get("oldpackage"):
                 parts.append(_("It is older than the one you have."))
-            return _w("application-x-rpm|package-x-generic", _("Install {name} from a downloaded file").format(
-                name=name), " ".join(parts), package=o.get("package"))
+            return _w("application-x-rpm|package-x-generic", pgettext(
+                "change", "Install {name} from a downloaded file").format(name=name), " ".join(parts),
+                package=o.get("package"))
         name = pkg_ident(self)
         bare = re.split(r"[<>=]", t, maxsplit=1)[0].strip()
         head = bare.partition(":")[0] if ":" in bare else ""
         if head == "pattern":
-            return _w("package-x-generic", _("Install the pattern {name}").format(name=bare.partition(":")[2]),
-                      _("A group of packages that go together."))
+            return _w("package-x-generic", pgettext("change", "Install the pattern {name}").format(
+                name=bare.partition(":")[2]), _("A group of packages that go together."))
         version = t[len(bare):].lstrip("<>= ") if t != bare else ""
         alias = install_alias(self)
         repo = None
@@ -233,18 +260,20 @@ class Action:
             repo = (add.opts.get("name") or alias) if add else alias
         parts = []
         if version:
-            title = _("Install {name} {version}").format(name=name, version=version)
+            title = pgettext("change", "Install {name} {version}").format(name=name, version=version)
             parts.append(_("This exact version, older than the one you have.") if o.get("oldpackage") else
                          _("This exact version."))
         elif installed is not None and name in installed and not repo:
-            return _w("system-software-update", _("Update {name}").format(name=name),
-                      _("To the newest version your repositories have."), package=name)
+            # zypper's install (and update) never changes the vendor of a package (zypper review 0.5, #11): a newer
+            # version from another vendor (Packman instead of openSUSE…) is left out
+            return _w("system-software-update", pgettext("change", "Update {name}").format(name=name),
+                      _("To the newest version from the same vendor."), package=name)
         else:
-            title = _("Install {name}").format(name=name)
+            title = pgettext("change", "Install {name}").format(name=name)
             if not repo:
                 parts.append(_("From your repositories: zypper picks the best version."))
         if repo:
-            parts.insert(0, _("From the repository «{repo}».").format(repo=repo))
+            parts.insert(0, _("From the repository “{repo}”.").format(repo=repo))
         return _w("package-install|system-software-install", title, " ".join(parts), package=name)
 
 
@@ -252,10 +281,43 @@ def _w(icon, title, detail="", more=None, package=None):
     return dict(icon=icon, title=title, detail=detail, more=more, package=package)
 
 
-def _fpr_end(fpr):
-    """'…2423 2811': the end of a fingerprint, never split between two lines."""
-    end = (fpr or "")[-8:].upper()
-    return f"…\u2060{end[:4]}\u00a0{end[4:]}"
+def _repo_modify_words(alias, o):
+    """A change to a repository, by its name (visual review 0.5, #17): one title for one change ("Disable the
+    repository …"), and each change in a sentence."""
+    name = repo_name(alias)
+    keys = set(o)
+    if keys == {"enabled"}:
+        if o["enabled"]:
+            return _w("document-edit|configure", pgettext("change", "Enable the repository “{name}”").format(
+                name=name), _("zypper looks for programs and updates there again."))
+        return _w("document-edit|configure", pgettext("change", "Disable the repository “{name}”").format(
+            name=name), _("zypper stops looking for programs and updates there until you enable it again. What you "
+                          "installed from it stays installed."))
+    if keys == {"priority"}:
+        title = pgettext("change", "Change the priority of the repository “{name}”").format(name=name)
+    elif keys == {"name"}:
+        title = pgettext("change", "Rename the repository “{name}”").format(name=name)
+    else:
+        title = pgettext("change", "Change the repository “{name}”").format(name=name)
+    return _w("document-edit|configure", title, " ".join(_repo_change_sentence(key, val) for key, val in o.items()))
+
+
+def _repo_change_sentence(key, val):
+    if key == "priority":
+        return _("Priority {n}: the lower the number, the more zypper prefers it.").format(n=val)
+    if key == "name":
+        return _("New name: {name}.").format(name=quoted(val))
+    if key == "enabled":
+        return (_("zypper looks for programs and updates there again.") if val else
+                _("zypper stops looking for programs and updates there until you enable it again. What you "
+                  "installed from it stays installed."))
+    if key == "autorefresh":
+        return (_("zypper refreshes it on its own before it looks for updates.") if val else
+                _("zypper no longer refreshes it on its own."))
+    if key == "keeppackages":
+        return (_("The packages downloaded from it are kept.") if val else
+                _("The packages downloaded from it are no longer kept."))
+    return f"{key} = {val}."
 
 
 def _removals_in_transaction(actions, forced=None):
@@ -310,25 +372,36 @@ def installed_names(names):
     return out
 
 
-def describe_actions(actions, *, installed=None, in_transaction=None, group_from=GROUP_FROM):
-    """The changes in words for a question, in the order given: one item per change, except many package
-    installs (or removals, locks, unlocks, keys to delete, Flatpak updates), which are one item each, with the
-    names under "Show them"."""
+def grouped(actions, *, installed=None, in_transaction=None, group_from=GROUP_FROM):
+    """The changes in words, in the order given, each with the queued changes it stands for: [(words,
+    [Action])]. One item per change, except many package installs (or removals, locks, unlocks, keys to delete,
+    Flatpak updates): from group_from of one kind on, they are one item, with the names under "Show them"."""
     counts = {}
     for a in actions:
-        counts[_group_key(a)] = counts.get(_group_key(a), 0) + 1
+        g = _group_key(a)
+        counts[g] = counts.get(g, 0) + 1
+    members = {}
+    for a in actions:
+        g = _group_key(a)
+        if g is not None and counts[g] >= group_from:
+            members.setdefault(g, []).append(a)
     out, done = [], set()
     for a in actions:
         g = _group_key(a)
-        if g is None or counts[g] < group_from:
-            out.append(a.words(actions, installed, in_transaction))
+        if g not in members:
+            out.append((a.words(actions, installed, in_transaction), [a]))
             continue
         if g in done:
             continue
         done.add(g)
-        members = [b for b in actions if _group_key(b) == g]
-        out.extend(_group_words(g, members, actions, installed, in_transaction))
+        out.extend(_group_words(g, members[g], actions, installed, in_transaction))
     return out
+
+
+def describe_actions(actions, *, installed=None, in_transaction=None, group_from=GROUP_FROM):
+    """The changes in words for a question, in the order given (see grouped)."""
+    return [w for w, _m in grouped(actions, installed=installed, in_transaction=in_transaction,
+                                   group_from=group_from)]
 
 
 def _group_key(a):
@@ -342,39 +415,52 @@ def _group_key(a):
 
 
 def _group_words(g, members, actions, installed, in_transaction):
+    """[(words, [Action])] for a group of changes of one kind."""
     n = len(members)
     if g == "install":
         ups = [a for a in members if installed is not None and not install_alias(a)
                and a.target == pkg_ident(a) and pkg_ident(a) in installed]
-        news = [a for a in members if a not in ups]
+        up_ids = set(map(id, ups))
+        news = [a for a in members if id(a) not in up_ids]
         out = []
         if ups:
-            out.append(_w("system-software-update", ngettext("Update {n} package", "Update {n} packages",
-                                                             len(ups)).format(n=len(ups)),
-                          _("To the newest version your repositories have."), more=[a.target for a in ups]))
+            # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+            title = ngettext("Update {n} package", "Update {n} packages", len(ups)).format(n=len(ups))
+            out.append((_w("system-software-update", title, _("Each one to the newest version from the same vendor."),
+                           more=[a.target for a in ups]), ups))
         if news:
-            out.append(_w("package-install|system-software-install", ngettext(
-                "Install {n} package", "Install {n} packages", len(news)).format(n=len(news)),
-                _("From your repositories."), more=[a.target for a in news]))
+            # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+            title = ngettext("Install {n} package", "Install {n} packages", len(news)).format(n=len(news))
+            out.append((_w("package-install|system-software-install", title, _("From your repositories."),
+                           more=[a.target for a in news]), news))
         return out
     if g in ("remove", "remove-clean"):
-        return [_w("package-remove|edit-delete", ngettext("Remove {n} package", "Remove {n} packages", n).format(n=n),
-                   _removal_detail(g == "remove-clean", _removals_in_transaction(actions, in_transaction), n),
-                   more=[a.target for a in members])]
+        # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+        title = ngettext("Remove {n} package", "Remove {n} packages", n).format(n=n)
+        return [(_w("package-remove|edit-delete", title,
+                    _removal_detail(g == "remove-clean", _removals_in_transaction(actions, in_transaction), n),
+                    more=[a.target for a in members]), members)]
     names = [a.target if a.opts.get("type", "package") == "package" else f"{a.opts['type']}:{a.target}"
              for a in members] if g in ("lock", "unlock") else [a.opts.get("name") or a.target for a in members]
     if g == "lock":
-        return [_w("object-locked", ngettext("Lock {n} package", "Lock {n} packages", n).format(n=n),
-                   _("zypper will not install, update or remove them until you unlock them."), more=names)]
+        # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+        title = ngettext("Lock {n} package", "Lock {n} packages", n).format(n=n)
+        return [(_w("object-locked", title, _("zypper will not install, update or remove them until you unlock "
+                                              "them."), more=names), members)]
     if g == "unlock":
-        return [_w("object-unlocked", ngettext("Unlock {n} package", "Unlock {n} packages", n).format(n=n),
-                   _("zypper may install, update or remove them again."), more=names)]
+        # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+        title = ngettext("Unlock {n} package", "Unlock {n} packages", n).format(n=n)
+        return [(_w("object-unlocked", title, _("zypper may install, update or remove them again."), more=names),
+                 members)]
     if g == "key-remove":
-        return [_w("security-low", ngettext("Stop trusting {n} signing key", "Stop trusting {n} signing keys",
-                                            n).format(n=n),
-                   _("New packages signed with them are refused until you trust them again."), more=names)]
-    return [_w("flatpak-discover", ngettext("Update {n} Flatpak app", "Update {n} Flatpak apps", n).format(n=n),
-               _("And the runtimes they use, if they need new ones."), more=names)]
+        # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+        title = ngettext("Stop trusting {n} signing key", "Stop trusting {n} signing keys", n).format(n=n)
+        return [(_w("security-low", title, _("New packages signed with them are refused until you trust them "
+                                             "again."), more=names), members)]
+    # TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
+    title = ngettext("Update {n} Flatpak app", "Update {n} Flatpak apps", n).format(n=n)
+    return [(_w("flatpak-discover", title, _("And the runtimes they use, if they need new ones."), more=names),
+             members)]
 
 
 def step_actions(step):
@@ -397,14 +483,12 @@ def step_actions(step):
 
 
 # ------------------------------------------------------------------ what needs what
-# Which signing key belongs to which repository waiting in the queue. Only links that can be told for sure:
-# - the key-import says so (opts for_repo=<alias>);
-# - OBS: the key OBS made for a project is named "<project> OBS Project" (<project>@build.opensuse.org), and a
-#   subproject without its own key is signed with its parent's; the repository's address holds the project
-#   (…/repositories/home:/jordirelats/openSUSE_Factory/);
-# - Fedora COPR: the key is named "<owner>_<project> (None)", the address holds …/results/<owner>/<project>/.
-_OBS_KEY = re.compile(r"^(\S+?)(?: OBS Project|@build\.opensuse\.org)$")
-_COPR_URL = re.compile(r"/results/([^/]+)/([^/]+)/")
+# Which signing key belongs to which repository waiting in the queue. Only links that someone made on purpose
+# (security review 0.5, #3: a key's name is whatever its maker wrote in it, so it never links a key):
+# - the key was fetched for that repository, from its own address or its .repo file (opts for_repo=<alias>);
+# - the key was fetched from an OBS project's own address (opts project=<project>): it signs that project's
+#   repositories, and those of its subprojects that have no key of their own; the repository's address holds the
+#   project (…/repositories/home:/jordirelats/openSUSE_Factory/).
 
 
 def obs_project(url):
@@ -418,9 +502,21 @@ def obs_project(url):
     return "".join(parts[:-1]) or None
 
 
-def _obs_key_project(key):
-    m = _OBS_KEY.match((key.opts.get("name") or "").strip())
-    return m.group(1) if m else None
+def _key_repo(key, actions):
+    """The queued repo-add this key was fetched for (opts for_repo), or None."""
+    alias = key.opts.get("for_repo")
+    if not alias:
+        return None
+    return next((a for a in actions if a.kind == "repo-add" and a.target == alias), None)
+
+
+def key_project(key, actions=()):
+    """The OBS project whose key this is, only when that is known for sure: the import says so (opts project=), or
+    the key was fetched for a queued OBS repository (opts for_repo=); else None."""
+    if key.opts.get("project"):
+        return key.opts["project"]
+    repo = _key_repo(key, actions)
+    return obs_project(repo.opts.get("url")) if repo is not None else None
 
 
 def keys_for_repo(repo, keys):
@@ -428,76 +524,109 @@ def keys_for_repo(repo, keys):
     explicit = [k for k in keys if k.opts.get("for_repo") == repo.target]
     if explicit:
         return explicit
-    url = repo.opts.get("url") or ""
-    proj = obs_project(url)
+    proj = obs_project(repo.opts.get("url") or "")
     if proj:
-        found = [(k, p) for k in keys if (p := _obs_key_project(k)) and (proj == p or proj.startswith(p + ":"))]
+        found = [(k, p) for k in keys if (p := k.opts.get("project")) and (proj == p or proj.startswith(p + ":"))]
         if found:
             best = max(len(p) for _k, p in found)  # the project's own key before its parent's
             return [k for k, p in found if len(p) == best]
-        return []
-    m = _COPR_URL.search(url)
-    if m and "copr" in url:
-        owner, project = m.group(1), m.group(2)
-        want = {f"{owner}_{project}", f"{owner.lstrip('@')}_{project}"}
-        return [k for k in keys if (k.opts.get("name") or "").split(" (")[0].strip() in want]
     return []
 
 
-def needs(action, actions):
-    """The queued changes this one cannot work without (only the direct ones):
-    - a repository whose list is checked (gpg 'default') needs its signing key;
+class Needs:
+    """What needs what in a list of changes, worked out once for all of them (the review window asks it for each
+    row; asking needs() per row was quadratic: code review 0.5, #4):
+    - a repository whose list is checked (gpg 'default' or 'allow-unsigned-package') needs its signing key;
     - an install from a repository that waits in the queue ('alias:package') needs that repository, and its key
       when only the packages are checked (COPR);
     - a change to a repository that waits in the queue needs it to be added first;
     - an install of a downloaded file that says which key signed it (opts keyid/signer) needs that key."""
-    keys = [a for a in actions if a.kind == "key-import"]
-    adds = {a.target: a for a in actions if a.kind == "repo-add"}
-    out = []
-    if action.kind == "repo-add" and action.opts.get("gpg", "default") == "default":
-        out += keys_for_repo(action, keys)
-    elif action.kind == "repo-modify" and action.target in adds:
-        out.append(adds[action.target])
-    elif action.kind == "install":
-        if is_file_target(action.target, action.opts):
-            kid = (action.opts.get("keyid") or action.opts.get("signer") or "").upper().replace(" ", "")
-            if len(kid) >= 8:
-                out += [k for k in keys if k.target.upper().endswith(kid[-16:])]
-        else:
-            repo = adds.get(install_alias(action))
-            if repo is not None:
-                out.append(repo)
-                if repo.opts.get("gpg", "default") == "allow-unsigned-repo":
-                    out += keys_for_repo(repo, keys)
-    return [a for a in dict.fromkeys(out) if a is not action]
+
+    def __init__(self, actions):
+        self.actions = list(actions)
+        keys = [a for a in self.actions if a.kind == "key-import"]
+        adds = {}
+        for a in self.actions:
+            if a.kind == "repo-add":
+                adds.setdefault(a.target, a)
+        by_end = {}  # the last 8 and the last 16 hex digits of a key → the queued imports of it
+        for k in keys:
+            fpr = k.target.upper().replace(" ", "")
+            for n in (8, 16):
+                by_end.setdefault(fpr[-n:], []).append(k)
+        repo_keys = {}
+
+        def keys_of(repo):
+            if id(repo) not in repo_keys:
+                repo_keys[id(repo)] = keys_for_repo(repo, keys)
+            return repo_keys[id(repo)]
+
+        self.direct = {}
+        for a in self.actions:
+            out = []
+            if a.kind == "repo-add" and a.opts.get("gpg", "default") in ("default", "allow-unsigned-package"):
+                out += keys_of(a)  # its list of packages is checked against its key
+            elif a.kind == "repo-modify" and a.target in adds:
+                out.append(adds[a.target])
+            elif a.kind == "install":
+                if is_file_target(a.target, a.opts):
+                    # the key whose fingerprint ends with the key ID that signed the file
+                    end = (a.opts.get("keyid") or a.opts.get("signer") or "").upper().replace(" ", "")[-16:]
+                    if len(end) in (8, 16):
+                        out += by_end.get(end, [])
+                    elif len(end) > 8:
+                        out += [k for k in keys if k.target.upper().replace(" ", "").endswith(end)]
+                else:
+                    repo = adds.get(install_alias(a))
+                    if repo is not None:
+                        out.append(repo)
+                        if repo.opts.get("gpg", "default") == "allow-unsigned-repo":
+                            out += keys_of(repo)
+            self.direct[id(a)] = [x for x in dict.fromkeys(out) if x is not a]
+        self.users = {}  # id(x) → the changes that need x directly
+        for a in self.actions:
+            for x in self.direct[id(a)]:
+                self.users.setdefault(id(x), []).append(a)
+
+    def needs(self, action):
+        return list(self.direct.get(id(action), ()))
+
+    def _walk(self, action, edges):
+        seen, out, todo = {id(action)}, [], [action]
+        while todo:
+            for x in edges.get(id(todo.pop()), ()):
+                if id(x) not in seen:
+                    seen.add(id(x))
+                    out.append(x)
+                    todo.append(x)
+        return out
+
+    def all_needs(self, action):
+        """needs(), and what those need in turn."""
+        return self._walk(action, self.direct)
+
+    def needed_by(self, action):
+        """The changes that would fail without this one (also through another one)."""
+        return self._walk(action, self.users)
+
+
+def needs(action, actions):
+    """The queued changes this one cannot work without (only the direct ones; see Needs)."""
+    if not any(a is action for a in actions):
+        actions = [*actions, action]
+    return Needs(actions).needs(action)
 
 
 def all_needs(action, actions):
     """needs(), and what those need in turn."""
-    seen, todo = [], [action]
-    while todo:
-        for n in needs(todo.pop(), actions):
-            if n is not action and n not in seen:
-                seen.append(n)
-                todo.append(n)
-    return seen
+    if not any(a is action for a in actions):
+        actions = [*actions, action]
+    return Needs(actions).all_needs(action)
 
 
 def needed_by(action, actions):
     """The queued changes that would fail without this one (also through another one)."""
-    return [b for b in actions if b is not action and action in all_needs(b, actions)]
-
-
-def _repo_change_text(key, val):
-    if key == "priority":
-        return _("priority {n}").format(n=val)
-    if key == "name":
-        return _("name «{name}»").format(name=val)
-    labels = {"enabled": (_("enable"), _("disable")), "autorefresh": (_("refresh automatically"),
-              _("do not refresh automatically")), "keeppackages": (_("keep downloaded packages"),
-              _("do not keep downloaded packages"))}
-    on, off = labels.get(key, (key, "no " + key))
-    return on if val else off
+    return Needs(actions).needed_by(action)
 
 
 def _addrepo_args(o, alias=None):
@@ -514,6 +643,8 @@ def _addrepo_args(o, alias=None):
     gpg = o.get("gpg", "default")
     if gpg == "allow-unsigned-repo":
         args.append("--gpgcheck-allow-unsigned-repo")
+    elif gpg == "allow-unsigned-package":  # gpgcheck=0 with repo_gpgcheck=1: the metadata stays checked
+        args.append("--gpgcheck-allow-unsigned-package")
     elif gpg == "off":
         args.append("--no-gpgcheck")
     return args
@@ -531,15 +662,58 @@ def _key(action):
     return action.opts.get("package") or action.target.split("=")[0]
 
 
+OPPOSITE = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
+            "locale-add": "locale-remove", "locale-remove": "locale-add",
+            "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install",
+            "key-import": "key-remove", "key-remove": "key-import"}
+
+
 class TxQueue(QObject):
     changed = Signal()
 
     def __init__(self, settings, parent=None):
         super().__init__(parent)
         self.settings = settings
-        self.actions = []
+        self._actions = []
+        # (kind, what it is about) → the queued changes: add() finds what a change replaces without going
+        # through the whole queue (2,457 adds took 5.6 s: code review 0.5, #4)
+        self._index = {}
+        self._index_of = None  # (the list, its length) the index was made for
         self._batch = 0
         self._dirty = False
+
+    @property
+    def actions(self):
+        """The queued changes, in the order they were added (a list; ordered() gives the order they run in)."""
+        return self._actions
+
+    @actions.setter
+    def actions(self, value):
+        self._actions = list(value)
+        self._index_of = None
+
+    def _idx(self):
+        """The index, made again when the list was replaced or changed in place since."""
+        if self._index_of != (id(self._actions), len(self._actions)):
+            idx = {}
+            for a in self._actions:
+                idx.setdefault((a.kind, _key(a)), []).append(a)
+            self._index = idx
+            self._index_of = (id(self._actions), len(self._actions))
+        return self._index
+
+    def _forget(self, gone):
+        """Take these changes out of the list and the index (a new list, as before: a copy someone holds stays)."""
+        ids = set(map(id, gone))
+        idx = self._idx()
+        for a in gone:
+            lst = idx.get((a.kind, _key(a)))
+            if lst is not None:
+                lst[:] = [x for x in lst if x is not a]
+                if not lst:
+                    del idx[(a.kind, _key(a))]
+        self._actions = [a for a in self._actions if id(a) not in ids]
+        self._index_of = (id(self._actions), len(self._actions))
 
     @contextmanager
     def batch(self):
@@ -561,102 +735,123 @@ class TxQueue(QObject):
 
     # ---------------------------------------------------------- editing
     def add(self, action):
+        idx = self._idx()
+        key = _key(action)
         if action.kind == "repo-modify":
-            for a in self.actions:
-                # the repository added again at its new address takes the change with its other settings; one
-                # added from a .repo file cannot: the change runs after it, as a change of its own
-                if a.kind == "repo-url" and a.target == action.target and not a.opts.get("repo_file"):
+            # the repository added again at its new address takes the change with its other settings; one
+            # added from a .repo file cannot: the change runs after it, as a change of its own
+            for a in idx.get(("repo-url", key), ()):
+                if a.target == action.target and not a.opts.get("repo_file"):
                     a.opts.update(action.opts)
                     self._changed()
                     return
-            for a in self.actions:
-                if a.kind == "repo-modify" and a.target == action.target:
+            for a in idx.get(("repo-modify", key), ()):
+                if a.target == action.target:
                     a.opts.update(action.opts)
                     self._changed()
                     return
-        opposite = {"install": "remove", "remove": "install", "lock": "unlock", "unlock": "lock",
-                    "locale-add": "locale-remove", "locale-remove": "locale-add",
-                    "flatpak-install": "flatpak-uninstall", "flatpak-uninstall": "flatpak-install",
-                    "key-import": "key-remove", "key-remove": "key-import"}.get(action.kind)
+        opposite = OPPOSITE.get(action.kind)
         if action.kind == "repo-url" and not action.opts.get("repo_file"):
             opposite = "repo-modify"  # a new address replaces a pending change: its settings carry it
-        key = _key(action)
-        self.actions = [a for a in self.actions if not (_key(a) == key and a.kind in (action.kind, opposite))]
-        self.actions.append(action)
+        old = list(idx.get((action.kind, key), ())) + (list(idx.get((opposite, key), ())) if opposite else [])
+        if old:
+            self._forget(old)
+            idx = self._idx()
+        self._actions.append(action)
+        idx.setdefault((action.kind, key), []).append(action)
+        self._index_of = (id(self._actions), len(self._actions))
         self._changed()
 
     def discard(self, kind, target):
-        n = len(self.actions)
-        self.actions = [a for a in self.actions if not (a.kind == kind and a.target == target)]
-        if len(self.actions) != n:
+        gone = [a for a in self._actions if a.kind == kind and a.target == target]
+        if gone:
+            self._forget(gone)
             self._changed()
 
     def discard_action(self, action):
-        if action in self.actions:
-            self.actions.remove(action)
+        self.discard_actions([action])
+
+    def discard_actions(self, actions):
+        """Take these changes out (those still in the queue), with one 'changed' signal."""
+        ids = set(map(id, actions))
+        gone = [a for a in self._actions if id(a) in ids]
+        if gone:
+            self._forget(gone)
             self._changed()
 
     def clear(self):
-        if self.actions:
+        if self._actions:
             self.actions = []
             self._changed()
 
     def state_of(self, name):
-        for a in self.actions:
+        for a in self._actions:
             if a.kind in PKG_KINDS and name in (a.opts.get("package") or a.target.split("=")[0], pkg_ident(a)):
                 return a.kind  # also 'packman:vlc' (queued from Search online) for vlc
         return None
 
     def flatpak_state(self, app):
-        for a in self.actions:
+        for a in self._actions:
             if a.kind.startswith("flatpak-") and a.target in (app, "*"):
                 return a.kind
         return None
 
     def repo_change(self, alias):
-        return next((a for a in self.actions if a.kind.startswith("repo-") and a.target == alias), None)
+        return next((a for a in self._actions if a.kind.startswith("repo-") and a.target == alias), None)
 
     def key_state(self, fpr):
-        return next((a.kind for a in self.actions if a.kind in ("key-import", "key-remove") and a.target == fpr), None)
+        return next((a.kind for a in self._actions if a.kind in ("key-import", "key-remove") and a.target == fpr),
+                    None)
 
     def __len__(self):
-        return len(self.actions)
+        return len(self._actions)
 
     def of(self, *kinds):
-        return [a for a in self.actions if a.kind in kinds]
+        return [a for a in self._actions if a.kind in kinds]
 
     def ordered(self):
         """The changes in the order they run (the order of steps()): keys, repositories, locks, packages
         (removals with --clean-deps first), languages, Flatpak, keys to delete, firmware."""
+        by_kind = {}
+        for a in self._actions:
+            by_kind.setdefault(a.kind, []).append(a)
         out = []
         for k in RUN_ORDER:
             if k == "remove":
                 continue
-            if k == "install":
-                out += [a for a in self.of("remove") if a.opts.get("clean_deps")]
-                out += self.of("install")
-                out += [a for a in self.of("remove") if not a.opts.get("clean_deps")]
+            if k == "install":  # as the package commands run: bridges and unsigned files may have their own
+                for _args, acts in self._package_plan():
+                    out += acts
             else:
-                out += self.of(k)
+                out += by_kind.get(k, [])
         known = set(map(id, out))
-        return out + [a for a in self.actions if id(a) not in known]
+        return out + [a for a in self._actions if id(a) not in known]
 
     # ---------------------------------------------------------- in words
     def words(self, group_from=GROUP_FROM):
         """The changes in words, in the order they run, for the Apply question (see describe_actions)."""
         acts = self.ordered()
-        names = [pkg_ident(a) for a in acts if a.kind == "install" and not is_file_target(a.target, a.opts)
-                 and not install_alias(a) and a.target == pkg_ident(a)]
-        return describe_actions(acts, installed=installed_names(names), group_from=group_from)
+        return describe_actions(acts, installed=installed_names(self.update_candidates(acts)),
+                                group_from=group_from)
+
+    @staticmethod
+    def update_candidates(acts):
+        """The names whose install may be an update (a plain name, from no repository in particular)."""
+        return [pkg_ident(a) for a in acts if a.kind == "install" and not is_file_target(a.target, a.opts)
+                and not install_alias(a) and a.target == pkg_ident(a)]
+
+    def links(self):
+        """What needs what in the queue, worked out once (see Needs)."""
+        return Needs(self._actions)
 
     def needs(self, action):
-        return needs(action, self.actions)
+        return needs(action, self._actions)
 
     def all_needs(self, action):
-        return all_needs(action, self.actions)
+        return all_needs(action, self._actions)
 
     def needed_by(self, action):
-        return needed_by(action, self.actions)
+        return needed_by(action, self._actions)
 
     # ---------------------------------------------------------- commands
     def not_simulable(self):
@@ -666,8 +861,7 @@ class TxQueue(QObject):
         return [a for a in self.of("install") if ":" in a.target and a.target.split(":", 1)[0] in new_aliases]
 
     def package_args(self, dry_run=False):
-        """The zypper commands for packages, each one a list of arguments. The dry run (simulation) is the same
-        transaction as the real one.
+        """The zypper commands for packages, each one a list of arguments.
 
         - Installs and removals go together, as one transaction: 'zypper install -- new '!old''. zypper
           resolves them at once, so a new package that conflicts with one leaving is fine. In this form a
@@ -678,36 +872,68 @@ class TxQueue(QObject):
           Remove window shows it), and nothing else even when zypp.conf says to clean dependencies.
         - Removals with "Also remove what only it needed" go first, on their own: only 'zypper remove' has
           --clean-deps.
+        - --allow-unsigned-rpm lets every file named in its command in without a signature, so it is only in a
+          command whose files were all accepted unsigned (security review 0.5, #1): a bridge package (made here,
+          it only needs openSUSE packages) is installed on its own first, and files accepted unsigned go on their
+          own before the rest when signed files are queued too.
+        The dry run (simulation) is one transaction, as before: nothing is installed by it, and the program a
+        bridge is for can only be resolved together with its bridge. It installs the same as the real run.
         '--' before the names: no name is read as an option."""
         return [args for args, _acts in self._package_plan(dry_run)]
 
+    def _install_args(self, inst, dry, unsigned):
+        args = ["install"]
+        if any(a.opts.get("oldpackage") for a in inst):
+            args.append("--oldpackage")
+        if unsigned:
+            args.append("--allow-unsigned-rpm")
+        if self.settings.get("apply_no_recommends"):
+            args.append("--no-recommends")
+        if self.settings.get("apply_accept_licenses"):
+            args.append("--auto-agree-with-licenses")
+        return args + dry
+
     def _package_plan(self, dry_run=False):
         """package_args, each command with the queued changes it carries: [(args, [Action])]."""
-        skip = self.not_simulable() if dry_run else []
+        skip = set(map(id, self.not_simulable())) if dry_run else set()
         every_inst = self.of("install")
-        inst = [a for a in every_inst if a not in skip]
+        inst = [a for a in every_inst if id(a) not in skip]
         rem = [a for a in self.of("remove") if not a.opts.get("clean_deps")]
         clean = [a for a in self.of("remove") if a.opts.get("clean_deps")]
         dry = ["--dry-run"] if dry_run else []
         out = []
         if clean:
             out.append((["remove", "--clean-deps", *dry, "--", *(a.target for a in clean)], clean))
-        if every_inst:  # also when the dry run leaves the installs out: the real run is an install
-            names = [a.target for a in inst] + ["!" + a.target for a in rem]
-            if names:
-                args = ["install"]
-                if any(a.opts.get("oldpackage") for a in inst):
-                    args.append("--oldpackage")
-                if any(a.opts.get("allow_unsigned") for a in inst):
-                    args.append("--allow-unsigned-rpm")
-                if self.settings.get("apply_no_recommends"):
-                    args.append("--no-recommends")
-                if self.settings.get("apply_accept_licenses"):
-                    args.append("--auto-agree-with-licenses")
-                out.append((args + dry + ["--"] + names, inst + rem))
-        elif rem:
-            out.append((["remove", "--no-clean-deps", *dry, "--", *(a.target for a in rem)], rem))
+        if not every_inst:
+            if rem:
+                out.append((["remove", "--no-clean-deps", *dry, "--", *(a.target for a in rem)], rem))
+            return out
+        # also when the dry run leaves the installs out: the real run is an install
+        if not dry_run:
+            bridges = [a for a in inst if a.opts.get("bridge_for")]
+            if bridges:
+                out.append((self._install_args(bridges, dry, True) + ["--", *(a.target for a in bridges)], bridges))
+                inst = [a for a in inst if not a.opts.get("bridge_for")]
+            files = [a for a in inst if is_file_target(a.target, a.opts)]
+            unsigned = [a for a in files if a.opts.get("allow_unsigned")]
+            if unsigned and len(unsigned) < len(files):
+                out.append((self._install_args(unsigned, dry, True) + ["--", *(a.target for a in unsigned)],
+                            unsigned))
+                gone = set(map(id, unsigned))
+                inst = [a for a in inst if id(a) not in gone]
+                unsigned = []
+            flag = bool(unsigned)
+        else:
+            flag = any(a.opts.get("allow_unsigned") for a in inst)
+        names = [a.target for a in inst] + ["!" + a.target for a in rem]
+        if names:
+            out.append((self._install_args(inst, dry, flag) + ["--"] + names, inst + rem))
         return out
+
+    def unsigned_files(self):
+        """The files the queue installs without a signature (--allow-unsigned-rpm): bridges and files accepted
+        as they are."""
+        return [a for a in self.of("install") if a.opts.get("allow_unsigned") and is_file_target(a.target, a.opts)]
 
     def steps(self):
         """Every command, in order: signing keys and zypp.conf first, then repositories, locks, packages,
@@ -817,8 +1043,8 @@ class TxQueue(QObject):
 
     def summary(self):
         n_in, n_rm = len(self.of("install")), len(self.of("remove"))
-        n_fp = len([a for a in self.actions if a.kind.startswith("flatpak-")])
-        others = len(self.actions) - n_in - n_rm - n_fp
+        n_fp = len([a for a in self._actions if a.kind.startswith("flatpak-")])
+        others = len(self._actions) - n_in - n_rm - n_fp
         parts = []
         if n_in:
             parts.append(ngettext("{n} to install", "{n} to install", n_in).format(n=n_in))

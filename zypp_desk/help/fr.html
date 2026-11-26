@@ -1,0 +1,167 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- L'aide de Zypp Desk, en français. Voir en.html. -->
+
+<!-- topic: start | Premiers pas -->
+<h2>Premiers pas</h2>
+<p>Zypp Desk est une fenêtre pour <b>zypper</b>, le programme qui installe, supprime et met à jour les logiciels
+sur openSUSE. Tout ce que fait Zypp Desk, il le fait en lançant zypper, et il vous montre toujours la commande
+exacte.</p>
+<p>Trois idées le rendent sûr à utiliser :</p>
+<ul>
+<li><b>Rien ne change tant que vous ne l'appliquez pas.</b> Ce que vous choisissez va dans la <b>file
+d'attente</b>, en bas de la fenêtre. Vous pouvez le regarder (<b>Revoir</b>), l'essayer (<b>Simuler</b>) et
+seulement ensuite le rendre réel (<b>Appliquer</b>).</li>
+<li><b>Chaque question dit en termes simples ce qui va se passer</b>, ce que cela signifie pour vous, et, en
+dessous, la commande exacte. Appuyer sur Entrée ne lance jamais une modification : vous devez choisir le bouton
+qui la fait.</li>
+<li><b>Vous pouvez toujours voir ce que dit zypper.</b> Le terminal du bas (<b>Afficher le terminal</b>, dans la
+barre latérale) montre la sortie de zypper telle quelle, et le panneau à côté explique ses avertissements : leur
+gravité et ce qu'il faut faire.</li>
+</ul>
+<p>Pour modifier le système, il faut le mot de passe administrateur. Zypp Desk le demande quand il le faut, et
+l'ordinateur s'en souvient pendant cinq minutes : plusieurs étapes à la suite ne le demandent donc qu'une fois.</p>
+<p>Commencez par la page <a href="page:home">Accueil</a> : un grand champ de recherche et des cartes qui vous
+disent s'il y a des mises à jour, dans quel état sont vos dépôts et ce qui mérite un coup d'œil.</p>
+
+<!-- topic: queue | La file d'attente : Revoir, Simuler et Appliquer -->
+<h2>La file d'attente : Revoir, Simuler et Appliquer</h2>
+<p>Installer, supprimer ou verrouiller un paquet, ajouter un dépôt ou importer une clé : chacune de ces actions est
+une <b>modification</b>, et elle attend dans la file d'attente jusqu'à ce que vous l'appliquiez. La barre du bas
+indique combien il y en a et les commandes qu'elles exécuteront.</p>
+<ul>
+<li><b>Revoir</b> liste en clair les modifications, dans l'ordre où elles seront exécutées. Chacune a son propre
+bouton pour la retirer de la file d'attente. Quand une modification en nécessite une autre (un programme a besoin
+du dépôt d'où il vient, et le dépôt a besoin de sa clé), la liste l'indique, et Zypp Desk pose la question avant
+que vous ne retiriez quelque chose dont d'autres ont besoin.</li>
+<li><b>Simuler</b> demande à zypper ce qu'il ferait réellement, sans rien modifier : ce qu'il installerait ou
+supprimerait en plus, combien il téléchargerait et s'il y a un problème. S'il y en a un, vous pouvez choisir une
+solution expliquée en termes simples.</li>
+<li><b>Appliquer</b> vous montre les modifications encore une fois et les exécute. Si une étape échoue, Zypp Desk
+s'arrête là : ce qui a été fait reste fait, et le reste demeure dans la file d'attente pour que vous puissiez
+réessayer.</li>
+<li><b>Vider</b> vide la file d'attente. Cela n'annule rien, car rien n'a encore changé.</li>
+</ul>
+<p><b>Simuler</b> n'essaie que les modifications de paquets : les modifications de dépôts, de verrous, de langues et
+d'applications Flatpak ne peuvent pas être simulées, et elles ne s'exécutent que lorsque vous les appliquez.</p>
+
+<!-- topic: update | Garder le système à jour -->
+<h2>Garder le système à jour</h2>
+<p>openSUSE Tumbleweed reçoit une nouvelle version à quelques jours d'intervalle. Sur la page
+<a href="page:updates">Mises à jour</a>, vous trouverez :</p>
+<ul>
+<li><b>Votre routine</b> : les étapes que vous suivez d'habitude pour mettre à jour, par exemple actualiser les
+dépôts, télécharger les mises à jour, puis les installer. <b>Lancer la routine</b> les exécute l'une après l'autre
+et montre chaque étape. <b>Modifier la routine…</b> la change avec des boutons, ou sous forme de texte, comme vous
+la taperiez dans un terminal.</li>
+<li><b>Ce qu'il y a à mettre à jour</b> : les paquets des dépôts, les applications Flatpak, les programmes du web
+et le micrologiciel, avec une case à cocher pour chacun. La carte de droite vous présente le paquet que vous
+choisissez.</li>
+<li><b>Simuler le dup…</b> : la mise à niveau complète de Tumbleweed (<code>zypper dup</code>) dans sa propre
+fenêtre, avec ses options.</li>
+</ul>
+<h3>Une grosse mise à jour</h3>
+<p>Quand une mise à jour est grosse, ou que le nouveau Tumbleweed est sorti il y a moins d'un jour, Zypp Desk vous
+demande s'il vaut la peine d'attendre. Il vous indique sa taille, à quel point la version est récente et si
+l'ordinateur est sur batterie. Vous pouvez mettre à jour maintenant, <b>seulement la télécharger maintenant</b>
+(l'installer plus tard est alors beaucoup plus rapide) ou <b>vous la faire rappeler demain</b> : l'icône à côté
+de l'horloge vous préviendra.</p>
+<h3>Peu de place sur le disque</h3>
+<p>Si la mise à jour ne tient pas sur le disque avec une marge suffisante, Zypp Desk propose de libérer d'abord de
+la place (paquets conservés de téléchargements précédents, anciens noyaux) et de mettre à jour <b>par lots</b>.
+Chaque lot est une mise à jour zypper normale de quelques paquets, entièrement téléchargée avant d'être
+installée : si un téléchargement échoue, rien de ce lot n'est installé, et le système reste tel que le lot
+précédent l'a laissé. Une mise à niveau normale termine ce qui reste. Avant toute installation, Zypp Desk essaie
+chaque lot avec zypper : un paquet dont la mise à jour demande une décision attend la mise à niveau normale de la
+fin, et la question vous dit lesquels.</p>
+
+<!-- topic: programs | Installer et supprimer des programmes -->
+<h2>Installer et supprimer des programmes</h2>
+<ul>
+<li>Tapez un nom dans le champ de recherche de la page <a href="page:home">Accueil</a> ou de la page
+<a href="page:packages">Paquets</a>. Paquets peut chercher dans les descriptions, dans ce qu'un paquet fournit ou
+nécessite, dans ses fichiers, et dans les listes de paquets orphelins ou inutiles.</li>
+<li><a href="page:apps">Applications</a> montre les programmes que vous avez, d'où qu'ils viennent (un dépôt,
+Flatpak ou le web), et ceux qui ont une mise à jour. <b>Découvrir par thème</b> montre les catalogues d'openSUSE
+et de Flathub par catégorie.</li>
+<li>La carte d'un paquet contient ses informations, ses versions (vous pouvez en installer une plus ancienne), ce
+dont il a besoin, ses fichiers et ses changements.</li>
+<li><b>Supprimer…</b> demande s'il faut aussi supprimer ce dont seul ce programme avait besoin. Zypp Desk liste
+d'abord ces paquets, pour que vous voyiez ce qui s'en va.</li>
+<li><b>Verrouiller</b> garde un paquet tel qu'il est : zypper ne le mettra pas à jour et ne le supprimera pas tant
+que vous ne l'aurez pas déverrouillé dans <a href="page:locks">Verrous</a>.</li>
+<li><a href="page:flatpak">Flatpak</a> contient les applications Flatpak, leurs mises à jour, leurs dépôts
+distants et leurs permissions. Elles vont dans la même file d'attente.</li>
+</ul>
+<p>Si le programme n'est pas dans vos dépôts, <b>Rechercher en ligne…</b> le cherche dans l'openSUSE Build
+Service, dans Fedora COPR et sur Flathub, et explique à quel point vous pouvez faire confiance à chaque source.</p>
+
+<!-- topic: web | Programmes du web et fichiers .rpm -->
+<h2>Programmes du web et fichiers .rpm</h2>
+<p>Certains programmes ne sont publiés que sous forme de fichiers sur leur site web ou sur GitHub. Dans
+<a href="page:websources">Programmes du web</a>, Zypp Desk les suit : il cherche les nouvelles versions, les
+télécharge, les vérifie (la signature, ou la somme de contrôle que publie l'auteur) et les met dans la file
+d'attente. Une fois les programmes installés, les fichiers vont dans le dossier que vous avez choisi, qui peut
+être un dépôt local de zypper.</p>
+<p>Vous pouvez aussi ouvrir avec Zypp Desk un fichier <code>.rpm</code> téléchargé (depuis le gestionnaire de
+fichiers, <b>Ouvrir avec Zypp Desk</b>). Avant que quoi que ce soit ne soit installé, il vous dit qui l'a signé,
+ce dont il a besoin et ce qu'il remplacerait.</p>
+<h3>Programmes faits pour Fedora</h3>
+<p>Certains fichiers <code>.rpm</code> sont faits pour Fedora et demandent des éléments sous leurs noms Fedora.
+Quand openSUSE a la même chose sous un autre nom, Zypp Desk vous montre la liste (nom Fedora, nom openSUSE,
+pourquoi) et peut créer un petit <b>paquet passerelle</b> qui dit à zypper que c'est la même chose. La passerelle
+ne contient aucun fichier ; elle est créée sur votre ordinateur et apparaît dans Programmes du web, qui vous
+indique quand elle n'est plus nécessaire. Si quelque chose n'a pas d'équivalent dans openSUSE, Zypp Desk indique
+de quoi il s'agit et ne crée pas de passerelle.</p>
+
+<!-- topic: repos | Dépôts et clés de signature -->
+<h2>Dépôts et clés de signature</h2>
+<p>Un <b>dépôt</b> est un endroit d'où zypper télécharge des paquets. Dans <a href="page:repos">Dépôts</a>, vous
+pouvez les activer ou les désactiver, changer leur priorité (le plus petit nombre l'emporte quand le même paquet
+se trouve dans plusieurs dépôts), vérifier lesquels ne répondent pas, changer leur adresse et demander à Zypp Desk
+de proposer un ordre.</p>
+<p>Certains programmes faits pour Fedora laissent leur dépôt dans <code>/etc/yum.repos.d</code>, où zypper ne
+regarde pas : ils ne seraient donc jamais mis à jour. Zypp Desk le remarque et propose d'ajouter le dépôt à
+zypper, avec sa clé. Si vous avez choisi <b>Ne pas l'ajouter</b>, <b>Plus → Afficher les dépôts Fedora
+masqués</b> le fait réapparaître.</p>
+<p>Une <b>clé de signature</b> prouve qui a fait un paquet ou un dépôt. Dans
+<a href="page:keys">Clés de signature</a>, vous voyez les clés auxquelles votre ordinateur fait confiance, à qui
+elles appartiennent et quand elles expirent, et vous pouvez en importer une nouvelle depuis une adresse web, un
+fichier ou son empreinte, en la comparant avec celle que publie le fournisseur. Ne faites confiance qu'à une clé
+provenant d'une source de confiance : une clé permet à son propriétaire d'installer n'importe quoi sur votre
+ordinateur.</p>
+<p>Les <a href="page:services">Services</a> sont des listes de dépôts tenues par quelqu'un d'autre (openSUSE tient
+celles de Tumbleweed).</p>
+
+<!-- topic: problems | Quand quelque chose ne va pas -->
+<h2>Quand quelque chose ne va pas</h2>
+<ul>
+<li><b>Un problème de dépendances</b> : zypper ne peut pas faire ce que vous avez demandé sans changer autre chose.
+Zypp Desk montre chaque problème en termes simples avec les solutions que propose zypper, et recommande celle qui
+change le moins de choses. Quand il y en a beaucoup, il les regroupe d'abord par cause : souvent, un dépôt construit
+au-dessus de Tumbleweed (VideoLAN, Packman) n'a pas encore été reconstruit pour la nouvelle version, et les
+problèmes disparaissent d'eux-mêmes en un jour ou deux. Vous pouvez attendre et demander un rappel, mettre à jour
+le reste et laisser ceux-là tels quels, ou les examiner un par un.</li>
+<li><b>Un fichier est introuvable pendant le téléchargement</b> : juste après une nouvelle version de Tumbleweed,
+les miroirs mettent quelques heures à la copier. Réessayez dans une heure.</li>
+<li><b>Quelque chose ne marche plus après une mise à jour</b> : <a href="page:history">Historique</a> montre ce
+qui a changé à chaque mise à jour et, quand le système prend des instantanés (snapper), vous permet d'annuler les
+modifications ou de revenir au système tel qu'il était.</li>
+<li><b>Un avertissement que vous ne comprenez pas</b> : le panneau à côté du terminal l'explique, indique sa
+gravité et ce qu'il faut faire.</li>
+<li><a href="page:maintenance">Maintenance</a> vérifie les dépendances cassées, supprime les anciens noyaux, vide
+le cache et vous dit quels programmes utilisent encore d'anciens fichiers et si l'ordinateur doit redémarrer.</li>
+</ul>
+
+<!-- topic: tray | Notifications et paramètres -->
+<h2>Notifications et paramètres</h2>
+<p>Une petite icône à côté de l'horloge vous prévient quand il y a des mises à jour. Elle démarre quand vous ouvrez
+votre session ; vous pouvez la désactiver, ou changer la fréquence à laquelle elle vérifie, dans
+<a href="page:settings">Paramètres</a>. Zypp Desk installe un minuteur qui actualise les dépôts toutes les six
+heures, pour que le décompte reste à jour. Il n'installe jamais rien de lui-même. Si vous l'activez dans
+Paramètres, il télécharge aussi la prochaine mise à jour à l'avance, seulement quand l'ordinateur est branché sur
+secteur et n'utilise pas une connexion à données limitées (comme le partage de connexion d'un téléphone).</p>
+<p>Paramètres contient aussi les options de <code>zypp.conf</code> (paquets recommandés, nombre de noyaux à
+garder, connexions par téléchargement…), le terminal et le programme qui ouvre les fichiers <code>.rpm</code>. Le
+dossier des programmes du web se change dans Programmes du web (<b>Changer de dossier…</b>).</p>
+<p>Zypp Desk parle anglais, catalan, allemand et français. Pour le traduire dans votre langue, consultez
+<a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>

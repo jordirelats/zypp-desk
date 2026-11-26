@@ -58,6 +58,14 @@ def _mirrors_settling():
     return False, None
 
 
+def _names_tumbleweed(line):
+    try:
+        from . import repostate
+        return repostate.names_tumbleweed(line)
+    except Exception:
+        return False
+
+
 def _missing_settling(d, hours):
     """The explanation of a missing file when a new Tumbleweed came out a few hours ago."""
     if hours < 1:
@@ -243,8 +251,9 @@ def explain(text):
                 last = d
     missing = found.get(_missing_title())
     # a missing file of Tumbleweed itself (its address is on the line, or on the one or two before it) a few
-    # hours after a new version: the mirrors are still copying it
-    if missing is not None and any("tumbleweed" in lines[j].lower() for i in missing_at
+    # hours after a new version: the mirrors are still copying it. Only Tumbleweed's own address counts, not an
+    # OBS project or VideoLAN built for Tumbleweed (zypper review 0.5, #13)
+    if missing is not None and any(_names_tumbleweed(lines[j]) for i in missing_at
                                    for j in range(max(0, i - 2), i + 1)):
         settling, hours = _mirrors_settling()
         if settling:

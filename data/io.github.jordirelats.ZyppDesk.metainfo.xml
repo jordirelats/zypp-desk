@@ -16,25 +16,31 @@
     </p>
     <ul>
       <li>Search, install and remove packages, upgrade the distribution, with a simulation first</li>
+      <li>Every question in plain words, with the exact commands underneath</li>
       <li>Your applications in one list, from the repositories, from Flatpak or from the web</li>
       <li>Discover programs by theme in the openSUSE and Flathub catalogues</li>
       <li>Follow programs installed from files published on the web and get their new versions</li>
-      <li>Repositories with a health check, locks, languages, history and maintenance</li>
-      <li>Warnings explained in plain words, with how serious they are</li>
+      <li>Big upgrades that ask whether it is worth waiting, and upgrades in parts when the disk is nearly full</li>
+      <li>Dependency problems explained and grouped by cause, with solutions to choose</li>
+      <li>A tray icon that tells you about updates, including Flatpak apps and firmware</li>
+      <li>The history with snapper snapshots, to undo a change</li>
+      <li>Repositories with a health check and priorities, signing keys and the settings of zypp.conf</li>
+      <li>Bridge packages for RPMs made for Fedora</li>
+      <li>Help in English, Catalan, German and French</li>
     </ul>
   </description>
   <screenshots>
     <screenshot type="default">
       <caption>The home page: updates, Flatpak apps, programs from the web and repositories at a glance</caption>
-      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/home.png</image>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/v0.5.1/docs/screenshots/home.png</image>
     </screenshot>
     <screenshot>
       <caption>Updates: your routine, what there is to update and the package card</caption>
-      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/updates.png</image>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/v0.5.1/docs/screenshots/updates.png</image>
     </screenshot>
     <screenshot>
       <caption>Packages: search with every zypper option</caption>
-      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/packages.png</image>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/v0.5.1/docs/screenshots/packages.png</image>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">io.github.jordirelats.ZyppDesk.desktop</launchable>
@@ -48,11 +54,20 @@
   <content_rating type="oars-1.1"/>
   <provides>
     <binary>zypp-desk</binary>
+    <mediatype>application/x-rpm</mediatype>
   </provides>
-  <requires>
-    <display_length compare="ge">768</display_length>
-  </requires>
+  <recommends>
+    <display_length compare="ge">700</display_length>
+  </recommends>
   <releases>
+    <release version="0.5.1" date="2026-11-26">
+      <description>
+        <p>Fixes from a review from six points of view, and Help in English, Catalan, German and French (F1)
+          with a page of credits. Updates in parts check every part before anything is installed; the tray
+          icon starts at login from the package; questions, the queue review and the problem window are
+          clearer and fit small screens; and a rare crash is fixed.</p>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-11-26">
       <description>
         <p>Questions in plain words with the exact commands underneath, a clearer queue review, a big upgrade

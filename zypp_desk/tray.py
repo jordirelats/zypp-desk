@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The icon in the system tray: it tells you when there are updates (Discover did this before).
 
-'zypp-desk --tray' starts it (at login, from ~/.config/autostart). It is a small process of its own that only
-reads, as the user, never changing anything:
+'zypp-desk --tray' starts it (at login: the package's entry in /etc/xdg/autostart, or one in ~/.config/autostart;
+see migrate_autostart). It is a small process of its own that only reads, as the user, never changing anything:
 - 'zypper list-updates' on the lists that are already on disk: the system timer zypp-desk-refresh refreshes them
   as root, without a password, and never installs anything;
 - 'flatpak remote-ls --updates', the programs from the web (Web sources) and fwupd (firmware);
@@ -34,7 +34,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QMenu, QSizePolicy,
                                QSystemTrayIcon, QToolButton, QVBoxLayout, QWidget)
 
-from . import APP_ID, APP_NAME, backend, flatpak, websources
+from . import APP_ID, APP_NAME, VERSION, backend, flatpak, websources
 from .i18n import _, ngettext
 from .style import BLUE, GREEN, GREEN_DARK, ORANGE, PURPLE
 from .tasks import run_async
@@ -51,6 +51,9 @@ STALE_S = 24 * 3600          # lists of the repositories older than this are sho
 RPMDB_FILES = ("/usr/lib/sysimage/rpm/rpmdb.sqlite", "/usr/lib/sysimage/rpm/Packages.db",
                "/var/lib/rpm/rpmdb.sqlite", "/var/lib/rpm/Packages.db")  # written when packages change
 AUTOSTART_NAME = f"{APP_ID}.tray.desktop"
+# settings["autostart_scheme"]: 2 = the package's entry in /etc/xdg/autostart (0.5), switched off per user with a
+# Hidden=true copy. Before (0.4.x), a plain copy in ~/.config/autostart, deleted to switch it off.
+AUTOSTART_SCHEME = 2
 NAMES_IN_NOTIFICATION = 3
 
 NOTIFY_SERVICE = "org.freedesktop.Notifications"
@@ -73,6 +76,16 @@ def _lock_path():
 
 
 _lock_fd = None
+
+
+def _release_lock():
+    global _lock_fd
+    if _lock_fd is not None:
+        try:
+            os.close(_lock_fd)  # closing the file gives the flock back
+        except OSError:
+            pass
+        _lock_fd = None
 
 
 def _take_lock():
@@ -259,6 +272,71 @@ def autostart_enabled():
     return not re.search(r"^\s*(Hidden\s*=\s*true|X-GNOME-Autostart-enabled\s*=\s*false)\s*$", text, re.M | re.I)
 
 
+_04_KEYS = {"Type", "Name", "Comment", "TryExec", "Exec", "Icon", "Terminal", "StartupNotify", "X-KDE-autostart-phase"}
+
+
+def plain_04_copy(text):
+    """True when a user autostart entry is exactly what Zypp Desk 0.4.x wrote (any language, any Exec): the
+    same keys and values, and nothing that switches it off. Such a copy hides the package's entry for good."""
+    keys = {}
+    for line in (text or "").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("["):
+            if line != "[Desktop Entry]":
+                return False
+            continue
+        k, sep, v = line.partition("=")
+        if not sep:
+            return False
+        keys[k.strip()] = v.strip()
+    return (set(keys) == _04_KEYS and keys["Type"] == "Application" and keys["Name"] == APP_NAME
+            and keys["Icon"] == APP_ID and keys["Terminal"] == "false" and keys["StartupNotify"] == "false"
+            and keys["X-KDE-autostart-phase"] == "2" and keys["Exec"].endswith(" --tray"))
+
+
+def migrate_autostart(settings):
+    """Once, when the package's entry for everyone (/etc/xdg/autostart) is there (packaging review 0.5, #1):
+    - the tray was turned off in 0.4.x (tray_autostart False, or the user entry deleted after it was made):
+      write the Hidden=true copy, so that the package's entry does not start it again;
+    - a plain copy written by 0.4.x is deleted, so that the package's entry is the one used.
+    Marked done in settings["autostart_scheme"]. Returns True when the tray is turned off for this user (a tray
+    that the package's entry has just started should then quit). Called by the window (notifysettings.ensure_tray)
+    and by the tray when it starts, because at login the tray starts before any window."""
+    try:
+        done = int(settings.get("autostart_scheme") or 0) >= AUTOSTART_SCHEME
+    except (TypeError, ValueError):
+        done = False
+    if done or system_autostart_path() is None:
+        return False  # nothing to do, or no package's entry yet (install.sh, the source tree): ask again later
+    user = autostart_path()
+    try:
+        text = user.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        text = None
+    off = settings.get("tray_autostart", True) is False or (bool(settings.get("tray_autostart_done"))
+                                                          and text is None)
+    if off:
+        remove_autostart()  # a Hidden=true copy
+        settings["tray_autostart"] = False
+    elif text is not None and plain_04_copy(text):
+        user.unlink(missing_ok=True)
+    settings["autostart_scheme"] = AUTOSTART_SCHEME
+    settings.save()
+    return off
+
+
+def installed_version():
+    """The VERSION of the Zypp Desk files on disk now (a package upgrade replaces them), or None."""
+    try:
+        text = Path(__file__).with_name("__init__.py").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    m = re.search(r'^VERSION\s*=\s*"([^"]+)"', text, re.M)
+    return m[1] if m else None
+
+
 # ============================================================ what there is to update (in a thread)
 
 def web_updates():
@@ -399,11 +477,21 @@ def reminder_due(settings, now=None):
     return at if at > 0 and (now or time.time()) >= at else 0
 
 
-def reminder_text():
-    """(summary, body) of the reminder, in plain text."""
-    return (_("Time to try the update again"),
-            _("You asked Zypp Desk to remind you. Simulate the update again: the problems that fix themselves may "
-              "be gone by now."))
+def reminder_text(reason=""):
+    """(summary, body) of the reminder, in plain text. reason: settings["update_reminder_reason"]: "problems"
+    (Wait and try again tomorrow, in the problem window), "big" (Remind me tomorrow, before a big update), or ''
+    when it is not known (a neutral text that fits both)."""
+    if reason == "problems":
+        return (_("Time to try the update again"),
+                _("You asked Zypp Desk to remind you today. Simulate the update again: the problems that fix "
+                  "themselves may be gone by now."))
+    if reason == "big":
+        return (_("Time to look at the update again"),
+                _("You asked Zypp Desk to remind you today about the update you put off. Open Updates and run it "
+                  "when it suits you."))
+    return (_("Time to look at the update again"),
+            _("You asked Zypp Desk to remind you today. Simulate the update again: if it had problems that fix "
+              "themselves, they may be gone by now."))
 
 
 def _state_path():
@@ -1049,6 +1137,8 @@ class Tray(QObject):
 
     def _watch_due(self):
         self._sync_watch()
+        if not self.checking and self._restart_if_upgraded():
+            return
         if self.checking:
             self._watch_pending = True
             return
@@ -1057,6 +1147,26 @@ class Tray(QObject):
             self.gap.start(int((WATCH_MIN_GAP_S - since) * 1000) + 1000)
             return
         self.check_now()
+
+    def _restart_if_upgraded(self):
+        """After a package upgrade (the rpm database changed and is quiet again), a tray of the old version
+        starts the new one and quits (packaging review 0.5, #8): it runs for days, and its late imports would
+        load the new files into the old process. True when it is going."""
+        new = installed_version()
+        if not new or new == VERSION:
+            return False
+        _log(f"Zypp Desk {new} is installed now (this tray is {VERSION}): starting the new one")
+        if self.server is not None:
+            self.server.close()
+        QLocalServer.removeServer(socket_name())
+        _release_lock()
+        if not start_tray():  # the new one cannot start: stay
+            _take_lock()
+            self.listen()
+            return False
+        self.icon.hide()
+        QTimer.singleShot(0, self.app.quit)
+        return True
 
     # ------------------------------------------------ checking
     def check_now(self):
@@ -1148,14 +1258,15 @@ class Tray(QObject):
         only once."""
         try:
             from .settings import Settings
-            at = reminder_due(Settings())
+            current = Settings()
+            at = reminder_due(current)
         except Exception as e:
             _log(f"cannot read the settings: {e}")
             return
         if not at:
             return
         if load_state().get("reminded") != at:
-            summary, body = reminder_text()
+            summary, body = reminder_text(current.get("update_reminder_reason") or "")
             nid = self.notifier.send(summary, body, [("default", ""), ("updates", _("Open Updates"))],
                                      notify_icon_name(), {"desktop-entry": APP_ID})
             if nid is None:
@@ -1169,6 +1280,7 @@ class Tray(QObject):
             s = Settings()
             if reminder_due(s) == at:  # a newer reminder set meanwhile stays
                 s["update_reminder_at"] = 0
+                s["update_reminder_reason"] = ""
                 s.save()
             self.settings["update_reminder_at"] = s.get("update_reminder_at", 0)
         except Exception as e:
@@ -1195,7 +1307,13 @@ class Tray(QObject):
 
 
 def run(app, settings):
-    """The tray's whole life. Returns the exit code (0 at once if this user already has a tray)."""
+    """The tray's whole life. Returns the exit code (0 at once if this user already has a tray, or if the tray was
+    turned off before the package's autostart entry started it: see migrate_autostart)."""
+    try:
+        if migrate_autostart(settings):
+            return 0
+    except OSError as e:
+        _log(f"autostart: {e}")
     if tray_running() or not _take_lock():
         return 0
     app.setQuitOnLastWindowClosed(False)  # the popup closing must not end the program

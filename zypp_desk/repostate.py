@@ -9,6 +9,11 @@ Tumbleweed? After a new Tumbleweed version comes out:
 
 Every repository's repodata/repomd.xml has a <revision> (a Unix time, set when it was published) and the
 <timestamp> of each part. Nothing here runs zypper or needs root.
+
+Only the repositories that are rebuilt for each Tumbleweed version (rebuilt_for_tumbleweed: OBS projects built for
+Tumbleweed or Factory, Packman, VideoLAN) can be "behind" (zypper review 0.5, #5): a company's repository (Master
+PDF Editor, Brave, Insync…) publishes when the company releases something, so a problem it causes does not go
+away by waiting a day or two.
 """
 
 import os
@@ -19,6 +24,11 @@ RAW = "/var/cache/zypp/raw"
 HOUR = 3600
 # after a new Tumbleweed version, the mirrors may still be copying it for about this long
 MIRROR_SETTLE_HOURS = 6
+# a repository rebuilt for Tumbleweed is "behind" only while the Tumbleweed it has not caught up with is this new…
+BEHIND_MAX_HOURS = 7 * 24
+# …and only if it published something in the days before that Tumbleweed (it is kept up to date, not abandoned)
+ACTIVE_DAYS = 30
+DAY = 24 * HOUR
 # Tumbleweed's own repositories: the ones that say which version of Tumbleweed is out
 _TW_URL = re.compile(r"download\.opensuse\.org/(tumbleweed/repo/(oss|non-oss)|update/tumbleweed)|"
                      r"/tumbleweed/repo/oss|openSUSE[:_-]?Tumbleweed/?$", re.I)
@@ -56,6 +66,40 @@ def tumbleweed_family(repo):
                 or (repo.get("alias") or "").startswith("openSUSE:") or is_tumbleweed(repo))
 
 
+# OBS projects built for Tumbleweed or Factory ('…/repositories/home:/x/openSUSE_Tumbleweed/', also on a mirror)
+_OBS_TW = re.compile(r"/repositories/.+(tumbleweed|factory)", re.I)
+
+
+def rebuilt_for_tumbleweed(repo):
+    """True for a repository that is rebuilt for each new Tumbleweed version: an OBS project built for Tumbleweed
+    or Factory, Packman or VideoLAN. A company's repository (Brave, Master PDF Editor, MEGA…) is not, even when
+    its address says openSUSE_Tumbleweed: it publishes when the company releases something."""
+    url = (repo.get("url") or "").lower()
+    alias = (repo.get("alias") or "").lower()
+    name = (repo.get("name") or "").lower()
+    if tumbleweed_family(repo):
+        return False
+    if _OBS_TW.search(url):
+        return True
+    return any(word in text for word in ("packman", "videolan") for text in (url, alias, name))
+
+
+_URL = re.compile(r"(?:https?|ftp)://[^\s'\"<>]+", re.I)
+# the path of Tumbleweed's own repositories on any mirror; not '…/openSUSE_Tumbleweed/' (OBS) nor
+# '…/SuSE/Tumbleweed/' (VideoLAN)
+_TW_PATH = re.compile(r"/tumbleweed/repo/(oss|non-oss)(/|$)|/update/tumbleweed(/|$)", re.I)
+
+
+def names_tumbleweed(text):
+    """True when a line of zypper's output names a file or a repository of Tumbleweed itself (its address on any
+    mirror, or the alias of its repositories in quotes), not an OBS project or VideoLAN built for Tumbleweed."""
+    text = text or ""
+    if any(_TW_PATH.search(url) for url in _URL.findall(text)):
+        return True
+    return any(_TW_ALIAS.match(a) or re.fullmatch(r"(openSUSE:)?update-tumbleweed", a, re.I)
+               for a in re.findall(r"'([^'\s]+)'", text))
+
+
 def tumbleweed_published(repos=None, raw=RAW):
     """When the Tumbleweed version you get now was published (Unix time), or None. repos: backend.repos(), or
     None to look at the cache folder names only."""
@@ -81,29 +125,39 @@ def mirrors_settling(repos=None, raw=RAW, now=None, hours=MIRROR_SETTLE_HOURS):
     return h is not None and h < hours
 
 
-def behind_tumbleweed(alias, repos=None, raw=RAW):
-    """True when this repository last published before the current Tumbleweed did: if it is built on top of
-    Tumbleweed (VideoLAN, Packman, an OBS project), it has not been rebuilt for the new version yet.
-    None when it cannot be told."""
-    tw = tumbleweed_published(repos, raw)
-    mine = published_at(alias, raw)
-    if not tw or not mine:
+def behind_tumbleweed(alias, repos=None, raw=RAW, now=None):
+    """True when this repository is rebuilt for Tumbleweed and has not caught up with the current Tumbleweed yet
+    (see state()). None when it cannot be told."""
+    st = state(repos, raw, now)
+    if st["tw_published"] is None or alias not in st["published"]:
         return None
-    return mine < tw
+    return alias in st["behind"]
+
+
+def is_behind(repo, published, tw, tw_hours):
+    """The rule of state(): rebuilt for Tumbleweed, last published before the current Tumbleweed, that Tumbleweed
+    is at most BEHIND_MAX_HOURS old, and the repository published within ACTIVE_DAYS before it."""
+    return bool(published and tw and tw_hours is not None and rebuilt_for_tumbleweed(repo)
+                and published < tw and tw_hours < BEHIND_MAX_HOURS and tw - published <= ACTIVE_DAYS * DAY)
 
 
 def state(repos=None, raw=RAW, now=None):
-    """dict(tw_published, tw_hours, settling, behind=[aliases of enabled repositories published before
-    Tumbleweed]) for the windows that explain problems and the 'is it worth waiting?' question."""
+    """dict(tw_published, tw_hours, settling, published={alias: Unix time} of every enabled repository that is
+    not Tumbleweed's own, behind=[aliases of the repositories rebuilt for Tumbleweed that have not caught up yet:
+    see is_behind()]) for the windows that explain problems and the 'is it worth waiting?' question."""
     tw = tumbleweed_published(repos, raw)
-    out = dict(tw_published=tw, tw_hours=hours_since(tw, now), settling=False, behind=[])
-    if tw is None:
-        return out
-    out["settling"] = out["tw_hours"] < MIRROR_SETTLE_HOURS
+    out = dict(tw_published=tw, tw_hours=hours_since(tw, now), settling=False, behind=[], published={})
     for r in repos or []:
         if not r.get("enabled", True) or tumbleweed_family(r):
             continue
         t = published_at(r["alias"], raw)
-        if t and t < tw:
+        if t:
+            out["published"][r["alias"]] = t
+    if tw is None:
+        return out
+    out["settling"] = out["tw_hours"] < MIRROR_SETTLE_HOURS
+    for r in repos or []:
+        t = out["published"].get(r["alias"])
+        if t and is_behind(r, t, tw, out["tw_hours"]):
             out["behind"].append(r["alias"])
     return out

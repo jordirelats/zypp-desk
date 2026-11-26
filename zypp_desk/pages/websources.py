@@ -19,16 +19,16 @@ from pathlib import Path
 from PySide6.QtCore import QFile, QLocale, Qt, Signal
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QSplitter, QTextBrowser, QToolButton,
+                               QLineEdit, QPushButton, QSplitter, QTextBrowser, QToolButton,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, bridge, websources
-from ..i18n import _, ngettext
+from .. import backend, bridge, question, websources
+from ..i18n import _, ngettext, pgettext
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Page, ask, button, error_box, info_box, muted, plain, tool
-from .bridges import BridgesBox, ask_bridge, ask_unmapped, queue_bridge
+from ..ui import Page, ask, button, error_box, info_box, muted, tool
+from .bridges import RPM_ICON, BridgesBox, ask_bridge, ask_unmapped, queue_bridge
 
 GREY = "#7f8c8d"
 SIG_TEXT = {
@@ -514,15 +514,30 @@ class WebSourcesPage(Page):
         self.ctx.settings["web_folder"] = short
         self.ctx.settings.save()
         followed = [s for s in self.sources if s.get("type") != "manual" and s.get("folder") != short]
-        if followed and ask(self, self.title, _("Save the new versions of the {n} programs you follow in {folder} "
-                                                "too?").format(n=len(followed), folder=short)):
+        if followed and question.ask_change(
+                self, ngettext("Save the new version of the program you follow there too?",
+                               "Save the new versions of the {n} programs you follow there too?",
+                               len(followed)).format(n=len(followed)),
+                window_title=self.title, icon_name="folder-download|folder",
+                items=[("folder-download|folder", short, _("The folder for the programs from the web."))],
+                means=ngettext("the next version of {list} is saved there too. The files you already have stay where "
+                               "they are.", "the next versions of {list} are saved there too. The files you already "
+                               "have stay where they are.", len(followed)).format(
+                    list=", ".join(x["package"] for x in followed)),
+                password=False, help_topic="web",
+                buttons=[("no", _("Only for new programs"), False), ("yes", _("Yes, for all"), True)]) == "yes":
             for s in self.sources:
                 if s.get("type") != "manual":
                     s["folder"] = short
             websources.save(self.sources)
-        if not self._repo_of(short) and ask(self, self.title, _(
-                "{folder} is not a zypper repository. Add it as one? Then zypper sees every RPM you keep there, "
-                "and you can install them by name.").format(folder=short)):
+        if not self._repo_of(short) and question.confirm(
+                self, _("Add {folder} as a zypper repository?").format(folder=short), _("Add it to the queue"),
+                window_title=self.title, icon_name="folder",
+                items=[("folder", pgettext("change", "Add the repository “{name}”").format(
+                    name=_("Programs from the web")), "dir:" + d)],
+                means=_("zypper sees every RPM you keep there, and you can install them by name. Nothing changes "
+                        "until you apply the queue."),
+                password=False, help_topic="web"):
             aliases = set(self.aliases) | {a.target for a in self.ctx.queue.of("repo-add")}
             alias, n = "web-programs", 2
             while alias in aliases:
@@ -899,7 +914,7 @@ class WebSourcesPage(Page):
         view.note(_("Downloaded to {path}").format(path=res["path"]), "ok")
         view.note(_("Version in the file: {version}").format(version=res["version"]), "ok")
         if res["same"]:
-            os.unlink(res["path"])
+            self._drop(res["path"])
             self._remember_file(s["package"], f.get("fingerprint"))
             view.note(_("You already have this version: the file was deleted."), "info")
             info_box(self, self.title, _("{name}: you already have version {version}.").format(
@@ -916,13 +931,13 @@ class WebSourcesPage(Page):
         view.note(_("Signature: {text}").format(text=sig_text(sig)), "ok" if sig == "verified" else "error")
         allow_unsigned = False
         if sig == "bad":
-            os.unlink(res["path"])
+            self._drop(res["path"])
             error_box(self, self.title, _("The signature of the file does not verify: it was deleted."))
             return
         if sig.startswith("nokey:"):
             # signed, but with a key rpm does not know: zypper refuses it (--allow-unsigned-rpm is only for
             # packages without any signature). The vendor's key must be imported first.
-            os.unlink(res["path"])
+            self._drop(res["path"])
             error_box(self, self.title, _(
                 "{name} {version} is signed with the key {key}, which this computer does not know yet, so zypper "
                 "would refuse to install it. Get the vendor's public key from its official web site, check the "
@@ -932,34 +947,30 @@ class WebSourcesPage(Page):
         pinned = s.get("signer")
         if sig == "verified" and pinned and res.get("signer") and res["signer"] != pinned:
             # the same program, signed now by another key that rpm also trusts: it may be a renewed key, or not
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Icon.Critical)
-            box.setWindowTitle(_("A different signing key"))
-            box.setText(_("{name} {version} is signed with the key {new}, but until now it came signed with {old}.")
-                        .format(name=s["package"], version=res["version"], new=res["signer"], old=pinned))
-            box.setInformativeText(_("A vendor sometimes renews its key, but a different key can also mean that the "
-                                     "file does not come from the vendor. Check the vendor's web site before going "
-                                     "on. Add it to the queue anyway, and trust the new key for this program?"))
-            plain(box)
-            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            box.setDefaultButton(QMessageBox.StandardButton.No)
-            answer = box.exec()
-            box.deleteLater()
-            if answer != QMessageBox.StandardButton.Yes:
-                os.unlink(res["path"])
+            if not question.confirm(
+                    self, _("{name} {version} is signed with a different key").format(
+                        name=s["package"], version=res["version"]), _("Add it to the queue anyway"),
+                    window_title=_("A different signing key"), icon_name="security-low|dialog-warning",
+                    items=[(RPM_ICON, "{name} {version}".format(name=s["package"], version=res["version"]),
+                            _("Signed now with the key {new}; until now it came signed with {old}.").format(
+                                new=res["signer"], old=pinned))],
+                    warning=_("A vendor sometimes renews its key, but a different key can also mean that the file "
+                              "does not come from the vendor. Check the vendor's web site before going on."),
+                    means=_("it goes to the queue, and from now on the new key is the one expected for this "
+                            "program. Nothing is installed until you apply the queue."),
+                    password=False, help_topic="web"):
+                self._drop(res["path"])
                 view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
         if sig not in ("verified", "unsigned"):
             # anything else (a damaged or bad signature, an answer rpm never gave before) is never offered
-            os.unlink(res["path"])
+            self._drop(res["path"])
             error_box(self, self.title, _("The signature of the file does not verify: it was deleted."))
             return
+        pending = {"version": res["version"], "fingerprint": f.get("fingerprint"), "unsigned": ""}
         if sig == "unsigned":
-            box = QMessageBox(self)
-            box.setIcon(QMessageBox.Icon.Warning)
-            box.setWindowTitle(_("Package not verified by rpm"))
-            box.setText(_("{name} {version}: {sig}.").format(name=s["package"], version=res["version"],
-                                                             sig=sig_text(sig)))
+            # asked once, after the look at what it needs: in the bridge's question when it needs one (visual
+            # review 0.5, #7), else in a question of its own
             if res["sha256_checked"]:
                 why = _("The file is exactly the one GitHub publishes (SHA-256 checked), but rpm cannot confirm who "
                         "made it.")
@@ -968,72 +979,90 @@ class WebSourcesPage(Page):
             else:
                 why = _("It was downloaded over https from {host}, but nothing else confirms that the file is the "
                         "original.").format(host=urllib.parse.urlsplit(f["url"]).netloc)
-            box.setInformativeText(why + " " + _("Add it to the queue anyway?"))
-            plain(box)
-            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-            box.setDefaultButton(QMessageBox.StandardButton.No)  # Enter does not accept an unchecked package
-            answer = box.exec()
-            box.deleteLater()
-            if answer != QMessageBox.StandardButton.Yes:
-                os.unlink(res["path"])
-                view.note(_("Not accepted: the downloaded file was deleted."), "info")
-                return
+            pending["unsigned"] = why
             allow_unsigned = True
         if sig == "verified" and res.get("signer") and res["signer"] != pinned:
             for x in self.sources:  # remember which key signs this program
                 if x["package"] == s["package"]:
                     x["signer"] = res["signer"]
             websources.save(self.sources)
-        self._remember_file(s["package"], f.get("fingerprint"))
         # The file stays in the private download folder until it is installed, and the queue keeps its
         # SHA-256: Apply checks it again, and only then it moves to your folder (which a cloud may sync).
         path = res["path"]
-        view.note(_("Ready to install: {path}. After installing, it moves to {folder}.").format(
-            path=path, folder=s["folder"]), "ok")
         action = Action("install", path, package=s["package"], allow_unsigned=allow_unsigned,
                         sha256=res["file_sha256"], move_to=s["folder"], signer=res.get("signer") or "")
         # a program made for Fedora may ask for things by their Fedora names (a bridge package, new or a new
         # release of it): look before it goes to the queue
         view.note(_("Looking at what it needs…"), "info")
         run_async(bridge.analyse_file, path, os.path.expanduser(s["folder"]),
-                  on_done=lambda plan, e: self._bridge_checked(s, action, plan, e))
+                  on_done=lambda plan, e: self._bridge_checked(s, action, plan, e, pending))
         return True
 
-    def _bridge_checked(self, s, action, plan, err):
+    @staticmethod
+    def _drop(path):
+        """Delete a download that was not accepted (it may already be gone: code review 0.5, #12)."""
         try:
-            self._queue_download(s, action, plan, err)
+            os.unlink(path)
+        except OSError:
+            pass
+
+    def _bridge_checked(self, s, action, plan, err, pending):
+        try:
+            self._queue_download(s, action, plan, err, pending)
         finally:
             self._download_done()
 
-    def _queue_download(self, s, action, plan, err):
+    def _ask_unsigned(self, s, pending):
+        """The question before a file without a signature goes to the queue (when no bridge question says it)."""
+        return question.confirm(
+            self, _("{name} {version} is not signed").format(name=s["package"], version=pending["version"]),
+            _("Add it to the queue anyway"), window_title=_("Package not verified by rpm"),
+            icon_name="security-low|dialog-warning",
+            items=[(RPM_ICON, "{name} {version}".format(name=s["package"], version=pending["version"]),
+                    _("From {where}.").format(where=websources.origin_text(s)))],
+            warning=pending["unsigned"],
+            means=_("it only goes to the queue: nothing is installed until you apply it."),
+            password=False, help_topic="web")
+
+    def _queue_download(self, s, action, plan, err, pending):
         view = self.ctx.terminal.view
         path = action.target
+        warnings = [_("It is not signed.") + " " + pending["unsigned"]] if pending["unsigned"] else []
         if err or not plan:
             # the look failed (rpm or zypper): the program goes to the queue as before, Simulate tells the rest
             view.note(_("Could not look at what it needs: {error}").format(error=err or "?"), "error")
         elif plan.get("needs_bridge") or plan.get("unmapped"):
             info = plan.get("file") or {"name": s["package"]}
             if plan.get("unmapped"):
-                if not ask_unmapped(self, plan, info):
-                    os.unlink(path)
+                if not ask_unmapped(self, plan, info, warnings=warnings):
+                    self._drop(path)
                     view.note(_("Not accepted: the downloaded file was deleted."), "info")
                     return
-            elif not ask_bridge(self, plan, info, action, self.ctx.settings, s["folder"]):
-                os.unlink(path)
+            elif not ask_bridge(self, plan, info, action, self.ctx.settings, s["folder"], warnings=warnings):
+                self._drop(path)
                 view.note(_("Not accepted: the downloaded file was deleted."), "info")
                 return
             else:
                 try:
                     written = queue_bridge(self.ctx, plan, action, os.path.expanduser(s["folder"]))
                 except (OSError, ValueError) as e:
-                    os.unlink(path)
+                    self._drop(path)
                     error_box(self, self.title, _("The bridge package could not be written: {error}").format(
                         error=e))
                     return
+                self._remember_file(s["package"], pending["fingerprint"])
                 view.note(_("Bridge package written: {path}").format(path=written), "ok")
                 self.sources_changed.emit()
                 view.note(_("Added to the queue with its bridge. Simulate it, then apply it."), "info")
                 return
+            warnings = []  # said in the question above
+        if warnings and not self._ask_unsigned(s, pending):
+            self._drop(path)
+            view.note(_("Not accepted: the downloaded file was deleted."), "info")
+            return
+        self._remember_file(s["package"], pending["fingerprint"])
+        view.note(_("Ready to install: {path}. After installing, it moves to {folder}.").format(
+            path=path, folder=s["folder"]), "ok")
         self.ctx.queue.add(action)
         self.sources_changed.emit()
         view.note(_("Added to the queue. Simulate it, then apply it."), "info")

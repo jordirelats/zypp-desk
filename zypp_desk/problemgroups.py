@@ -19,11 +19,20 @@ The problems come from simulation.problem_items(). With -n, zypper only gives th
 problem; the others are a line each. So the solution that leaves a problem as it is, is made here from the
 packages the problem names (a lock, a removal or, in the queue, leaving the queue), and zypper's own solution
 is used when it has one that does the same.
+
+Keeping a package of another repository as it is can mean keeping some of Tumbleweed's own packages as they are
+too: VideoLAN's vlc-codecs needs 'vlc-noX = 3.0.21', exactly the version you have, and the update replaces
+vlc-noX. Locking only vlc-codecs then fails again at the next simulation (zypper review 0.5, #3). So the whole
+set that needs each other at an exact version is locked in one go, and the text says which Tumbleweed packages
+are held back; a set that is too big is not kept at all. The locks made this way are remembered in the settings
+("temp_locks": temp_lock_records, remember_temp_locks), so that the problem window and Locks can say when the
+repository has published again and they can go.
 """
 
 import fnmatch
 import re
 import subprocess
+import time
 
 from . import repostate
 from .i18n import _, ngettext
@@ -39,6 +48,10 @@ MANY = 4
 # or two is no longer the obvious advice
 CATCH_UP_HOURS = 96
 NAMES_IN_TEXT = 3
+# a repository that has published nothing for this many days is not catching up: waiting will not fix it
+QUIET_DAYS = 7
+# keeping a package as it is may hold back at most this many packages that need each other at an exact version
+MAX_HOLD = 15
 _SYSTEM = ("(System Packages)", "@System", "")
 # files that make a package a program somebody uses, not only a library: it is never removed on its own
 _PROGRAM_FILES = ("/usr/bin/", "/usr/sbin/", "/usr/games/", "/usr/share/applications/", "/opt/")
@@ -124,12 +137,15 @@ def parse_problem(item):
             sv = sim.split_solvable(w)
             if sv["kind"] == "package" and sv["edition"]:
                 sv["state"] = "installed" if key == "deleted" else "to be installed"
+                sv["provider"] = key  # 'deleted': installed, and this update replaces or removes it
                 solvables.append(sv)
-    unlock = []
+    unlock, locks = [], []
     for sol in item.get("solutions") or []:
         unlock += re.findall(r"remove lock to allow (?:removal|installation) of (\S+)", sol.get("raw") or "")
+        locks += [a.target for a in sol.get("actions") or [] if not isinstance(a, dict) and a.kind == "lock"]
     return dict(solvables=solvables, needs=list(dict.fromkeys(needs)),
-                unlock=list(dict.fromkeys(sim.split_solvable(u)["name"] for u in unlock)))
+                unlock=list(dict.fromkeys(sim.split_solvable(u)["name"] for u in unlock)),
+                locks=list(dict.fromkeys(locks)))
 
 
 # ------------------------------------------------------------------ looking the packages up (slow: in a thread)
@@ -198,6 +214,91 @@ def _rpm_users(names):
     return out
 
 
+def _exact(flags, rpm):
+    """True for an rpm dependency with '=' alone (not <=, >=): an exact version."""
+    sense = rpm.RPMSENSE_LESS | rpm.RPMSENSE_GREATER | rpm.RPMSENSE_EQUAL
+    return (flags & sense) == rpm.RPMSENSE_EQUAL
+
+
+def _exact_family(seeds, limit=MAX_HOLD):
+    """({seed: [installed packages tied to it by exact-version dependencies ('vlc-noX = 3.0.21'), both ways and
+    one after the other, the seed first]}, {name: dict(edition, vendor, provides, program)} of those packages).
+    A family that grows past `limit` stops there (it has limit + 1 names: too big to keep). Without python3-rpm,
+    each seed alone."""
+    out, info = {}, {}
+    try:
+        import rpm
+    except ImportError:
+        return {n: [n] for n in seeds}, info
+    ts = rpm.TransactionSet()
+
+    def note(h):
+        n = h["name"]
+        if n not in info:
+            files = h["filenames"] or []
+            info[n] = dict(edition=_hdr_edition(h), vendor=h["vendor"] or "", provides=list(h["providename"] or []),
+                           program=any(f.startswith(_PROGRAM_FILES) for f in files))
+        return n
+    for seed in seeds:
+        seen, todo = [seed], [seed]
+        while todo and len(seen) <= limit:
+            n = todo.pop(0)
+            for h in ts.dbMatch("name", n):
+                note(h)
+                found = []
+                # what it needs at an exact version (not config(…), files or rpmlib(…))
+                for rn, fl, rv in zip(h[rpm.RPMTAG_REQUIRENAME], h[rpm.RPMTAG_REQUIREFLAGS],
+                                      h[rpm.RPMTAG_REQUIREVERSION]):
+                    if rv and _exact(fl, rpm) and not rn.startswith(("rpmlib(", "config(", "/")):
+                        found += [note(p) for p in ts.dbMatch("providename", rn)]
+                # what needs it at an exact version
+                for prov in dict.fromkeys(h["providename"] or []):
+                    if prov.startswith("config("):
+                        continue
+                    for u in ts.dbMatch("requirename", prov):
+                        if u["name"] not in seen and any(
+                                rn == prov and _exact(fl, rpm)
+                                for rn, fl in zip(u[rpm.RPMTAG_REQUIRENAME], u[rpm.RPMTAG_REQUIREFLAGS])):
+                            found.append(note(u))
+                for f in found:
+                    if f not in seen:
+                        seen.append(f)
+                        todo.append(f)
+        out[seed] = seen
+    return out, info
+
+
+def _exact_cap(cap):
+    """'vlc-noX = 3.0.21' → ('vlc-noX', '3.0.21'); None for any other capability (>=, a library…)."""
+    m = re.match(r"^(\S+?)\s*=\s*(\S+)$", cap.strip().strip("'"))
+    return (m[1], m[2]) if m and not m[1].endswith(("<", ">")) else None
+
+
+def _edition_has(edition, ver):
+    """True when an installed edition ('3.0.21-1.1', '1:2.0-3') is the version a capability asks for ('3.0.21' or
+    '3.0.21-1.1')."""
+    def bare(e):
+        return e.split(":", 1)[1] if re.match(r"^\d+:", e or "") else (e or "")
+    e, v = bare(edition), bare(ver)
+    return bool(v) and (e == v or e.startswith(v + "-"))
+
+
+def _seeds(parsed, installed):
+    """Tumbleweed's own installed packages that keeping a package of another repository may hold back: the ones
+    a problem needs at an exact version, the ones the update replaces ('deleted providers') and the ones a
+    zypper solution locks ('keep obsolete X')."""
+    seeds = []
+    for p in parsed:
+        cands = [sv["name"] for sv in p["solvables"] if sv.get("provider") == "deleted"]
+        for cap in p["needs"]:
+            ex = _exact_cap(cap)
+            if ex:
+                cands.append(ex[0])
+        cands += p.get("locks") or []
+        seeds += [n for n in cands if n in installed and _tw_vendor(installed[n]["vendor"])]
+    return list(dict.fromkeys(seeds))[:20]
+
+
 def _search(names, repos):
     """{name: [dict(edition, repo alias ('' for the installed system), status)]} from one 'zypper search' as the
     normal user, or None when zypper could not answer."""
@@ -238,7 +339,7 @@ def collect(items):
               and ".so" not in _cap_name(c)}
     names = sorted(n for n in names if n)[:400]
     facts = dict(parsed=parsed, repos=[], locks=[], installed={}, providers={}, search=None, users={},
-                 state={}, errors=[])
+                 state={}, family={}, temp_locks=[], errors=[])
     for key, fn in (("repos", backend.repos), ("locks", backend.locks)):
         try:
             facts[key] = fn()
@@ -248,6 +349,12 @@ def collect(items):
         facts["installed"], facts["providers"] = _rpm_lookup(names, sorted(caps))
     except Exception as e:
         facts["errors"].append(f"rpm: {e}")
+    try:  # Tumbleweed packages that keeping something as it is would hold back, with what needs them exactly
+        facts["family"], more = _exact_family(_seeds(parsed, facts["installed"]))
+        for n, inf in more.items():
+            facts["installed"].setdefault(n, inf)
+    except Exception as e:
+        facts["errors"].append(f"family: {e}")
     facts["search"] = _search(names, facts["repos"])
     try:
         facts["state"] = repostate.state(facts["repos"])
@@ -337,16 +444,16 @@ def _who(names, limit=NAMES_IN_TEXT):
     return text + ("…" if len(names) > limit else "")
 
 
-def _lock_solution(names):
+def _lock_solution(names, holds=()):
+    """Lock `names` (the packages kept as they are, and the Tumbleweed packages in `holds` that they need exactly
+    as they are now)."""
     text = (_("Keep {pkg} as it is").format(pkg=names[0]) if len(names) == 1 else
             _("Keep {list} as they are").format(list=", ".join(names)))
-    return dict(number=0, text=text,
-                detail=_("The rest goes ahead. They stay at their versions and are locked: they will not change "
-                         "until you unlock them."),
-                detail_now=_("The rest goes ahead. They stay at their versions and are locked: they will not "
-                             "change until you unlock them."),
-                raw="", actions=[Action("lock", n) for n in names], possible=True, recommended=False,
-                synthesized=True)
+    detail = _("The rest goes ahead. They stay at their versions and are locked: they will not change until you "
+               "unlock them.")
+    return dict(number=0, text=text, detail=detail, detail_now=detail, raw="",
+                actions=[Action("lock", n) for n in names], possible=True, recommended=False, synthesized=True,
+                holds_tw=[n for n in names if n in set(holds)])
 
 
 def _remove_solution(names):
@@ -376,8 +483,10 @@ def keep_solution(item, parsed, kind, facts, queued=()):
     - a package that no longer exists and that nothing uses (and is not a program) is removed;
     - in the queue, a queued install that causes it leaves the queue;
     - otherwise its packages are locked at the version you have, with what they need from the same vendor.
-      Tumbleweed's own packages are not locked (that would hold back the whole upgrade), except for a problem
-      of a package you locked yourself: keeping it as it is means keeping what it needs too.
+      Tumbleweed's own packages are locked only when what is kept needs them exactly as they are now (an exact
+      version, or one the update replaces), or zypper's own solution for a package you locked keeps them; then
+      the whole set that needs each other at an exact version is locked in one go (facts["family"]), and the
+      solution says which ones in 'holds_tw'. A set bigger than MAX_HOLD is not kept.
     zypper's own solution is used when it has one that does the same."""
     sols = [s for s in item.get("solutions") or [] if s.get("possible") and s.get("actions")]
     svs = parsed["solvables"]
@@ -403,27 +512,60 @@ def keep_solution(item, parsed, kind, facts, queued=()):
                 return s
         return _discard_solution(leave)
     patterns = [lk["name"] for lk in facts["locks"] if lk.get("type", "package") == "package"]
-    allow_tw = kind == LOCKED
-    vendors = {installed[sv["name"]]["vendor"] for sv in svs if sv["name"] in installed}
-    if not allow_tw:
-        vendors = {v for v in vendors if not _tw_vendor(v)}
+
+    def tw(name):
+        return _tw_vendor(installed.get(name, {}).get("vendor"))
 
     def lockable(name):
-        inst = installed.get(name)
-        return bool(inst) and not _locked(name, patterns) and (allow_tw or not _tw_vendor(inst["vendor"]))
-    names = [sv["name"] for sv in svs if lockable(sv["name"])]
+        return name in installed and not _locked(name, patterns)
+    vendors = {installed[sv["name"]]["vendor"] for sv in svs if sv["name"] in installed and not tw(sv["name"])}
+    own = [sv["name"] for sv in svs if lockable(sv["name"]) and not tw(sv["name"])]
     for cap in parsed["needs"]:
-        names += [n for n in facts["providers"].get(cap, []) if lockable(n) and installed[n]["vendor"] in vendors]
-    names = list(dict.fromkeys(names))
-    for s in sols:
-        locks = _targets(s, "lock")
-        if locks and len(locks) == len(s["actions"]) and (allow_tw or set(locks) <= set(names)):
-            return s
-    return _lock_solution(names) if names else None
+        own += [n for n in facts["providers"].get(cap, []) if lockable(n) and not tw(n)
+                and installed[n]["vendor"] in vendors]
+    # Tumbleweed packages that what is kept needs as they are now
+    deleted = {sv["name"] for sv in svs if sv.get("provider") == "deleted"}
+    needed = []
+    for cap in parsed["needs"]:
+        ex = _exact_cap(cap)
+        for n in facts["providers"].get(cap, []):
+            if not tw(n) or not (ex or n in deleted):
+                continue
+            if ex and ex[0] == n and not _edition_has(installed[n]["edition"], ex[1]):
+                continue  # the version you have is not the one it needs: holding it back would not help
+            needed.append(n)
+    zyp = None
+    if kind == LOCKED:  # zypper's "keep obsolete X" for a package you locked: keeping it means keeping X too
+        for s in sols:
+            locks = _targets(s, "lock")
+            if locks and len(locks) == len(s["actions"]):
+                zyp = s
+                break
+        for n in _targets(zyp, "lock") if zyp else []:
+            (needed if tw(n) else own).append(n)
+    holds = []
+    for n in dict.fromkeys(needed):
+        family = (facts.get("family") or {}).get(n) or [n]
+        if len(family) > MAX_HOLD:
+            return None  # too much of Tumbleweed would stay behind: it cannot be left as it is
+        holds += [f for f in family if f not in holds]
+    if len(holds) > MAX_HOLD:
+        return None
+    own = list(dict.fromkeys(own + [f for f in holds if not tw(f)]))
+    held_tw = [f for f in holds if tw(f) and lockable(f) and f not in own]
+    names = [n for n in own if lockable(n)] + held_tw
+    if not names:
+        return None
+    if not held_tw:
+        for s in sols:
+            locks = _targets(s, "lock")
+            if locks and len(locks) == len(s["actions"]) and set(locks) <= set(names):
+                return s
+    return _lock_solution(names, held_tw)
 
 
-def _behind_text(alias, repo, st):
-    """What a repository that is late usually does, and the advice."""
+def _behind_text(alias, repo, st, n):
+    """What a repository that is late usually does, and the advice (n: how many of its packages)."""
     name = (repo or {}).get("name") or alias
     url = ((repo or {}).get("url") or "").lower()
     low = (alias + " " + name + " " + url).lower()
@@ -433,7 +575,7 @@ def _behind_text(alias, repo, st):
     elif "packman" in low:
         what = _("Packman rebuilds its packages a day or two after each Tumbleweed version. It happens often and "
                  "fixes itself.")
-    elif "download.opensuse.org/repositories/" in url:
+    elif "/repositories/" in url:
         what = _("{repo} is a project of the openSUSE Build Service: it rebuilds its packages for each new "
                  "Tumbleweed, usually within a day or two.").format(repo=name)
     else:
@@ -442,12 +584,56 @@ def _behind_text(alias, repo, st):
     hours = (st or {}).get("tw_hours")
     if hours is not None and hours >= CATCH_UP_HOURS:
         days = int(hours // 24)
-        advice = ngettext("It has had {n} day to catch up. Wait a little longer, or leave them as they are for now.",
-                          "It has had {n} days to catch up. Wait a little longer, or leave them as they are for now.",
-                          days).format(n=days)
+        advice = (ngettext("It has had {n} day to catch up.", "It has had {n} days to catch up.", days).format(n=days)
+                  + " " + ngettext("Wait a little longer, or leave it as it is for now.",
+                                   "Wait a little longer, or leave them as they are for now.", n))
     else:
         advice = _("Recommended: wait a day or two.")
     return what, advice
+
+
+def _thirdparty_text(alias, repo, st, n, now=None):
+    """What a repository that is not catching up means, and the advice: honest about waiting."""
+    name = (repo or {}).get("name") or alias
+    st = st or {}
+    published = (st.get("published") or {}).get(alias)
+    tw = st.get("tw_published")
+    rebuilt = repostate.rebuilt_for_tumbleweed(repo or {"alias": alias})
+    days = int(((now or time.time()) - published) // 86400) if published else None
+    if days is not None and days >= QUIET_DAYS and (not rebuilt or not tw or published < tw):
+        what = ngettext("{repo} has not published anything for {n} day, so waiting will probably not fix it.",
+                        "{repo} has not published anything for {n} days, so waiting will probably not fix it.",
+                        days).format(repo=name, n=days)
+    elif rebuilt:
+        what = _("{repo} is built for Tumbleweed, but these packages do not fit with this update yet.").format(
+            repo=name)
+        return what, ngettext("Usually: leave it as it is for now and try again in a few days.",
+                              "Usually: leave them as they are for now and try again in a few days.", n)
+    else:
+        what = _("{repo} is not part of Tumbleweed and is not rebuilt for each new version: its packages were made "
+                 "for the versions you have now.").format(repo=name)
+    return what, ngettext("Usually: leave it as it is and update the rest. If it keeps happening, look for a newer "
+                          "version or remove it.",
+                          "Usually: leave them as they are and update the rest. If it keeps happening, look for "
+                          "newer versions or remove them.", n)
+
+
+def _temp_locks(facts):
+    """{spec: record} of the locks "leave these as they are" made that still exist, each record with
+    'caught_up' (its repository published after the lock was made)."""
+    names = {lk["name"] for lk in facts.get("locks") or []}
+    published = (facts.get("state") or {}).get("published") or {}
+    out = {}
+    for r in facts.get("temp_locks") or []:
+        if not isinstance(r, dict) or r.get("spec") not in names:
+            continue
+        r = dict(r)
+        try:
+            r["caught_up"] = bool(r.get("repo")) and published.get(r["repo"], 0) > int(r.get("added") or 0)
+        except (TypeError, ValueError):
+            r["caught_up"] = False
+        out[r["spec"]] = r
+    return out
 
 
 def group(items, facts, queued=()):
@@ -491,6 +677,11 @@ def group(items, facts, queued=()):
     return out, keeps
 
 
+def _date(t):
+    from PySide6.QtCore import QDateTime, QLocale
+    return QLocale().toString(QDateTime.fromSecsSinceEpoch(int(t)).date(), QLocale.FormatType.ShortFormat)
+
+
 def _describe(g, items, facts, repos, st):
     kind, pk = g["kind"], g["packages"]
     n = len(pk) or len(g["items"])
@@ -502,13 +693,11 @@ def _describe(g, items, facts, repos, st):
         if kind == BEHIND:
             g["title"] = ngettext("{n} package from {repo} is not up to date yet",
                                   "{n} packages from {repo} are not up to date yet", n).format(n=n, repo=rname)
-            g["detail"], g["advice"] = _behind_text(g["repo"], repo, st)
+            g["detail"], g["advice"] = _behind_text(g["repo"], repo, st, n)
         else:
             g["title"] = ngettext("{n} package from {repo} does not fit with this update",
                                   "{n} packages from {repo} do not fit with this update", n).format(n=n, repo=rname)
-            g["detail"] = _("{repo} is not part of Tumbleweed: its packages were made for the versions you have now, "
-                            "not for the ones this update brings.").format(repo=rname)
-            g["advice"] = _("Usually: leave them as they are for now and try again in a few days.")
+            g["detail"], g["advice"] = _thirdparty_text(g["repo"], repo, st, n)
         g["color"] = ORANGE
         g["repo_name"] = rname
     elif kind == GONE:
@@ -517,9 +706,10 @@ def _describe(g, items, facts, repos, st):
         g["title"] = ngettext("{n} package no longer exists in Tumbleweed",
                               "{n} packages no longer exist in Tumbleweed", n).format(n=n)
         if used:
-            g["detail"] = ngettext("{names}: no repository has it any more, and {users} still uses it.",
-                                   "{names}: no repository has them any more, and {users} still use them.", n).format(
-                names=_who(names), users=_who(used))
+            # the verb goes with {names}, never with {users} (language review 0.5, #7)
+            g["detail"] = ngettext("{names}: no repository has it any more, but it is still used by {users}.",
+                                   "{names}: no repository has them any more, but they are still used by {users}.",
+                                   n).format(names=_who(names), users=_who(used))
             g["advice"] = ngettext("Usually it is kept until what uses it is updated or removed.",
                                    "Usually they are kept until what uses them is updated or removed.", n)
         elif all(name in users for name in names):
@@ -539,10 +729,37 @@ def _describe(g, items, facts, repos, st):
         g["color"] = GREY
     elif kind == LOCKED:
         g["title"] = ngettext("{n} locked package is in the way", "{n} locked packages are in the way", n).format(n=n)
-        g["detail"] = ngettext("You locked {names}, so the update cannot change it.",
-                               "You locked {names}, so the update cannot change them.", n).format(names=_who(names))
-        g["advice"] = _("Usually: if you locked them on purpose, leave these as they are; if not, unlock them in "
-                        "Locks.")
+        temp = _temp_locks(facts)
+        mine = [name for name in names if name in temp]
+        if mine and len(mine) == len(names):
+            # locks that "leave these as they are" made earlier: say so, and whether they can go now
+            recs = [temp[name] for name in mine]
+            g["detail"] = ngettext("Zypp Desk locked {names} on {date} to leave an earlier problem as it was, so the "
+                                   "update cannot change it.",
+                                   "Zypp Desk locked {names} on {date} to leave an earlier problem as it was, so the "
+                                   "update cannot change them.", n).format(
+                names=_who(names), date=_date(min(int(r.get("added") or 0) for r in recs)))
+            rnames = list(dict.fromkeys((repos.get(r.get("repo")) or {}).get("name") or r.get("repo")
+                                        for r in recs if r.get("repo")))
+            if rnames and all(r.get("caught_up") for r in recs if r.get("repo")):
+                g["advice"] = ngettext("{repo} has published since then: unlock it in Locks and simulate again.",
+                                       "{repo} has published since then: unlock them in Locks and simulate again.",
+                                       n).format(repo=", ".join(rnames))
+            elif rnames:
+                g["advice"] = ngettext("Unlock it in Locks once {repo} has caught up.",
+                                       "Unlock them in Locks once {repo} has caught up.", n).format(
+                    repo=", ".join(rnames))
+            else:
+                g["advice"] = ngettext("Unlock it in Locks when you no longer need it.",
+                                       "Unlock them in Locks when you no longer need them.", n)
+        else:
+            g["detail"] = ngettext("You locked {names}, so the update cannot change it.",
+                                   "You locked {names}, so the update cannot change them.", n).format(
+                names=_who(names))
+            g["advice"] = ngettext("Usually: if you locked it on purpose, leave it as it is; if not, unlock it in "
+                                   "Locks.",
+                                   "Usually: if you locked them on purpose, leave them as they are; if not, unlock "
+                                   "them in Locks.", n)
         g["color"] = BLUE
     else:
         n = len(g["items"])
@@ -554,9 +771,11 @@ def _describe(g, items, facts, repos, st):
     g["count"] = n
 
 
-def analyse(items, queued=()):
-    """group(items, collect(items)): the groups and the solutions that leave each problem as it is."""
+def analyse(items, queued=(), temp_locks=()):
+    """group(items, collect(items)): the groups and the solutions that leave each problem as it is. temp_locks:
+    settings["temp_locks"] (the locks an earlier "leave these as they are" made)."""
     facts = collect(items)
+    facts["temp_locks"] = list(temp_locks or [])
     groups, keeps = group(items, facts, queued)
     return dict(groups=groups, keeps=keeps, facts=facts)
 
@@ -569,76 +788,206 @@ def fallback(items):
         try:
             parsed.append(parse_problem(it))
         except Exception:
-            parsed.append(dict(solvables=[], needs=[], unlock=[]))
+            parsed.append(dict(solvables=[], needs=[], unlock=[], locks=[]))
     facts = dict(parsed=parsed, repos=[], locks=[], installed={}, providers={}, search=None, users={}, state={},
-                 errors=["not looked up"])
-    groups, keeps = group(items, facts)
+                 family={}, temp_locks=[], errors=["not looked up"])
+    groups, _keeps = group(items, facts)
     return dict(groups=groups, keeps=[None] * len(items), facts=facts)
 
 
 # ------------------------------------------------------------------ "Update the rest and leave these as they are"
 
-def keep_text(groups, keeps):
-    """What "Update the rest and leave these as they are" does, said honestly, from the solutions of keeps."""
-    held, removed, discarded, cannot = [], [], set(), 0
-    n_held = n_removed = 0
+def _join(parts):
+    """'a', or 'a, b and c' (translatable)."""
+    parts = list(parts)
+    if len(parts) <= 1:
+        return "".join(parts)
+    return _("{list} and {last}").format(list=", ".join(parts[:-1]), last=parts[-1])
+
+
+def _cap(text):
+    return text[:1].upper() + text[1:]
+
+
+def keep_summary(groups, keeps):
+    """What "Update the rest and leave these as they are" does, said honestly (visual review 0.5, #6):
+    dict(title (what really happens: "Update the rest: lock 12 packages and remove 2"), lines (one short line per
+    cause), warning ('' or which problems will come back), locks, removes, discards (how many packages),
+    holds (Tumbleweed packages held back with them))."""
+    lines, back = [], []
+    cannot = 0
+    all_locks, all_rms, all_disc, holds = set(), set(), set(), []
     for g in groups:
-        mine = set(g["packages"])
-        locks, rms, n_lock, n_rm = set(), set(), 0, 0
+        locks, rms, n_lock, n_rm, n_no = set(), set(), 0, 0, 0
         for i in g["items"]:
             s = keeps[i]
             if s is None:
-                cannot += 1
+                n_no += 1
                 continue
             acts = s.get("actions") or []
             if acts and all(isinstance(a, dict) for a in acts):  # a queued install leaves the queue
-                discarded |= {a["target"] for a in acts}
+                all_disc |= {a["target"] for a in acts}
             elif acts and all(not isinstance(a, dict) and a.kind == "remove" for a in acts):
                 rms |= {a.target for a in acts}
                 n_rm += 1
             else:
                 locks |= {a.target for a in acts if not isinstance(a, dict) and a.kind == "lock"}
                 n_lock += 1
+                holds += [h for h in s.get("holds_tw") or [] if h not in holds]
+        all_locks |= locks
+        all_rms |= rms
         every = len(g["items"])  # the whole group goes one way: the same number as its title
+        kind = g["kind"]
+        # the lines count packages, as the title does ("lock 12 packages"): what is locked for a cause is its
+        # packages and what they need from the same place; Tumbleweed's own get a line of their own
         if n_rm:
-            n = g["count"] if n_rm == every and g["kind"] != OTHER else (len(rms & mine) or n_rm)
-            removed.append(ngettext("the one that no longer exists", "the {n} that no longer exist", n).format(n=n))
-            n_removed += n
-        if n_lock:
-            if g["kind"] == OTHER:
-                n = n_lock
-                held.append(ngettext("the other one", "the other {n}", n).format(n=n))
+            n = len(rms)
+            lines.append(ngettext("{n} package that no longer exists: removed.",
+                                  "{n} packages that no longer exist: removed.", n).format(n=n))
+        n = len(locks - set(holds))
+        if n_lock and n:
+            if kind in (BEHIND, THIRDPARTY):
+                lines.append(ngettext("{n} package from {repo}: locked at the version you have.",
+                                      "{n} packages from {repo}: locked at the versions you have.", n).format(
+                    n=n, repo=g.get("repo_name") or g["repo"]))
+            elif kind == LOCKED:
+                lines.append(ngettext("{n} package that the locked ones need: locked at the version you have.",
+                                      "{n} packages that the locked ones need: locked at the versions you have.",
+                                      n).format(n=n))
+            elif kind == GONE:
+                lines.append(ngettext("{n} package that no longer exists: locked as it is.",
+                                      "{n} packages that no longer exist: locked as they are.", n).format(n=n))
             else:
-                n = g["count"] if n_lock == every else (len(locks & mine) or n_lock)
-                if g["kind"] in (BEHIND, THIRDPARTY):
-                    held.append(ngettext("the one from {repo}", "the {n} from {repo}", n).format(
-                        n=n, repo=g.get("repo_name") or g["repo"]))
-                elif g["kind"] == LOCKED:
-                    held.append(ngettext("the locked one", "the {n} locked ones", n).format(n=n))
-                else:
-                    held.append(ngettext("the one that no longer exists", "the {n} that no longer exist",
-                                         n).format(n=n))
-            n_held += n
+                lines.append(ngettext("Other problems: {n} package locked at the version you have.",
+                                      "Other problems: {n} packages locked at the versions you have.", n).format(n=n))
+        if n_no:
+            cannot += n_no
+            n = g["count"] if n_no == every and kind != OTHER else n_no
+            if kind in (BEHIND, THIRDPARTY):
+                back.append(ngettext("the one from {repo}", "the {n} from {repo}", n).format(
+                    n=n, repo=g.get("repo_name") or g["repo"]))
+            elif kind == LOCKED:
+                back.append(ngettext("the locked one", "the {n} locked ones", n).format(n=n))
+            elif kind == GONE:
+                back.append(ngettext("the one that no longer exists", "the {n} that no longer exist", n).format(n=n))
+            else:
+                back.append(ngettext("the other one", "the other {n}", n).format(n=n))
+    if all_disc:
+        lines.append(ngettext("{names}: leaves the queue.", "{names}: leave the queue.", len(all_disc)).format(
+            names=_who(sorted(all_disc))))
+    if holds:  # never silently: Tumbleweed's own packages stay behind with them
+        lines.append(ngettext("{names} (from Tumbleweed): also locked at the version you have, because what is kept "
+                              "needs exactly that one.",
+                              "{n} packages from Tumbleweed ({names}): also locked at the versions you have, because "
+                              "what is kept needs exactly those.", len(holds)).format(n=len(holds), names=_who(holds)))
     parts = []
-    if held:
-        text = ngettext("{what} stays as it is now and is locked until you unlock it.",
-                        "{what} stay as they are now and are locked until you unlock them.", n_held).format(
-            what=", ".join(held))
-        parts.append(text[:1].upper() + text[1:])
-    if removed:
-        text = ngettext("{what} is removed.", "{what} are removed.", n_removed).format(what=", ".join(removed))
-        parts.append(text[:1].upper() + text[1:])
-    if discarded:
-        parts.append(ngettext("{names} leaves the queue.", "{names} leave the queue.", len(discarded)).format(
-            names=_who(sorted(discarded))))
+    if all_locks:
+        parts.append(ngettext("lock {n} package", "lock {n} packages", len(all_locks)).format(n=len(all_locks)))
+    if all_rms:
+        parts.append(ngettext("remove {n} package", "remove {n} packages", len(all_rms)).format(n=len(all_rms)))
+    if all_disc:
+        parts.append(ngettext("take {n} package out of the queue", "take {n} packages out of the queue",
+                              len(all_disc)).format(n=len(all_disc)))
+    title = _("Update the rest: {what}").format(what=_join(parts)) if parts else ""
+    warning = ""
     if cannot:
-        parts.append(ngettext("Zypp Desk cannot leave {n} problem as it is: it will appear again after the "
-                              "simulation.",
-                              "Zypp Desk cannot leave {n} problems as they are: they will appear again after the "
-                              "simulation.", cannot).format(n=cannot))
-    return " ".join(parts)
+        warning = _cap(ngettext("{what} cannot be left as it is: it will come back in the next simulation.",
+                                "{what} cannot be left as they are: they will come back in the next simulation.",
+                                cannot).format(what=_join(back)))
+    return dict(title=title, lines=lines, warning=warning, locks=len(all_locks), removes=len(all_rms),
+                discards=len(all_disc), holds=holds)
+
+
+def keep_text(groups, keeps):
+    """keep_summary() in one paragraph: its lines, then its warning."""
+    k = keep_summary(groups, keeps)
+    return " ".join(k["lines"] + ([k["warning"]] if k["warning"] else []))
 
 
 def lock_count(keeps):
     """How many packages "leave these as they are" locks in all."""
     return len({a.target for s in keeps if s for a in s["actions"] if not isinstance(a, dict) and a.kind == "lock"})
+
+
+# ------------------------------------------------------------------ the locks "leave these as they are" made
+
+def temp_lock_records(groups, keeps, now=None):
+    """The locks that "Update the rest and leave these as they are" adds, to remember in settings["temp_locks"]:
+    [dict(spec, type, repo (the alias of the repository whose packages were kept, '' when none), added (Unix
+    time), tw (a Tumbleweed package held back with them))]."""
+    now = int(now or time.time())
+    out = {}
+    for g in groups:
+        for i in g["items"]:
+            s = keeps[i] if i < len(keeps) else None
+            if not s:
+                continue
+            tw = set(s.get("holds_tw") or [])
+            for a in s.get("actions") or []:
+                if not isinstance(a, dict) and a.kind == "lock":
+                    out.setdefault((a.target, a.opts.get("type", "package")), dict(
+                        spec=a.target, type=a.opts.get("type", "package"), repo=g.get("repo") or "", added=now,
+                        tw=a.target in tw))
+    return list(out.values())
+
+
+def remember_temp_locks(settings, records):
+    """Add the records to settings["temp_locks"] (a record of the same lock is replaced) and save."""
+    if not records:
+        return
+    have = {(r["spec"], r.get("type", "package")) for r in records}
+    old = [r for r in settings.get("temp_locks") or []
+           if isinstance(r, dict) and (r.get("spec"), r.get("type", "package")) not in have]
+    settings["temp_locks"] = old + list(records)
+    settings.save()
+
+
+def forget_temp_locks(settings, specs):
+    """Take these locks out of settings["temp_locks"] (after they are unlocked) and save."""
+    specs = set(specs)
+    old = [r for r in settings.get("temp_locks") or [] if isinstance(r, dict)]
+    keep = [r for r in old if r.get("spec") not in specs]
+    if len(keep) != len(old):
+        settings["temp_locks"] = keep
+        settings.save()
+
+
+def temp_locks(settings, locks, repos=None, published=None):
+    """The locks an earlier "leave these as they are" made that still exist: a list of the records of
+    settings["temp_locks"], each with 'caught_up' (True when its repository has published since the lock was
+    made: it can probably go now) and 'repo_name'. locks: backend.locks(); repos: backend.repos() (for the
+    names); published: {alias: Unix time}, or None to read it from zypper's cache (repostate.published_at)."""
+    names = {lk["name"] for lk in locks or []}
+    by_alias = {r["alias"]: r for r in repos or []}
+    out = []
+    for r in settings.get("temp_locks") or []:
+        if not isinstance(r, dict) or r.get("spec") not in names:
+            continue
+        r = dict(r)
+        repo = r.get("repo") or ""
+        t = (published or {}).get(repo) if published is not None else (repostate.published_at(repo) if repo else None)
+        try:
+            r["caught_up"] = bool(repo and t and t > int(r.get("added") or 0))
+        except (TypeError, ValueError):
+            r["caught_up"] = False
+        r["repo_name"] = (by_alias.get(repo) or {}).get("name") or repo
+        out.append(r)
+    return out
+
+
+def temp_locks_note(records):
+    """One sentence about the locks an earlier "leave these as they are" made (temp_locks()), or ''."""
+    if not records:
+        return ""
+    names = [r["spec"] for r in records]
+    n = len(names)
+    date = _date(min(int(r.get("added") or 0) for r in records))
+    text = _("Zypp Desk locked {names} on {date} to leave a problem as it was.").format(names=_who(names), date=date)
+    caught = list(dict.fromkeys(r["repo_name"] for r in records if r.get("caught_up") and r.get("repo_name")))
+    if caught:
+        text += " " + ngettext("{repo} has published since then: you can probably unlock it in Locks.",
+                               "{repo} has published since then: you can probably unlock them in Locks.", n).format(
+            repo=_join(caught))
+    else:
+        text += " " + ngettext("You can unlock it in Locks.", "You can unlock them in Locks.", n)
+    return text

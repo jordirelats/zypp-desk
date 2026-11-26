@@ -12,12 +12,12 @@ from PySide6.QtCore import QLocale, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from .. import backend, tray
+from .. import backend, question, tray
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import GREEN, ORANGE, dot
 from ..tasks import run_async
-from ..ui import Card, ask, error_box, mono, muted
+from ..ui import Card, error_box, mono, muted
 
 AHEAD_FLAG = Path("/etc/zypp-desk/download-ahead")  # read by zypp-desk-refresh, written by the helper
 TIMER = "zypp-desk-refresh.timer"
@@ -104,8 +104,14 @@ def _when(ts):
 
 
 def ensure_tray(settings):
-    """Call when the window starts. The first time (tray_autostart on, no autostart file yet), put the tray in
-    the autostart folder; then start the tray if it should run at login and none is running."""
+    """Call when the window starts. Once, bring an autostart set up by 0.4.x in line with the package's entry
+    (tray.migrate_autostart: a tray turned off stays off). The first time (tray_autostart on, no autostart file
+    yet), put the tray in the autostart folder; then start the tray if it should run at login and none is
+    running."""
+    try:
+        tray.migrate_autostart(settings)
+    except OSError:
+        pass
     if not settings.get("tray_autostart", True):
         return
     if not settings.get("tray_autostart_done"):
@@ -264,26 +270,43 @@ class NotifyCard(Card):
 
     # ------------------------------------------------ download ahead (root, through the helper)
     def _ahead_toggled(self, on):
-        if on:
-            title = _("Download the updates ahead?")
-            text = _("The system timer will also download the packages of the next upgrade, without installing "
-                     "them. They wait in zypper's cache (/var/cache/zypp/packages) until “Run the routine” "
-                     "installs them: a big upgrade can take a few gigabytes.\n\n"
-                     "It only downloads when the computer is plugged in and the connection is not metered (a "
-                     "phone hotspot). While it downloads, the computer does not go to sleep, also when you close "
-                     "the lid: for {minutes} minutes at most, then it goes on at the next run.\n\n"
-                     "It asks for the administrator password once.").format(minutes=DOWNLOAD_MINUTES)
-        else:
-            title = _("Stop downloading the updates ahead?")
-            text = _("What was already downloaded stays until the next upgrade uses it.\n\nIt asks for the "
-                     "administrator password once.")
-        if not ask(self, title, text):
+        step = Step("download-ahead", ["on" if on else "off"], root=True)
+        if not self._ask_ahead(on, step):
             self._quietly(self.sw_ahead, AHEAD_FLAG.exists())
             return
-        started = self.ctx.run([Step("download-ahead", ["on" if on else "off"], root=True)],
-                               _("Download updates ahead"), on_done=lambda _ok: self._ahead_done())
+        started = self.ctx.run([step], _("Download updates ahead"), on_done=lambda _ok: self._ahead_done())
         if started is False:
             self._quietly(self.sw_ahead, AHEAD_FLAG.exists())
+
+    def _ask_ahead(self, on, step):
+        """The question before switching the download ahead on or off (a change as root): what it does in words,
+        what it means, the commands; Enter is "Not yet" (visual review 0.5, #8)."""
+        if on:
+            title = _("Download the updates ahead?")
+            items = [("folder-download|download", _("Download the next upgrade ahead, without installing it"),
+                      _("Each time the system timer refreshes the repositories, it also downloads the packages of "
+                        "the next upgrade. They wait in zypper's cache (/var/cache/zypp/packages) until “Run the "
+                        "routine” installs them."))]
+            means = _("“Run the routine” will go faster, and a big upgrade can take a few gigabytes on the disk "
+                      "until then. It only downloads when the computer is plugged in and the connection is not "
+                      "metered (a phone hotspot). While it downloads, the computer does not go to sleep, also when "
+                      "you close the lid: for {minutes} minutes at most, then it goes on at the next run.").format(
+                minutes=DOWNLOAD_MINUTES)
+            commands = [(_("Now, once:"), [step.display()]),
+                        (_("Then, each time the timer runs (as root, without asking):"), list(TIMER_COMMANDS))]
+            yes = _("Yes, download ahead")
+        else:
+            title = _("Stop downloading the updates ahead?")
+            items = [("folder-download|download", _("Stop downloading the next upgrade ahead"),
+                      _("The system timer only refreshes the repositories again."))]
+            means = _("what was already downloaded stays until the next upgrade uses it.")
+            commands = [(_("Now, once:"), [step.display()]),
+                        (_("Then, each time the timer runs (as root, without asking):"),
+                         [TIMER_COMMANDS[0], TIMER_COMMANDS[2]])]
+            yes = _("Yes, stop downloading ahead")
+        return question.confirm(self, title, yes, window_title=_("Notifications"), icon_name="folder-download",
+                                items=items, means=means, commands_=commands,
+                                commands_title=_("The commands it will use, in this order:"), help_topic="tray")
 
     def _ahead_done(self):
         self._quietly(self.sw_ahead, AHEAD_FLAG.exists())

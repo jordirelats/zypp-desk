@@ -10,7 +10,9 @@ from .. import appicons, backend
 from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, RED, dot
 from ..tasks import run_async
-from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted
+from ..txqueue import Action
+from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted, tool
+from .markbar import MarkBar, is_checked
 from .pkgdetails import PackageDetails
 
 KIND_LABELS = [("package", _("Packages")), ("pattern", _("Patterns")), ("patch", _("Patches")),
@@ -100,6 +102,9 @@ class PackagesPage(Page):
             lists.addWidget(b)
 
         self.info = muted("", self, wrap=False)
+        # mark several and do the same with all of them (mockup multiple-v1-A)
+        self.mark_all_btn = tool(_("Mark all"), "edit-select-all", self.toggle_mark_all)
+        self.mark_all_btn.setVisible(False)
 
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels([_("Status"), _("Name"), _("Summary"), _("Version"), _("Repository")])
@@ -116,8 +121,19 @@ class PackagesPage(Page):
         self.tree.setColumnWidth(3, 150)
 
         self.details = PackageDetails(self, ctx, self)
+        self.markbar = MarkBar(self.mark_action, self.unmark_all, self)
+        left = QWidget(self)
+        lv = QVBoxLayout(left)
+        lv.setContentsMargins(0, 0, 0, 0)
+        lv.setSpacing(6)
+        lv.addWidget(self.tree, 1)
+        lv.addWidget(self.markbar)
+        self._mark_timer = QTimer(self)  # "Mark all" ticks hundreds of rows: count them once
+        self._mark_timer.setSingleShot(True)
+        self._mark_timer.timeout.connect(self._update_markbar)
+        self.tree.itemChanged.connect(lambda _it, col: col == 0 and self._mark_timer.start(0))
         split = RoomSplitter(Qt.Orientation.Horizontal, self)
-        split.addWidget(self.tree)
+        split.addWidget(left)
         split.addWidget(self.details)
         split.setStretchFactor(0, 3)
         split.setStretchFactor(1, 2)
@@ -126,7 +142,10 @@ class PackagesPage(Page):
         lay.addLayout(top)
         lay.addWidget(chips_box)
         lay.addWidget(lists_box)
-        lay.addWidget(self.info)
+        info_row = QHBoxLayout()
+        info_row.addWidget(self.info, 1)
+        info_row.addWidget(self.mark_all_btn)
+        lay.addLayout(info_row)
         lay.addWidget(split, 1)
 
         # the queue changes often (and in bursts): repaint once, later, and only if this page is in front
@@ -197,6 +216,8 @@ class PackagesPage(Page):
         opts = {k: c.isChecked() for k, c in self.chips.items()}
         self.info.setText(_("Searching…"))
         self.tree.clear()
+        self.mark_all_btn.setVisible(False)
+        self._update_markbar()
         run_async(backend.search, term, kind=self.kind.currentData(), status=self.status.currentData(),
                   repo=self.repo.currentData() or None, special=special, **opts,
                   on_done=lambda res, err: self._searched(sid, res, err, special))
@@ -239,10 +260,14 @@ class PackagesPage(Page):
             it = QTreeWidgetItem(self.tree, ["", d["name"], d["summary"], ref["edition"] if ref else "",
                                              ref["repo"] if ref else ""])
             it.setData(0, Qt.ItemDataRole.UserRole, d)
+            it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+            it.setCheckState(0, Qt.CheckState.Unchecked)
             it.setIcon(1, self.pkg_icon(d))
             if len(d["versions"]) > 1:
                 it.setToolTip(3, _("{n} versions available").format(n=len(d["versions"])))
             self._paint_status(it, d)
+        self.mark_all_btn.setVisible(n > 0)
+        self._update_markbar()
         # keep the order of the search (the exact name first); clicking a header sorts as usual
         self.tree.header().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         self.tree.setSortingEnabled(True)
@@ -319,6 +344,70 @@ class PackagesPage(Page):
         f = it.font(0)
         f.setBold(bool(color and color != "#1d99f3"))
         it.setFont(0, f)
+
+    # ------------------------------------------------------------ marking several
+    def _items(self):
+        return [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
+
+    def marked(self):
+        """The packages ticked in the list (their dicts)."""
+        return [it.data(0, Qt.ItemDataRole.UserRole) for it in self._items()
+                if is_checked(it.checkState(0)) and it.data(0, Qt.ItemDataRole.UserRole)]
+
+    def _set_all(self, on):
+        state = Qt.CheckState.Checked if on else Qt.CheckState.Unchecked
+        self.tree.blockSignals(True)  # one count at the end, not one per row
+        try:
+            for it in self._items():
+                it.setCheckState(0, state)
+        finally:
+            self.tree.blockSignals(False)
+        self.tree.viewport().update()
+        self._update_markbar()
+
+    def toggle_mark_all(self):
+        items = self._items()
+        self._set_all(not (items and all(is_checked(it.checkState(0)) for it in items)))
+
+    def unmark_all(self):
+        self._set_all(False)
+
+    def _update_markbar(self):
+        marked = self.marked()
+        n = len(marked)
+        items = self._items()
+        self.mark_all_btn.setText(_("Unmark all") if items and n == len(items) else _("Mark all"))
+        to_install = [d for d in marked if not d["installed"]]
+        have = [d for d in marked if d["installed"]]
+        lockable = [d for d in marked if d["kind"] == "package" and d["name"] not in self.locked_names]
+        parts = []
+        if to_install:
+            parts.append(ngettext("{n} to install", "{n} to install", len(to_install)).format(n=len(to_install)))
+        if have:
+            parts.append(ngettext("{n} you have", "{n} you have", len(have)).format(n=len(have)))
+        actions = [
+            ("lock", ngettext("Lock it", "Lock them", len(lockable)), bool(lockable), False),
+            ("remove", ngettext("Remove the one you have", "Remove the {n} you have", len(have)).format(n=len(have)),
+             bool(have), False),
+            ("install", ngettext("Install it", "Install the {n}", len(to_install)).format(n=len(to_install)),
+             bool(to_install), True),
+        ]
+        self.markbar.set_state(n, ngettext("{n} marked", "{n} marked", n).format(n=n), ", ".join(parts), actions)
+
+    def mark_action(self, key):
+        """Every marked package to the queue: install the ones you do not have, remove or lock. Nothing changes until
+        the queue is applied, as with one package."""
+        marked = self.marked()
+        with self.ctx.queue.batch():
+            for d in marked:
+                target = d["name"] if d["kind"] == "package" else f"{d['kind']}:{d['name']}"
+                if key == "install" and not d["installed"]:
+                    self.ctx.queue.add(Action("install", target, package=d["name"]))
+                elif key == "remove" and d["installed"]:
+                    self.ctx.queue.add(Action("remove", target, package=d["name"]))
+                elif key == "lock" and d["kind"] == "package" and d["name"] not in self.locked_names:
+                    self.ctx.queue.add(Action("lock", d["name"]))
+        self.unmark_all()
 
     # ------------------------------------------------------------ details
     def show_details(self, item):

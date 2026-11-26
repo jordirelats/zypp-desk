@@ -1,5 +1,30 @@
 -------------------------------------------------------------------
-Thu Nov 26 20:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+Thu Nov 26 09:18:23 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.1, fixes from a review from six points of view and:
+  * Help in English, Catalan, German and French (F1), with links that
+    open each section, and About with the version, credits and license
+  * Updates in parts: every part is tried with zypper before anything
+    is installed; packages that need a decision wait for the final dup,
+    which only runs if every part worked; a small update can still run
+    when only the safety margin is missing
+  * Many problems: "leave them as they are" locks what must stay
+    together in one round, says which Tumbleweed packages it holds back,
+    and Locks shows those locks with a button to unlock them; only
+    repositories rebuilt for Tumbleweed count as "not up to date yet"
+  * Opened .rpm files are installed from a private copy, and unsigned
+    files (bridges first) get commands of their own
+  * Keys are linked to a repository only when that is known for sure,
+    with the whole fingerprint shown
+  * The tray icon stays off for whoever turned it off, restarts itself
+    after an upgrade, and the reminder works without the window
+  * Sidebar fits small windows (Help and About under it), the problem
+    window and the questions fit small screens, big queues stay fast
+  * A rare crash (Python's collector in a worker thread) is fixed
+  * Recommends fwupd and xdg-utils, suggests snapper
+
+-------------------------------------------------------------------
+Thu Nov 26 07:45:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.0:
   * Every question that changes the system says what will be done in

@@ -19,7 +19,9 @@ openSUSE equivalent, found in this order:
 Every equivalent is checked here: the openSUSE package is installed, or an enabled repository has it.
 
 build_bridge(plan, folder) writes the package (rpmwrite, no rpmbuild): zypp-desk-bridge-<program>, version 1,
-release N. Its description says which program it is for and which names it translates, so nothing else has to
+release N. Each Fedora name is provided with the version of the openSUSE package it stands for ("fontpackages-
+filesystem = 84.87"), never without one: an unversioned provide would also meet "fontpackages-filesystem >= 99" of
+a later program, and zypper would never pull the real package or say that what is here is too old. Its description says which program it is for and which names it translates, so nothing else has to
 be stored: installed_bridges() and check_bridges() read it back from rpm.
 """
 
@@ -349,16 +351,46 @@ def _same_place(path):
 
 
 def _provide_version(flags, ver, target_ver):
-    """The version the bridge gives a Fedora name: '' when the program asks for no version; the openSUSE
-    package's version when it meets what the program asks for; None when it does not (or nobody knows it)."""
-    if not ver or not flags & (SENSE_LESS | SENSE_GREATER | SENSE_EQUAL):
-        return ""
+    """The version the bridge gives a Fedora name: always the version of the openSUSE package it stands for
+    (without its release), also when the program asks for no version. An unversioned provide would meet any
+    versioned requirement of a later program ("nss >= 99"), and zypper would never pull the real package or
+    say it is too old (zypper review 0.5, #6). None when that version does not meet what the program asks for,
+    or nobody knows it."""
     if not target_ver:
         return None
     tv = _without_release(target_ver)
+    if not ver or not flags & (SENSE_LESS | SENSE_GREATER | SENSE_EQUAL):
+        return tv
     if ":" in ver and ":" not in tv:  # Fedora writes an epoch openSUSE may not have
         tv = ver.split(":", 1)[0] + ":" + tv
     return tv if satisfies(SENSE_EQUAL, tv, flags, ver) else None
+
+
+def installed_evr(names):
+    """{package: 'epoch:version-release' of its newest installed edition}, one rpm call (packages that are not
+    installed are left out)."""
+    from .backend import vercmp
+    names = sorted({n for n in names if n and not n.startswith("/")})
+    if not names:
+        return {}
+    p = _rpm(["-q", "--qf", "%{NAME}\t%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}\n", "--", *names])
+    out = {}
+    for line in p.stdout.splitlines():
+        f = line.split("\t")
+        if len(f) == 2 and f[0] in names and f[1]:  # "package x is not installed" has no tab
+            if f[0] not in out or vercmp(f[1], out[f[0]]) > 0:
+                out[f[0]] = f[1]
+    return out
+
+
+def capability_version(cap):
+    """The version an installed package gives a capability ('3.24.43-1.1' for libgtk-3-0): the version written
+    with the provide, else the version of the package that provides it. '' when nothing installed provides it."""
+    who = [(pkg, pv) for pkg, _pf, pv in rpm_providers([cap]).get(cap, []) if _real(pkg)]
+    if not who:
+        return ""
+    pkg, pv = who[0]
+    return pv or installed_evr([pkg]).get(pkg, "")
 
 
 def requirements_of(info):
@@ -440,6 +472,10 @@ def analyse(info, folder=""):
             if b is not None:
                 targets = b["maps"].get(name) or [r[0] for r in b["requires"]]
                 pv = next((v for n, _f, v in b["provides"] if n == name), "")
+                if not pv and targets:
+                    # a bridge made before 0.5.1 provides it without a version: its next release gives it the
+                    # version of the openSUSE package (#6); it meets this requirement, which asks for none
+                    pv = _provide_version(0, "", capability_version(targets[0])) or ""
                 plan["kept"].append({"name": name, "flags": flags, "version": ver,
                                      "text": req_text(name, flags, ver),
                                      "targets": [{"name": t, "installed": True, "repo": "", "version": ""}
@@ -464,11 +500,20 @@ def analyse(info, folder=""):
     repo_paths = zypper_providers([r[0] for r in path_todo] + [c for cs in path_cands.values() for c in cs]) \
         if path_todo else {}
 
-    def best_target(cap, flags=0, ver=""):
-        """The openSUSE package that gives cap on this computer: installed first, else from a repository."""
-        for pkg, pf, pv in inst.get(cap, []):
+    evr_of = {}  # installed package -> its version, asked once
+
+    def version_of(pkg):
+        if pkg not in evr_of:
+            evr_of.update(installed_evr([pkg]))
+            evr_of.setdefault(pkg, "")
+        return evr_of[pkg]
+
+    def best_target(cap):
+        """The openSUSE package that gives cap on this computer: installed first, else from a repository. Its
+        version: the one written with the provide, else the package's own (kmod(…) provides carry none)."""
+        for pkg, _pf, pv in inst.get(cap, []):
             if _real(pkg):
-                return {"name": cap, "installed": True, "repo": "", "version": pv, "package": pkg}
+                return {"name": cap, "installed": True, "repo": "", "version": pv or version_of(pkg), "package": pkg}
         for e in repo.get(cap, []):
             if _real(e["name"]):
                 return {"name": cap, "installed": e["installed"], "repo": e["repo"],
@@ -485,10 +530,11 @@ def analyse(info, folder=""):
         for kind, cand in cand_of[name]:
             if kind == "dirs":
                 if files is None:
-                    files = file_list(info["path"]) if info.get("path") else []
+                    where = info.get("private") or info.get("path")  # the copy that was checked, when there is one
+                    files = file_list(where) if where else []
                 owners = _dir_owners(files)
                 if owners:
-                    found = [{"name": o, "installed": True, "repo": "", "version": "", "package": o}
+                    found = [{"name": o, "installed": True, "repo": "", "version": version_of(o), "package": o}
                              for o in owners]
                     parts = [ngettext("{dirs} belongs to {package}", "{dirs} belong to {package}", len(ds))
                              .format(dirs=", ".join(ds), package=o) for o, ds in owners.items()]
@@ -513,8 +559,13 @@ def analyse(info, folder=""):
             continue
         pv = _provide_version(flags, ver, found[0].get("version"))
         if pv is None:
-            plan["unmapped"].append((text, _("openSUSE has {package} {version}, which is not what it asks for.")
-                                     .format(package=found[0]["name"], version=found[0].get("version") or "?")))
+            if found[0].get("version"):
+                why = _("openSUSE has {package} {version}, which is not what it asks for.").format(
+                    package=found[0]["name"], version=found[0]["version"])
+            else:  # the bridge must say a version (#6): without one it would meet any later requirement
+                why = _("Zypp Desk cannot tell which version of {package} openSUSE has.").format(
+                    package=found[0]["name"])
+            plan["unmapped"].append((text, why))
             continue
         plan["mapped"].append({"name": name, "flags": flags, "version": ver, "text": text, "targets": found,
                                "why": why, "provide_version": pv})

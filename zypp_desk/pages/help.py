@@ -71,8 +71,17 @@ class _Browser(QTextBrowser):
         self.document().setDocumentMargin(18)
         # short lines, also in a wide window (Jordi does not want long lines; visual review 0.5, #11)
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
-        self.setLineWrapColumnOrWidth(self.fontMetrics().averageCharWidth() * 88)
+        self._fit_width()
         self.anchorClicked.connect(self._open)
+
+    def _fit_width(self):
+        """At most about 88 characters a line, and never wider than the view (no sideways scrolling)."""
+        room = self.viewport().width() - 2 * int(self.document().documentMargin()) - 4
+        self.setLineWrapColumnOrWidth(max(200, min(self.fontMetrics().averageCharWidth() * 88, room)))
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._fit_width()
 
     def _open(self, url):
         s = url.toString()

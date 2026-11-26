@@ -34,11 +34,26 @@ file in `po/` directly.
 - Comments that start with `TRANSLATORS:` above a string explain where it appears.
 - `po/ca.po` (Catalan) is complete and can be used as a reference.
 
+## The Help
+
+The Help is not in `po/`: it is one HTML file per language in `zypp_desk/help/` (`en.html`,
+`ca.html`, `de.html`, `fr.html`). To translate it, copy `en.html` to `zypp_desk/help/it.html` and
+translate the text. The window shows the file of your language, or the English one.
+
+- Keep every line `<!-- topic: id | Title -->` and its id; translate only the title after `|`.
+- Keep every link: `href="page:…"` opens a section of the window.
+- Use the names of buttons and pages exactly as your `po/it.po` says them.
+- The file name is the two-letter code: Brazilian and European Portuguese share `pt.html`.
+
 ## Also translatable
 
 - The menu entry: `data/io.github.jordirelats.ZyppDesk.desktop.in` (`GenericName[it]=`,
   `Comment[it]=`, `Keywords[it]=`).
+- The tray icon that starts at login: `data/io.github.jordirelats.ZyppDesk.tray.desktop.in`
+  (`Comment[it]=`).
 - The password message: `data/io.github.jordirelats.ZyppDesk.policy.in` (`xml:lang="it"` lines).
+- The software centre's summary: `data/io.github.jordirelats.ZyppDesk.metainfo.xml`
+  (`<summary xml:lang="it">`).
 
 ## For developers
 

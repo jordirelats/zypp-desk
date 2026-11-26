@@ -4,15 +4,18 @@ repository left for Fedora (yumrepos.py) with its question."""
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-                               QMessageBox, QRadioButton, QScrollArea, QToolButton, QVBoxLayout, QWidget)
+                               QRadioButton, QScrollArea, QToolButton, QVBoxLayout, QWidget)
 
 from .. import repocheck, repoprio, yumrepos
-from ..i18n import _, ngettext
+from ..i18n import _, ngettext, pgettext
+from ..question import confirm
 from ..question import label as plain_label
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action, TxQueue
-from ..ui import button, error_box, heading, icon, mono, muted, plain
+from ..ui import button, error_box, heading, icon, mono, muted
+
+REPO_ICON = "folder-cloud|repository|folder-download"
 
 HOW_IT_WORKS = lambda: _(  # noqa: E731
     "Every repository has a priority, a number from 1 to 200. When a package is in more than one repository, "
@@ -408,17 +411,16 @@ class ChangeUrlDialog(QDialog):
         u = self.url()
         if not self.ok.isEnabled() or not self._answer or self._answer[0] != u:
             return
-        if self._answer[1] != "ok":
-            box = QMessageBox(QMessageBox.Icon.Warning, _("Change the address…"),
-                              _("The new address does not answer ({why}).").format(why=self._answer[2]),
-                              QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
-            box.setInformativeText(_("Until it answers, zypper cannot read this repository, and refreshing it fails. "
-                                     "Add the new address to the queue anyway?"))
-            box.setDefaultButton(QMessageBox.StandardButton.No)
-            answer = plain(box).exec()
-            box.deleteLater()
-            if answer != QMessageBox.StandardButton.Yes:
-                return
+        if self._answer[1] != "ok" and not confirm(
+                self, _("The new address does not answer"), _("Add it to the queue anyway"),
+                window_title=_("Change the address…"), icon_name="network-disconnect|dialog-warning",
+                items=[(REPO_ICON, pgettext("change", "Change the address of the repository “{name}”").format(
+                    name=self.repo["name"]), _("New address: {url}").format(url=u))],
+                warning=_("The new address does not answer ({why}).").format(why=self._answer[2]) + " " + _(
+                    "Until it answers, zypper cannot read this repository, and refreshing it fails."),
+                means=_("it only goes to the queue: nothing changes until you apply it."),
+                password=False, help_topic="repos"):
+            return
         try:
             self.repo_file = repoprio.new_address_file(self.repo, u)
         except (OSError, ValueError) as e:
@@ -530,7 +532,8 @@ def commands_of(actions):
 
 class YumBanner(QFrame):
     """A repository for Fedora that zypper does not see: who left it, where it is, why it matters, the command that
-    adds it (small), and “Not now” / “Add it to zypper”. Every text is plain: names come from files."""
+    adds it (small), and “Do not add it” / “Add it to zypper”. “Do not add it” only hides the banner: Repositories →
+    More → “Show the hidden repositories for Fedora” brings it back. Every text is plain: names come from files."""
 
     add = Signal(object)
     dismiss = Signal(object)
@@ -552,12 +555,12 @@ class YumBanner(QFrame):
         v.setSpacing(2)
         who = yum_who(entry)
         if entry.get("package"):
-            title = _("The program «{program}» left a repository for Fedora").format(program=who)
-            text = _("It is in {path}, where zypper doesn't look: unless it is added to zypper, {program} will never "
+            title = _("The program “{program}” left a repository for Fedora").format(program=who)
+            text = _("It is in {path}, where zypper does not look: unless it is added to zypper, {program} will never "
                      "update.").format(path=entry["file"], program=who)
         else:
-            title = _("There is a repository for Fedora that zypper does not see: «{name}»").format(name=who)
-            text = _("It is in {path}, where zypper doesn't look: unless it is added to zypper, what it brings will "
+            title = _("There is a repository for Fedora that zypper does not see: “{name}”").format(name=who)
+            text = _("It is in {path}, where zypper does not look: unless it is added to zypper, what it brings will "
                      "never update.").format(path=entry["file"])
         t = plain_label(title, bold=True)
         t.setToolTip("\n".join(x for x in (entry.get("name"), entry.get("url"),
@@ -569,8 +572,9 @@ class YumBanner(QFrame):
         self.cmd = _CommandView(command, self)
         v.addWidget(self.cmd)
         h.addLayout(v, 1)
-        self.b_later = button(_("Not now"), None, lambda: self.dismiss.emit(self.entry))
-        self.b_later.setToolTip(_("Do not show it again. Nothing is changed."))
+        self.b_later = button(_("Do not add it"), None, lambda: self.dismiss.emit(self.entry))
+        self.b_later.setToolTip(_("Hide this message. Nothing is changed. Repositories → More → “Show the hidden "
+                                  "repositories for Fedora” shows it again."))
         self.b_add = button(_("Add it to zypper"), None, lambda: self.add.emit(self.entry), primary=True)
         for b in (self.b_later, self.b_add):
             b.setAutoDefault(False)
@@ -592,10 +596,23 @@ def yum_question(entry, prep, action, key_path):
     from .. import keys as keyring
     who = yum_who(entry)
     warnings = []
+    if entry.get("plain_http"):  # security review 0.5, #2: said first, it matters most
+        if entry["gpg"] == "allow-unsigned-repo":
+            warnings.append(_("Its address is not encrypted (http, and https does not answer there), and its list of "
+                              "packages is not signed: anybody on the same network (a café's Wi-Fi) could keep its "
+                              "updates from you, or give you older versions with their known holes. Each package is "
+                              "still checked against its signature."))
+        else:
+            warnings.append(_("Its address is not encrypted (http, and https does not answer there). Its list of "
+                              "packages is signed, so nobody can change what is in it, but anybody on the same network "
+                              "could keep its updates from you."))
     if entry["gpg"] == "off":
         warnings.append(_("The file says its packages are not signed: zypper will not be able to check that they "
                           "come from {who}.").format(who=who))
-    elif not entry["gpgkeys"]:
+    elif entry["gpg"] == "allow-unsigned-package":
+        warnings.append(_("The file says its packages are not signed. zypper still checks the list of packages, which "
+                          "is signed and holds a checksum of each package."))
+    if entry["gpg"] != "off" and not entry["gpgkeys"]:
         warnings.append(_("The file names no signing key. The first time zypper reads the repository, it will ask "
                           "whether to trust the key it finds there."))
     for source, problem in prep["problems"]:
@@ -612,11 +629,15 @@ def yum_question(entry, prep, action, key_path):
         else:
             where = _("Downloaded from {url}").format(url=k["source"])
         items.append(("security-high|object-locked|dialog-password",
-                      _("Trust the signing key «{name}»").format(name=k["name"] or k["email"] or k["fpr"][-8:]),
+                      pgettext("change", "Trust the signing key “{name}”").format(
+                          name=k["name"] or k["email"] or k["fpr"][-8:]),
                       _("Fingerprint {fpr}").format(fpr=keyring.nice_fpr(k["fpr"])) + "\n" + where))
-    items.append(("folder-cloud|repository|folder-download",
-                  _("Add the repository «{name}»").format(name=entry["name"] or action.target),
-                  _("A new place to download {who} and its updates from: {url}").format(who=who, url=entry["url"])))
+    detail = _("A new place to download {who} and its updates from: {url}").format(who=who, url=entry["url"])
+    if entry.get("https_from"):
+        detail += "\n" + _("The file says {url}; Zypp Desk uses the same address with https, which answers.").format(
+            url=entry["https_from"])
+    items.append((REPO_ICON, pgettext("change", "Add the repository “{name}”").format(
+        name=entry["name"] or action.target), detail))
     if prep["import"]:
         note = _("A key lets rpm install as root anything signed with it.")
         if all(k.get("owner") and k["owner"] == entry.get("package") for k in prep["import"]):
@@ -637,4 +658,23 @@ def yum_question(entry, prep, action, key_path):
         "warning": "\n\n".join(warnings),
         "commands_": commands_of(imports + [action]),
         "password": False,  # it only goes to the queue
+        "help_topic": "repos",
     }
+
+
+def personal_project_question(parent, project, url, install=None):
+    """The question before the repository of a personal project of the openSUSE Build Service (home:…) goes to
+    the queue (it replaces an old Yes/No box: visual review 0.5, #15). install: the package that goes with it."""
+    items = [(REPO_ICON, pgettext("change", "Add the repository “{name}”").format(name=project),
+              _("A new place to download programs and updates from: {url}").format(url=url))]
+    if install:
+        items.append(("application-x-rpm|package-x-generic", pgettext("change", "Install {name}").format(name=install),
+                      _("From this repository.")))
+    return confirm(
+        parent, _("Add the personal project {project}?").format(project=project), _("Add it to the queue"),
+        window_title=_("Personal project"), icon_name="im-user|user-identity|dialog-warning", items=items,
+        warning=_("{project} belongs to one person and nobody else reviews it. It can bring anything, and it can "
+                  "stop being updated at any time. Add it only if you trust this person, or if nothing better "
+                  "exists.").format(project=project),
+        means=_("it only goes to the queue: nothing changes until you apply it."),
+        password=False, help_topic="repos")

@@ -13,11 +13,11 @@ from PySide6.QtCore import QLocale, QPoint, Qt
 from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QScrollArea, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import APP_ID, backend, question, repostate, zyppconf
-from ..i18n import _, ngettext
+from .. import APP_ID, backend, diskspace, question, repostate, zyppconf
+from ..i18n import _, ngettext, pgettext
 from ..runner import Step, zypper_subcommand
 from ..tasks import run_async
-from ..txqueue import Action
+from ..txqueue import Action, language_name
 from ..ui import Card, Page, button, error_box, heading, mono, muted, tool
 
 
@@ -35,7 +35,7 @@ def ask_clean_locks(parent, step):
                 _("Neither an installed package nor one in your repositories."))],
         means=_("nothing changes in what zypper may install or update now. A lock for a package that is only "
                 "missing for a while (its repository is disabled) goes too."),
-        commands_=[step.display()])
+        commands_=[step.display()], help_topic="problems")
 
 
 def simple_tree(headers, parent):
@@ -59,8 +59,18 @@ class LocksPage(Page):
         lay = QVBoxLayout(self)
         lay.addWidget(muted(_("A locked package is never installed, removed or updated by any zypper command "
                               "until you unlock it.")))
+        # the locks an earlier "leave these as they are" made (problem window): say so, and unlock them in one go
+        self.temp_band = Card()
+        self.temp_text = muted("")
+        self.temp_text.setStyleSheet("")
+        self.temp_band.lay.addWidget(self.temp_text)
+        self.temp_band.lay.addWidget(button(_("Unlock them"), "object-unlocked", self.unlock_temp), 0,
+                                     Qt.AlignmentFlag.AlignLeft)
+        self.temp_band.setVisible(False)
+        lay.addWidget(self.temp_band)
         lay.addWidget(self.tree, 1)
         self.items = []
+        self.temp = []
         ctx.queue.changed.connect(self._fill)
         # 'zypper removelock' ends with 0 also when it found no such lock: that is a failure here
         runner = getattr(ctx, "runner", None)
@@ -77,14 +87,48 @@ class LocksPage(Page):
             self.ctx.run([st], _("Clean useless locks"), on_done=lambda ok: self.ctx.after_change())
 
     def reload(self):
-        run_async(backend.locks, on_done=self._loaded)
+        settings = self.ctx.settings
 
-    def _loaded(self, items, err):
+        def read():
+            from .. import problemgroups
+            locks = backend.locks()
+            try:
+                temp = problemgroups.temp_locks(settings, locks, backend.repos())
+            except Exception:  # only a note: the list of locks matters more
+                temp = []
+            return locks, temp
+
+        run_async(read, on_done=self._loaded)
+
+    def _loaded(self, res, err):
         if err:
             error_box(self, self.title, str(err))
             return
-        self.items = items
+        self.items, self.temp = res
+        # records of temporary locks that are gone (unlocked here or by hand) are forgotten
+        from .. import problemgroups
+        names = {lk["name"] for lk in self.items}
+        gone = [r.get("spec") for r in self.ctx.settings.get("temp_locks") or []
+                if isinstance(r, dict) and r.get("spec") not in names]
+        if gone:
+            try:
+                problemgroups.forget_temp_locks(self.ctx.settings, gone)
+            except OSError:
+                pass
+        note = problemgroups.temp_locks_note(self.temp) if self.temp else ""
+        self.temp_text.setText(note)
+        self.temp_band.setVisible(bool(note))
         self._fill()
+
+    def unlock_temp(self):
+        """Queue the unlock of every lock Zypp Desk made to leave a problem as it was (with the exact spec, kind
+        and repository zypper needs to find it)."""
+        temp = {r.get("spec") for r in self.temp}
+        with self.ctx.queue.batch():
+            for lk in self.items:
+                if lk["name"] in temp or lk["spec"] in temp:
+                    self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package",
+                                              repo=lk["repo"] or ""))
 
     @staticmethod
     def _same(action, lock):
@@ -100,6 +144,12 @@ class LocksPage(Page):
         for lk in self.items:
             specs.add((lk["spec"], lk["type"], lk["repo"]))
             pend = _("will be unlocked") if any(self._same(a, lk) for a in self.ctx.queue.of("unlock")) else ""
+            rec = next((r for r in self.temp if r.get("spec") in (lk["name"], lk["spec"])), None)
+            if rec and not pend:
+                from ..problemgroups import _date
+                pend = _("locked by Zypp Desk on {date}").format(date=_date(rec.get("added") or 0))
+                if rec.get("repo_name"):
+                    pend += f" ({rec['repo_name']})"
             # the name with its version range: "tool < 2.0" (zypper finds the lock again only with it)
             it = QTreeWidgetItem(self.tree, [lk["spec"], kind_label(lk["type"]), lk["repo"], pend])
             it.setData(0, Qt.ItemDataRole.UserRole, lk)
@@ -218,18 +268,19 @@ class ServicesPage(Page):
             if tw:
                 means += " " + _("It is normally left enabled.")
             return question.confirm(
-                self, _("Disable the service «{name}»?").format(name=name), _("Yes, disable it"),
+                self, _("Disable the service “{name}”?").format(name=name), _("Yes, disable it"),
                 window_title=_("Change a service"), icon_name="network-server",
-                items=[("network-server", _("Stop using the service «{name}»").format(name=name), detail)],
+                items=[("network-server", pgettext("change", "Stop using the service “{name}”").format(name=name),
+                        detail)],
                 means=means, warning=_("Without this service, Tumbleweed is not updated.") if tw else None,
-                commands_=[st.display()])
+                commands_=[st.display()], help_topic="repos")
         return question.confirm(
-            self, _("Enable the service «{name}»?").format(name=name), _("Yes, enable it"),
+            self, _("Enable the service “{name}”?").format(name=name), _("Yes, enable it"),
             window_title=_("Change a service"), icon_name="network-server",
-            items=[("network-server", _("Use the service «{name}» again").format(name=name),
+            items=[("network-server", pgettext("change", "Use the service “{name}” again").format(name=name),
                     _("Its repositories are enabled again as they were before."))],
             means=_("zypper refreshes the service and looks for programs and updates in its repositories again."),
-            commands_=[st.display()])
+            commands_=[st.display()], help_topic="repos")
 
 
 # ============================================================ languages
@@ -265,7 +316,8 @@ class LocalesPage(Page):
             pend = _("will be removed") if any(a.target == lc["code"] for a in self.ctx.queue.of("locale-remove")) else ""
             QTreeWidgetItem(self.tree, [lc["code"], lc["name"], pend])
         for a in self.ctx.queue.of("locale-add"):
-            QTreeWidgetItem(self.tree, [a.target, "", _("will be added")])
+            name = language_name(a.target)
+            QTreeWidgetItem(self.tree, [a.target, name if name != a.target else "", _("will be added")])
         if not self.items and not self.ctx.queue.of("locale-add"):
             empty = QTreeWidgetItem(self.tree, [_("No language has been requested.")])
             empty.setFirstColumnSpanned(True)
@@ -421,13 +473,14 @@ class MaintenancePage(Page):
         """The commands that change the system ask first, in words (mockup preguntes-v2-E); the ones that only
         read (ps, needs-rebooting, licenses) run at once."""
         st = Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])
-        if key == "purge":  # real numbers first: rpm's database and zypp.conf, read in the background
-            run_async(kernel_plan, on_done=lambda plan, err: self._ask_then_run(
-                st, title, self._purge_question(st, None if err else plan)))
+        if key == "purge":  # real numbers first: rpm's database, zypp.conf and snapper, read in the background
+            def asked(res, err):
+                plan, snapshots = res if not err and res else (None, False)
+                self._ask_then_run(st, title, self._purge_question(st, plan, snapshots))
+            run_async(lambda: (kernel_plan(), diskspace.snapshots_in_use()), on_done=asked)
             return
         if key == "clean":
-            run_async(zypp_cache_sizes, on_done=lambda sizes, err: self._ask_then_run(
-                st, title, self._clean_question(st, None if err else sizes)))
+            run_clean_cache(self, st, title)
             return
         if key == "cleanlocks":
             if ask_clean_locks(self, st):
@@ -436,7 +489,7 @@ class MaintenancePage(Page):
         self._ask_then_run(st, title, self._question(key, st))
 
     def _ask_then_run(self, st, title, q):
-        if q is None or question.confirm(self, **q):
+        if q is None or question.confirm(self, **{"help_topic": "problems", **q}):
             self._start(st, title)
 
     def _start(self, st, title):
@@ -452,7 +505,7 @@ class MaintenancePage(Page):
                         items=[("tools", _("Check that every installed package has what it needs"),
                                 _("If something is missing or in conflict, zypper installs or removes packages to "
                                   "fix it, without asking again."))],
-                        means=_("most of the time there is nothing to fix. Simulate shows first what it would "
+                        means=_("most of the time there is nothing to fix. “Simulate” shows first what it would "
                                 "change."), commands_=cmds)
         if key == "inr":
             return dict(title=_("Install the new recommended packages?"), yes=_("Yes, install them"),
@@ -461,56 +514,86 @@ class MaintenancePage(Page):
                                 _("Install what your programs recommend now"),
                                 _("Only what they started to recommend after you installed them: translations, "
                                   "plugins…"))],
-                        means=_("Simulate shows first which packages and how much space they take."), commands_=cmds)
+                        means=_("“Simulate” shows first which packages and how much space they take."),
+                        commands_=cmds)
         return None
 
     @staticmethod
-    def _purge_question(st, plan):
+    def _purge_question(st, plan, snapshots=False):
+        """snapshots: snapper keeps a snapshot of / before each change, and with it the old kernels' files."""
         cmds = [st.display()]
         base = dict(title=_("Remove the old kernels?"), icon_name="tools", commands_=cmds)
+        means = _("the computer starts the same. The boot menu will have fewer versions to choose from.")
         if not plan or plan["remove"] is None:
             rule = (plan or {}).get("rule")
             return dict(base, yes=_("Yes, remove them"),
                         items=[("computer", _("Remove the old Linux kernels"),
                                 _("The ones zypp.conf does not keep: {rule}.").format(rule=rule) if rule else
                                 _("The ones zypp.conf does not keep (multiversion.kernels)."))],
-                        means=_("the computer starts the same. The boot menu will have fewer versions to choose "
-                                "from."))
+                        means=means)
         kept = sorted(plan["keep"], key=plan["installed"].index, reverse=True)
         kept_text = ", ".join(_("{version} (in use)").format(version=e) if e == plan["running"] else e for e in kept)
         n = len(plan["remove"])
         if not n:
+            # nothing to do: say so, and leave running it anyway as a plain choice (visual review 0.5, #19)
             total = len(plan["installed"])
-            return dict(base, yes=_("Run it anyway"),
-                        items=[("computer", _("No old kernel to remove"),
-                                ngettext("You have {n} kernel, and zypp.conf keeps it: {list}.",
-                                         "You have {n} kernels, and zypp.conf keeps them all: {list}.",
-                                         total).format(n=total, list=kept_text))],
-                        means=_("nothing changes in how the computer starts. It may still remove leftovers of "
-                                "kernels that are gone."))
-        return dict(base, yes=_("Yes, remove them"),
-                    items=[("computer", ngettext("Remove {n} old Linux kernel", "Remove {n} old Linux kernels",
-                                                 n).format(n=n),
-                            _("These stay: {list}.").format(list=kept_text), list(plan["remove"])),
-                           ("drive-harddisk", _("Free about {size}").format(size=nice_bytes(plan["size"])),
-                            _("On the system partition."))],
-                    means=_("the computer starts the same. The boot menu will have fewer versions to choose from."))
+            return dict(base, title=_("No old kernel to remove"), password=False, yes=_("Run it anyway"),
+                        buttons=[("no", _("Close"), False), ("yes", _("Run it anyway"), False)],
+                        items=[("computer", ngettext("zypp.conf keeps your kernel", "zypp.conf keeps all your {n} "
+                                                     "kernels", total).format(n=total), kept_text)],
+                        means=_("nothing needs to be done. If you run it anyway, it only cleans up what is left of "
+                                "kernels that are gone, and it asks for the administrator password."))
+        items = [("computer", ngettext("Remove {n} old Linux kernel", "Remove {n} old Linux kernels",
+                                       n).format(n=n),
+                  _("These stay: {list}.").format(list=kept_text), list(plan["remove"]))]
+        if snapshots:
+            # the snapshots keep every file a change removes (zypper review 0.5, #10)
+            items.append(("drive-harddisk", _("No space comes back yet"), _(
+                "The snapshots of the system keep the old kernels' files. About {size} comes back when the "
+                "snapshots from before this change are deleted: snapper deletes old ones by itself, or you can "
+                "in History.").format(size=nice_bytes(plan["size"]))))
+        else:
+            items.append(("drive-harddisk", _("Free about {size}").format(size=nice_bytes(plan["size"])),
+                          _("On the system partition.")))
+        return dict(base, yes=_("Yes, remove them"), items=items, means=means)
 
     @staticmethod
     def _clean_question(st, sizes):
-        items = [("edit-clear-history|edit-clear", _("Delete the downloaded packages and the repositories' "
-                                                     "information"), _("They are downloaded again when needed."))]
-        if sizes and (sizes["packages"] or sizes["metadata"]):
-            parts = []
-            if sizes["packages"]:
-                parts.append(_("Downloaded packages: {size}.").format(size=nice_bytes(sizes["packages"])))
-            if sizes["metadata"]:
-                parts.append(_("Repositories' information: {size}.").format(size=nice_bytes(sizes["metadata"])))
-            items.append(("drive-harddisk", _("Free about {size}").format(
-                size=nice_bytes(sizes["packages"] + sizes["metadata"])), " ".join(parts)))
-        return dict(title=_("Clean the cache?"), yes=_("Yes, clean it"), icon_name="tools", items=items,
-                    means=_("nothing installed changes. The next refresh downloads every repository's information "
-                            "again, which takes a while."), commands_=[st.display()])
+        return clean_cache_question(st, sizes)  # Repositories → More asks the same
+
+
+def clean_cache_question(st, sizes):
+    """The question before 'zypper clean --all', as question.confirm's arguments (Maintenance, and Repositories →
+    More: one question for the same command, visual review 0.5, #16). sizes: zypp_cache_sizes(), or None."""
+    items = [("package-x-generic|application-x-rpm", _("Delete the downloaded packages"),
+              _("The packages zypper keeps: those of repositories set to keep them, and those downloaded ahead for "
+                "the next update.")),
+             ("view-refresh", _("Delete the lists of packages of every repository"),
+              _("zypper downloads them again the next time it refreshes."))]
+    if sizes and (sizes["packages"] or sizes["metadata"]):
+        parts = []
+        if sizes["packages"]:
+            parts.append(_("Downloaded packages: {size}.").format(size=nice_bytes(sizes["packages"])))
+        if sizes["metadata"]:
+            parts.append(_("Repositories' information: {size}.").format(size=nice_bytes(sizes["metadata"])))
+        items.append(("drive-harddisk", _("Free about {size}").format(
+            size=nice_bytes(sizes["packages"] + sizes["metadata"])), " ".join(parts)))
+    return dict(title=_("Clean the cache?"), yes=_("Yes, clean it"), icon_name="edit-clear",
+                window_title=_("Clean the cache"), items=items,
+                means=_("nothing installed changes. The next refresh downloads every repository's information "
+                        "again, which takes a while."), commands_=[st.display()], password=st.root,
+                help_topic="problems")
+
+
+def run_clean_cache(page, st=None, title=None):
+    """Measure the cache (in the background), ask, and run 'zypper clean --all' (Maintenance, Repositories)."""
+    st = st or Step("zypper", ["-v", "-n", "clean", "--all"])
+    title = title or _("Clean the cache")
+
+    def ask(sizes, err):
+        if question.confirm(page, **clean_cache_question(st, None if err else sizes)):
+            page.ctx.run([st], title, on_done=lambda ok: page.ctx.after_change())
+    run_async(zypp_cache_sizes, on_done=ask)
 
 
 # ============================================================ settings

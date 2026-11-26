@@ -64,7 +64,9 @@ the icon next to the clock will tell you.</p>
 <p>If the update does not fit on the disk with room to spare, Zypp Desk offers to free space first (packages kept
 from earlier downloads, old kernels) and to update <b>in parts</b>. Each part is a normal zypper update of some
 packages, downloaded completely before it is installed: if a download fails, nothing of that part is installed,
-and the system stays as the previous part left it. A normal upgrade finishes what is left.</p>
+and the system stays as the previous part left it. A normal upgrade finishes what is left.
+Before anything is installed, Zypp Desk tries every part with zypper: a package whose update needs a decision
+waits for that normal upgrade at the end, and the question tells you which.</p>
 
 <!-- topic: programs | Installing and removing programs -->
 <h2>Installing and removing programs</h2>
@@ -110,7 +112,7 @@ enable or disable them, change their priority (a smaller number wins when the sa
 check which ones do not answer, change their address, and ask Zypp Desk to propose an order.</p>
 <p>Some programs made for Fedora leave their repository in <code>/etc/yum.repos.d</code>, where zypper does not
 look, so they would never update. Zypp Desk notices it and offers to add the repository to zypper, with its
-key.</p>
+key. If you chose <b>Do not add it</b>, <b>More → Show the hidden repositories for Fedora</b> brings it back.</p>
 <p>A <b>signing key</b> proves who made a package or a repository. In <a href="page:keys">Signing keys</a> you see
 the keys your computer trusts, whose they are and when they expire, and you can import a new one from a web
 address, a file or its fingerprint, comparing it with the one the vendor publishes. Only trust a key from a

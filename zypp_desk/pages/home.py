@@ -252,6 +252,7 @@ class HomePage(Page):
         if newer:
             self.t_web.set(ngettext("{n} new version", "{n} new versions", len(newer)).format(n=len(newer)),
                            ", ".join(r["package"] for r in newer)[:80], ORANGE)
-        else:
+        else:  # green, as the other tiles say "up to date"; orange is for new versions (visual review 0.5, #20)
             self.t_web.set(_("All up to date"),
-                           ngettext("{n} program followed", "{n} programs followed", len(res)).format(n=len(res)))
+                           ngettext("{n} program followed", "{n} programs followed", len(res)).format(n=len(res)),
+                           GREEN)

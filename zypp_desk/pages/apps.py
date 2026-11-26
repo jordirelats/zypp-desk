@@ -12,10 +12,10 @@ import html
 import re
 from pathlib import Path
 
-from PySide6.QtCore import QRect, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPalette
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-                               QListWidget, QListWidgetItem, QScrollArea, QStackedWidget, QStyle,
+                               QListWidget, QListWidgetItem, QScrollArea, QSizePolicy, QStackedWidget, QStyle,
                                QStyledItemDelegate, QToolButton, QVBoxLayout, QWidget)
 
 from .. import apps, appicons
@@ -25,6 +25,7 @@ from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Chip, FlowLayout, Page, button, heading, icon, muted
 from .home import Tile
+from .markbar import MarkBar, check_rect, is_checked, paint_check
 
 TEAL = "#16a085"
 PINK = "#e93a9a"
@@ -161,7 +162,11 @@ class AppDelegate(QStyledItemDelegate):
             p.setPen(Qt.PenStyle.NoPen)
             p.setBrush(QColor(39, 174, 96, 24))
             p.drawRoundedRect(r, 10, 10)
-        self.page.app_icon(a).paint(p, QRect(r.left() + 10, r.top() + (r.height() - 38) // 2, 38, 38))
+        shift = 0
+        if index.flags() & Qt.ItemFlag.ItemIsUserCheckable:  # Discover: mark several (mockup multiple-v1-B)
+            paint_check(p, check_rect(r), is_checked(index.data(Qt.ItemDataRole.CheckStateRole)), option.palette)
+            shift = 28
+        self.page.app_icon(a).paint(p, QRect(r.left() + 10 + shift, r.top() + (r.height() - 38) // 2, 38, 38))
 
         small = QFont(option.font)
         small.setPointSizeF(option.font.pointSizeF() * 0.85)
@@ -196,7 +201,7 @@ class AppDelegate(QStyledItemDelegate):
                        pfm.elidedText(version, Qt.TextElideMode.ElideMiddle, vw))
             x -= vw + 10
 
-        tx = r.left() + 60
+        tx = r.left() + 60 + shift
         tw = max(40, x - tx - 6)
         bold = QFont(option.font)
         bold.setBold(True)
@@ -212,6 +217,60 @@ class AppDelegate(QStyledItemDelegate):
         p.drawText(QRect(tx, r.top() + 9 + bfm.height(), tw, fm.height()), Qt.AlignmentFlag.AlignLeft,
                    fm.elidedText(summary, Qt.TextElideMode.ElideRight, tw))
         p.restore()
+
+    def editorEvent(self, event, model, option, index):
+        """A click on the box (or Space on the row) ticks it; a click elsewhere still opens the program's card."""
+        if not (index.flags() & Qt.ItemFlag.ItemIsUserCheckable):
+            return False
+        toggle = False
+        if event.type() == QEvent.Type.MouseButtonRelease and check_rect(option.rect.adjusted(4, 2, -4, -2)) \
+                .adjusted(-4, -4, 4, 4).contains(event.position().toPoint()):
+            toggle = True
+        elif event.type() == QEvent.Type.KeyPress and event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Select):
+            toggle = True
+        if toggle:
+            on = is_checked(index.data(Qt.ItemDataRole.CheckStateRole))
+            model.setData(index, Qt.CheckState.Unchecked if on else Qt.CheckState.Checked,
+                          Qt.ItemDataRole.CheckStateRole)
+            return True
+        return False
+
+
+class ShortHeading(QLabel):
+    """A heading that gives way with "…" when the row is narrow, instead of making the page wider than the
+    window (the title of a theme beside its source chips and filter: visual review 0.5, #21)."""
+
+    def __init__(self, scale, parent=None):
+        super().__init__(parent)
+        f = self.font()
+        f.setBold(True)
+        f.setPointSizeF(f.pointSizeF() * scale)
+        self.setFont(f)
+        self.setTextFormat(Qt.TextFormat.PlainText)
+        self._full = ""
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+
+    def set_full_text(self, text):
+        self._full = text or ""
+        self.setToolTip(self._full)
+        self.updateGeometry()
+        self._elide()
+
+    def sizeHint(self):
+        return QSize(self.fontMetrics().horizontalAdvance(self._full) + 4, super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        return QSize(min(self.sizeHint().width(), self.fontMetrics().horizontalAdvance("M" * 4)),
+                     super().minimumSizeHint().height())
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self._elide()
+
+    def _elide(self):
+        shown = self.fontMetrics().elidedText(self._full, Qt.TextElideMode.ElideRight, max(0, self.width() - 2))
+        if shown != self.text():
+            self.setText(shown)
 
 
 def app_list(page):
@@ -280,8 +339,9 @@ class Details(QFrame):
         self.icon.setPixmap(ic.pixmap(64, 64))
         self.name.setText(name)
         self.summary.setText(summary)
+        grey = self.palette().color(QPalette.ColorRole.PlaceholderText).name()  # light and dark
         self.info.setText("<table width='100%' cellspacing='0' cellpadding='2'>" + "".join(
-            f"<tr><td style='color:gray; padding-right:10px' valign='top'>{html.escape(k)}</td><td>{v}</td></tr>"
+            f"<tr><td style='color:{grey}; padding-right:10px' valign='top'>{html.escape(k)}</td><td>{v}</td></tr>"
             for k, v in rows if v) + "</table>")
         self.note.setText(note)
 
@@ -326,6 +386,16 @@ class AppsPage(Page):
             seg.addWidget(b)
         self.b_mine.setChecked(True)
         seg.addStretch(1)
+        # the filter of My applications sits beside the switch, where there is room: on the row of the chips it
+        # made the page wider than a 1100 px window in Catalan and German (visual review 0.5, #21)
+        self.mine_search = QLineEdit(self)
+        self.mine_search.setPlaceholderText(_("Filter by name…"))
+        self.mine_search.setClearButtonEnabled(True)
+        self.mine_search.setMinimumWidth(180)
+        self.mine_search.setMaximumWidth(320)
+        self.mine_search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.mine_search.textChanged.connect(lambda _t: self._fill_mine())
+        seg.addWidget(self.mine_search, 1)
         lay.addLayout(seg)
 
         self.tabs = QStackedWidget(self)
@@ -358,12 +428,6 @@ class AppsPage(Page):
             self.chips[key] = c
             top.addWidget(c)
         top.addStretch(1)
-        self.mine_search = QLineEdit(w)
-        self.mine_search.setPlaceholderText(_("Filter by name…"))
-        self.mine_search.setClearButtonEnabled(True)
-        self.mine_search.setMinimumWidth(240)
-        self.mine_search.textChanged.connect(lambda _t: self._fill_mine())
-        top.addWidget(self.mine_search)
         v.addLayout(top)
         self._chip_texts()
         self.mine_hint = muted(_("Looking at what is installed…"), w)
@@ -422,11 +486,10 @@ class AppsPage(Page):
         head = QHBoxLayout()
         head.addWidget(button(_("All themes"), "go-previous", self.back_to_themes))
         self.cat_icon = QLabel(list_page)
-        self.cat_title = heading("", 1.25, list_page)
+        self.cat_title = ShortHeading(1.25, list_page)
         head.addSpacing(8)
         head.addWidget(self.cat_icon)
-        head.addWidget(self.cat_title)
-        head.addStretch(1)
+        head.addWidget(self.cat_title, 1)
         self.src_group = QButtonGroup(self)
         self.src_chips = {}
         for key, label in (("all", _("Every source")), ("rpm", "openSUSE"), ("flatpak", "Flathub")):
@@ -438,7 +501,9 @@ class AppsPage(Page):
         self.cat_search = QLineEdit(list_page)
         self.cat_search.setPlaceholderText(_("Filter by name…"))
         self.cat_search.setClearButtonEnabled(True)
-        self.cat_search.setMinimumWidth(220)
+        self.cat_search.setMinimumWidth(160)
+        self.cat_search.setMaximumWidth(260)
+        self.cat_search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._cat_timer = QTimer(self)  # wait for the typing to pause: refilling thousands of rows per key is slow
         self._cat_timer.setSingleShot(True)
         self._cat_timer.setInterval(250)
@@ -457,7 +522,17 @@ class AppsPage(Page):
         self.disc_list = app_list(self)
         self.disc_list.currentItemChanged.connect(lambda cur, _p: self._show_catalogue(cur))
         self.disc_details = Details(list_page)
-        body.addWidget(self.disc_list, 1)
+        # mark several programs and install them at once (mockup multiple-v1-B); the marks survive a new filter
+        self.disc_marked = {}  # (kind, package) -> the catalogue entry
+        self.disc_markbar = MarkBar(self._disc_mark_action, self._disc_unmark_all, list_page)
+        self.disc_list.itemChanged.connect(self._disc_item_changed)
+        left = QWidget(list_page)
+        lv2 = QVBoxLayout(left)
+        lv2.setContentsMargins(0, 0, 0, 0)
+        lv2.setSpacing(6)
+        lv2.addWidget(self.disc_list, 1)
+        lv2.addWidget(self.disc_markbar)
+        body.addWidget(left, 1)
         body.addWidget(self.disc_details)
         lv.addLayout(body, 1)
         self.discover.addWidget(list_page)
@@ -465,6 +540,7 @@ class AppsPage(Page):
 
     def _switch(self, i):
         self.tabs.setCurrentIndex(i)
+        self.mine_search.setVisible(i == 0)
         if i == 1:
             self._load_catalogue()
 
@@ -798,10 +874,10 @@ class AppsPage(Page):
     def _open_list(self, cat, text=""):
         if cat:
             label, icon_name, _color = CATEGORIES[cat]
-            self.cat_title.setText(label)
+            self.cat_title.set_full_text(label)
             self.cat_icon.setPixmap(icon(icon_name, "package-x-generic").pixmap(28, 28))
         else:
-            self.cat_title.setText(_("Search in every theme"))
+            self.cat_title.set_full_text(_("Search in every theme"))
             self.cat_icon.setPixmap(icon("edit-find").pixmap(28, 28))
         self._build_sub_chips(cat)
         self.cat_search.blockSignals(True)
@@ -871,12 +947,64 @@ class AppsPage(Page):
             it = QListWidgetItem(self.disc_list)
             it.setData(Qt.ItemDataRole.UserRole, a)
             it.setToolTip(a["package"])
+            if not self.is_installed(a):  # only what you can install can be marked
+                it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                it.setCheckState(Qt.CheckState.Checked if (a["kind"], a["package"]) in self.disc_marked
+                                 else Qt.CheckState.Unchecked)
             n += 1
         self.disc_count.setText(ngettext("{n} program", "{n} programs", n).format(n=n))
         if n:
             self.disc_list.setCurrentRow(0)
         else:
             self.disc_details.clear(_("Nothing found. Try another word, or every source."))
+
+    # ------------------------------------------------ marking several in Discover
+    def _disc_item_changed(self, item):
+        a = item.data(Qt.ItemDataRole.UserRole)
+        if not a or not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
+            return
+        key = (a["kind"], a["package"])
+        if is_checked(item.checkState()):
+            self.disc_marked[key] = a
+        else:
+            self.disc_marked.pop(key, None)
+        self._disc_update_markbar()
+
+    def _disc_update_markbar(self):
+        marked = [a for a in self.disc_marked.values() if not self.is_installed(a)]
+        n = len(marked)
+        names = ", ".join(a["name"] for a in marked[:4]) + ("…" if n > 4 else "")
+        self.disc_markbar.set_state(n, ngettext("{n} marked", "{n} marked", n).format(n=n), names,
+                                    [("install", ngettext("Install it", "Install the {n}", n).format(n=n), n > 0,
+                                      True)])
+
+    def _disc_unmark_all(self):
+        self.disc_marked.clear()
+        self.disc_list.blockSignals(True)
+        try:
+            for i in range(self.disc_list.count()):
+                it = self.disc_list.item(i)
+                if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                    it.setCheckState(Qt.CheckState.Unchecked)
+        finally:
+            self.disc_list.blockSignals(False)
+        self.disc_list.viewport().update()
+        self._disc_update_markbar()
+
+    def _disc_mark_action(self, key):
+        if key != "install":
+            return
+        with self.ctx.queue.batch():
+            for a in self.disc_marked.values():
+                if self.is_installed(a) or self.queue_state(a):
+                    continue
+                if a["kind"] == "rpm":
+                    self.ctx.queue.add(Action("install", a["package"]))
+                else:
+                    self.ctx.queue.add(Action("flatpak-install", a["package"], remote=a["remote"],
+                                              installation="system"))
+        self._disc_unmark_all()
+        self._show_catalogue(self.disc_list.currentItem())
 
     def _show_catalogue(self, item):
         a = item.data(Qt.ItemDataRole.UserRole) if item else None

@@ -43,6 +43,10 @@ ZYPP_COMMIT_PLUGINS = "/usr/lib/zypp/plugins/commit"
 
 # Below this, the package cache is not worth a 'zypper clean'.
 CACHE_WORTH = 20 * MiB
+# "Update it now anyway": a small update (it needs less than the margin itself, so a wrong guess cannot be big)
+# that fits but not with the margin may still run when at least this much stays free after it (a nearly full
+# disk must not block a small update for ever: code review 0.5, #2).
+TIGHT_FLOOR = 300 * MiB
 # The routine has no simulation: below this much free space before it, it asks. A big Tumbleweed update (a
 # rebuild of everything) downloads 3 to 5 GiB; with snapshots the old files also stay.
 ROUTINE_MIN_FREE = 4 * GiB
@@ -276,13 +280,15 @@ def as_int(v):
 def assess(result, snapshots=None, root=None, cache=None, sizes=None, free_info=None):
     """How an upgrade (a parsed simulation, simulation.parse_dry_run) fits on the disk.
 
-    Returns dict(root, cache, same, snapshots, download, diff, growth, margin, need_all, fits, free (see
-    freeable()), fits_after_free, short). Sizes in bytes.
+    Returns dict(root, cache, same, snapshots, download, diff, growth, margin, need_all, fits, fits_tight, free
+    (see freeable()), fits_after_free, short). Sizes in bytes.
     - growth: what the installed system grows (with snapshots, the whole size of the new packages);
     - need_all: the room the usual way needs (everything downloaded first) on /, when the cache is on the same
       filesystem (else the download needs its own filesystem, and it counts there);
     - fits: with the margin kept free (each part of an update in parts keeps the same margin); short: how
-      much is missing.
+      much is missing;
+    - fits_tight: a small update (less than the margin) that fits keeping only TIGHT_FLOOR free (for "Update it
+      now anyway").
     root, cache, sizes, free_info: for tests (fs_info dicts, {name: installed size}, a freeable() dict)."""
     root = root or fs_info(ROOT)
     if not root:
@@ -307,11 +313,14 @@ def assess(result, snapshots=None, root=None, cache=None, sizes=None, free_info=
     if same:
         need_all = download + growth
         fits = root["free"] >= need_all + m
+        tight = need_all <= m and root["free"] >= need_all + TIGHT_FLOOR
         short = max(0, need_all + m - root["free"])
     else:
         mc = margin(cache["total"])
         need_all = growth
         fits = root["free"] >= growth + m and cache["free"] >= download + mc
+        tight = (growth <= m and download <= mc and root["free"] >= growth + TIGHT_FLOOR
+                 and cache["free"] >= download + TIGHT_FLOOR)
         short = max(0, growth + m - root["free"], download + mc - cache["free"])
     if free_info is None:
         free_info = freeable(planned_files(result), snapshots) if not fits else dict(
@@ -327,7 +336,7 @@ def assess(result, snapshots=None, root=None, cache=None, sizes=None, free_info=
         fits_after = (root["free"] + gain_root >= growth + m
                       and cache["free"] + gain_cache >= download + redownload + margin(cache["total"]))
     return dict(root=root, cache=cache, same=same, snapshots=snapshots, download=download, diff=diff,
-                growth=growth, margin=m, need_all=need_all, fits=fits,
+                growth=growth, margin=m, need_all=need_all, fits=fits, fits_tight=tight,
                 free=free_info, fits_after_free=fits_after, short=short)
 
 

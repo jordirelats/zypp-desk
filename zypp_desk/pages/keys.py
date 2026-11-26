@@ -8,11 +8,12 @@ from pathlib import Path
 from PySide6.QtCore import QDateTime, QLocale, QPointF, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QDialog, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QListWidget, QListWidgetItem, QMessageBox, QPushButton, QSplitter,
+                               QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSplitter,
                                QStackedWidget, QStyle, QStyledItemDelegate, QVBoxLayout, QWidget)
 
 from .. import keys as keyring
-from ..i18n import _, ngettext
+from ..i18n import _, ngettext, pgettext
+from ..question import confirm
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
@@ -344,16 +345,16 @@ class KeyDetails(QWidget):
         k = self.key
         if not k:
             return
-        if k.get("group") == "vendor":  # probably still needed: only after a clear question
-            box = QMessageBox(QMessageBox.Icon.Warning, _("Delete the signing key"),
-                              _("This key is probably still needed by a vendor."),
-                              QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
-            box.setInformativeText(self.page.delete_meaning(k)[0] + "\n\n" + _("Delete it anyway?"))
-            box.setDefaultButton(QMessageBox.StandardButton.No)
-            answer = plain(box).exec()
-            box.deleteLater()
-            if answer != QMessageBox.StandardButton.Yes:
-                return
+        if k.get("group") == "vendor" and not confirm(  # probably still needed: only after a clear question
+                self, _("This key is probably still needed by a vendor"), _("Delete it anyway"),
+                window_title=_("Delete the signing key"), icon_name="security-low|dialog-warning",
+                items=[("security-low|object-unlocked|edit-delete",
+                        pgettext("change", "Stop trusting the signing key “{name}”").format(name=key_title(k)),
+                        _("Key ID {keyid}").format(keyid=k.get("keyid") or "?"))],
+                warning=self.page.delete_meaning(k)[0],
+                means=_("it only goes to the queue: nothing changes until you apply it."),
+                password=False, help_topic="repos"):
+            return
         self.page.queue_delete([k])
 
     def _keep(self):
@@ -609,21 +610,22 @@ class KeysPage(Page):
         if not keys:
             return
         lines = [f"{k['keyid']}  {key_title(k)}" + (" — " + _("expired") if k.get("expired") else "") for k in keys]
-        box = QMessageBox(QMessageBox.Icon.Question, _("Delete the unused keys"),
-                          ngettext("Delete {n} key that no repository uses and that signed none of your packages?",
-                                   "Delete these {n} keys that no repository uses and that signed none of your "
-                                   "packages?", len(keys)).format(n=len(keys)),
-                          QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, self)
-        shown = lines[:12]
-        if len(lines) > len(shown):
-            shown.append(_("… and {n} more").format(n=len(lines) - len(shown)))
-        box.setInformativeText("\n".join(shown) + "\n\n" + _("No program is removed. They go to the queue: nothing "
-                                                             "changes until you apply it."))
-        box.setDetailedText("\n".join(lines))
-        box.setDefaultButton(QMessageBox.StandardButton.No)
-        answer = plain(box).exec()
-        box.deleteLater()
-        if answer == QMessageBox.StandardButton.Yes:
+        if confirm(
+                self, ngettext("Delete {n} key that no repository uses and that signed none of your packages?",
+                               "Delete these {n} keys that no repository uses and that signed none of your packages?",
+                               len(keys)).format(n=len(keys)),
+                _("Delete it") if len(keys) == 1 else _("Delete them"), window_title=_("Delete the unused keys"),
+                icon_name="edit-delete",
+                items=[("security-low|object-unlocked|edit-delete",
+                        ngettext("Stop trusting {n} signing key", "Stop trusting {n} signing keys", len(keys)).format(
+                            n=len(keys)), ngettext("No repository uses it, and it signed none of your packages.",
+                                                   "No repository uses them, and they signed none of your packages.",
+                                                   len(keys)),
+                        lines)],
+                means=ngettext("no program is removed. It goes to the queue: nothing changes until you apply it.",
+                               "no program is removed. They go to the queue: nothing changes until you apply it.",
+                               len(keys)),
+                password=False, help_topic="repos"):
             self.queue_delete(keys)
 
     def import_key(self):

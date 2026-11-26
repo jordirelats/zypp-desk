@@ -4,13 +4,13 @@
 import html
 
 from PySide6.QtCore import QLocale, Qt
-from PySide6.QtGui import QBrush, QColor, QTextOption
+from PySide6.QtGui import QBrush, QColor, QPalette, QTextOption
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout,
                                QLineEdit, QSplitter, QTabWidget, QTextBrowser, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
 from .. import flatpak, question
-from ..i18n import _, ngettext
+from ..i18n import _, ngettext, pgettext
 from ..runner import Step
 from ..tasks import run_async
 from ..txqueue import Action, installation_label
@@ -239,7 +239,8 @@ class FlatpakPage(Page):
             elif state == "flatpak-update" and r["application"] in self.updates:
                 text, color = _("Will be updated"), "#27ae60"
             elif r["application"] in self.updates:
-                text, color = _("Update available"), "#1d99f3"
+                # the theme's link colour: a fixed blue is hard to read on a dark background (visual review 0.5, #20)
+                text, color = _("Update available"), self.palette().color(QPalette.ColorRole.Link).name()
             elif r["application"] in self.eol:
                 text, color = _("no longer maintained"), ORANGE
                 it.setToolTip(7, self.eol[r["application"]][0])
@@ -342,7 +343,8 @@ class FlatpakPage(Page):
             elif key == "Date":
                 val = val.split(" ")[0]
             rows.append((label, val))
-        body += "<table>" + "".join(f"<tr><td style='color:gray;padding-right:12px'>{e(k)}</td><td>{e(v)}</td></tr>"
+        grey = self.palette().color(QPalette.ColorRole.PlaceholderText).name()
+        body += "<table>" + "".join(f"<tr><td style='color:{grey};padding-right:12px'>{e(k)}</td><td>{e(v)}</td></tr>"
                                     for k, v in rows) + "</table>"
         if self.perm_btn.isChecked() and res.get("perms"):
             body += f"<h4>{e(_('Permissions'))}</h4><pre>{e(res['perms'])}</pre>"
@@ -389,11 +391,12 @@ class FlatpakPage(Page):
         if question.confirm(
                 self, _("Remove the unused runtimes?"), _("Yes, remove them"), window_title=_("Remove unused runtimes"),
                 icon_name="flatpak-discover",
-                items=[("flatpak-discover", _("Uninstall the runtimes and extensions that no app uses any more"),
+                items=[("flatpak-discover", pgettext("change", "Uninstall the runtimes and extensions that no app "
+                                                          "uses any more"),
                         _("A runtime is the shared base Flatpak apps run on, such as org.kde.Platform."))],
                 means=_("your apps keep working: only what none of them uses goes. If an app needs one again, "
                         "Flatpak downloads it."),
-                commands_=[st.display()]):
+                commands_=[st.display()], help_topic="programs"):
             self.ctx.run([st], _("Remove unused runtimes"), on_done=self._changed)
 
     def add_remote(self):
@@ -431,25 +434,27 @@ class FlatpakPage(Page):
             return
         args = ["remote-delete", f"--{r['installation']}"]
         name, inst = r["name"], r["installation"]
-        items = [("flatpak-discover", _("Remove the remote «{name}»").format(name=name),
+        items = [("flatpak-discover", pgettext("change", "Remove the Flatpak remote “{name}”").format(name=name),
                   _("A remote is a place Flatpak apps come from, like Flathub. This one is {installation}.").format(
                       installation=installation_label(inst)))]
         warning = None
         if refs:
-            # flatpak removes a remote that apps or runtimes come from only with --force
+            # flatpak removes a remote that apps or runtimes come from only with --force. "No more updates" is
+            # said once, in the warning (visual review 0.5, #19)
             args.append("--force")
             apps = sorted({x["name"] or x["application"] for x in refs if x["kind"] == "app"})
             runtimes = sorted({x["application"] for x in refs if x["kind"] != "app"})
             n = len(apps) + len(runtimes)
             items.append(("dialog-warning", ngettext("{n} app or runtime comes from it",
                                                      "{n} apps and runtimes come from it", n).format(n=n),
-                          _("They stay installed, but get no more updates."), apps + runtimes))
-            means = _("nothing is uninstalled, but what came from it is not updated any more.")
+                          "", apps + runtimes))
+            means = _("nothing is uninstalled: what came from it stays and keeps working as it is now.")
             warning = _("What came from it gets no more updates, not even for security problems.")
         else:
             means = _("nothing installed comes from it, so nothing else changes.")
         st = Step("flatpak", [*args, "--", name])
-        if question.confirm(self, _("Remove the Flatpak remote «{name}»?").format(name=name), _("Yes, remove it"),
+        if question.confirm(self, _("Remove the Flatpak remote “{name}”?").format(name=name), _("Yes, remove it"),
                             window_title=_("Remove a Flatpak remote"), icon_name="flatpak-discover", items=items,
-                            means=means, warning=warning, commands_=[st.display()], password=inst != "user"):
+                            means=means, warning=warning, commands_=[st.display()], password=inst != "user",
+                            help_topic="programs"):
             self.ctx.run([st], _("Remove a Flatpak remote"), on_done=self._changed)

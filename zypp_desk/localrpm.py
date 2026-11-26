@@ -12,10 +12,13 @@ check_obs(obs, keyid) asks that repository (network, https) whether it exists fo
 key it publishes is the one that signed the file.
 """
 
+import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -240,6 +243,130 @@ def _stamp(path):
     return st.st_size, st.st_mtime_ns
 
 
+# ------------------------------------------------------------------ who can change the file
+
+def _others_may_write(st, is_dir=False):
+    """Whether somebody other than you and root can change a file (or, for a folder, put another file in its
+    place): another owner, or write permission for the group or for everyone. A folder with the sticky bit
+    (/tmp) only lets each person replace their own files."""
+    if st.st_uid not in (0, os.getuid()):
+        return True
+    if not st.st_mode & 0o022:
+        return False
+    return not (is_dir and st.st_mode & stat.S_ISVTX)
+
+
+def others_can_write(path):
+    """'' when only you or root can change this file; otherwise why others can, in words (security review 0.5,
+    #1: this computer has a second account, and a file anybody can write can be changed between the check and
+    the moment root installs it)."""
+    try:
+        real = os.path.realpath(path)
+        st = os.stat(real)
+        folder = os.stat(os.path.dirname(real) or "/")
+    except OSError:
+        return ""  # read_rpm says why it cannot be read
+    if st.st_uid not in (0, os.getuid()):
+        return _("The file belongs to another user of this computer, who can change it.")
+    if st.st_mode & 0o022:
+        return _("Other users of this computer can change the file: anybody can write to it.") \
+            if st.st_mode & 0o002 else _("Other users of this computer can change the file: its group can write to "
+                                         "it.")
+    if _others_may_write(folder, is_dir=True):
+        return _("Other users of this computer can put another file in its place: they can write in its folder.")
+    return ""
+
+
+def private_name(path):
+    """The name of the private copy: the file's own name, made safe for a command line and ending in .rpm (zypper
+    takes an argument as a file only when it does)."""
+    name = websources._safe_name(os.path.basename(path))
+    return name if name.lower().endswith(".rpm") else name + ".rpm"
+
+
+def private_copy(path):
+    """Copy a file into the private download folder (~/.cache/zypp-desk/downloads, 0700, like the programs from
+    the web), hashing it while it is copied. Returns (copy, sha256). The file is opened once, without following
+    a link in its last part, and only a regular file is copied: what root installs is then exactly these bytes,
+    whatever happens to the original afterwards."""
+    folder = websources.download_dir() / "opened"
+    folder.mkdir(mode=0o700, exist_ok=True)
+    real = os.path.realpath(path)  # the folders on the way may be links (~/MEGA); the file itself may not change
+    fd = os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    tmp = None
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise OSError(_("This is not a file."))
+        h = hashlib.sha256()
+        out_fd, tmp = tempfile.mkstemp(prefix=".copy-", suffix=".part", dir=folder)
+        with os.fdopen(out_fd, "wb") as out, os.fdopen(os.dup(fd), "rb", closefd=True) as src:
+            for chunk in iter(lambda: src.read(1 << 20), b""):
+                h.update(chunk)
+                out.write(chunk)
+        digest = h.hexdigest()
+        sub = folder / digest[:20]  # one folder per content: the copy keeps the file's own name
+        sub.mkdir(mode=0o700, exist_ok=True)
+        dest = sub / private_name(path)
+        os.chmod(tmp, 0o644)  # nobody else can reach it (the folders are 0700); a copy kept later stays 0644
+        os.replace(tmp, dest)
+        tmp = None
+        return str(dest), digest
+    finally:
+        os.close(fd)
+        if tmp:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def is_private_copy(path):
+    """Whether a path is a copy made by private_copy (it may be deleted when nothing uses it any more)."""
+    try:
+        folder = os.path.realpath(websources.download_dir() / "opened")
+    except OSError:
+        return False
+    return os.path.realpath(os.path.dirname(os.path.dirname(path))) == folder
+
+
+def drop_private_copy(path):
+    """Delete a copy made by private_copy, and its folder when it is empty (nothing else is ever deleted)."""
+    if not path or not is_private_copy(path):
+        return
+    try:
+        os.unlink(path)
+        os.rmdir(os.path.dirname(path))
+    except OSError:
+        pass
+
+
+class FileChanged(Exception):
+    """The file is not the one that was read any more."""
+
+
+def planned_copy(info):
+    """Where copy_for_queue puts the copy of this file: the same path every time for the same content (the
+    command shown before anything is copied)."""
+    if info.get("private"):
+        return info["private"]
+    return str(websources.download_dir() / "opened" / info["sha256"][:20] / private_name(info["path"]))
+
+
+def copy_for_queue(info):
+    """The file root will install for this read_rpm result: the private copy, made now when there is none yet,
+    with the same SHA-256 that was read. Raises FileChanged when the file changed since, OSError when it cannot
+    be read."""
+    have = info.get("private")
+    if have and os.path.isfile(have) and websources.sha256_of(have) == info["sha256"]:
+        return have
+    dest, digest = private_copy(info["path"])
+    if digest != info["sha256"]:
+        drop_private_copy(dest)
+        raise FileChanged(info["path"])
+    info["private"] = dest
+    return dest
+
+
 def read_rpm(path):
     """Everything about a downloaded .rpm file (nothing changes, no network). Never raises for a bad file:
     the dict has 'refuse' set to the reason instead.
@@ -250,7 +377,8 @@ def read_rpm(path):
     compare ('not-installed', 'newer', 'same', 'older'), signature ('verified', 'nokey:<id>', 'unsigned', 'bad'),
     keyid (upper case; the long id from the header when there is one), signer_name, digests_ok,
     provided ({package: [capabilities]}), missing ([capabilities]), requires ([(name, flags, version)]),
-    provides_list ([names]).
+    provides_list ([names]), exposed ('' or why other users can change the file), private (the private copy that
+    was read instead of the file, when others can change it; copy_for_queue makes it for the others).
     """
     path = os.path.abspath(path)
     info = {"path": path, "file_name": os.path.basename(path), "file_size": 0, "sha256": "", "refuse": None,
@@ -259,7 +387,7 @@ def read_rpm(path):
             "disturl": "", "size": 0, "buildtime": 0, "built_for": "", "installed": [], "installed_evr": None,
             "compare": "not-installed", "signature": "", "keyid": "", "signer_name": "", "digests_ok": None,
             "provided": {}, "missing": [], "requires": [], "provides_list": [], "source": False,
-            "refuse_kind": None}
+            "refuse_kind": None, "exposed": "", "private": None}
     low = path.lower()
     if not os.path.isfile(path):
         exists = os.path.exists(path)
@@ -282,9 +410,16 @@ def read_rpm(path):
         return info
     if low.endswith(".src.rpm") or low.endswith(".nosrc.rpm"):
         info["source"] = True
+    # a file that others can change is read from a private copy made first: what is checked here is then exactly
+    # what goes to the queue (security review 0.5, #1). The others are copied when they go to the queue.
+    info["exposed"] = others_can_write(path)
     try:
+        if info["exposed"]:
+            info["private"], info["sha256"] = private_copy(path)
+            path = info["private"]
         before = _stamp(path)
-        info["sha256"] = websources.sha256_of(path)
+        if not info["exposed"]:
+            info["sha256"] = websources.sha256_of(path)
     except OSError as e:
         info["refuse"] = _("The file cannot be read: {error}").format(error=e.strerror or e)
         info["refuse_kind"] = "unreadable"

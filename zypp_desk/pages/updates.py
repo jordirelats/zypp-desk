@@ -4,11 +4,14 @@ and a simulation of 'zypper dup' with its options in its own window.
 
 Before a real 'zypper dup' the window asks with the numbers of a simulation (mockups preguntes-v3-D, -G and
 idees-v1-H): the usual question; "a big update: shall we do it now?" when it is big or Tumbleweed came out
-today; and "update in parts?" when it does not fit on the disk with room to spare (diskspace.py). The routine
-asks too, before it runs, when the disk is clearly too full for a big update downloaded at once."""
+today; and "update in parts?" when it does not fit on the disk with room to spare (diskspace.py). Before that
+question every part is simulated (heaps.review): what needs a decision goes to the full update at the end, and
+the parts are made again with their real sizes. The routine asks too, before it runs, when the disk is clearly
+too full for a big update downloaded at once."""
 
 import datetime as dt
 import html
+import inspect
 import math
 import os
 import re
@@ -48,7 +51,7 @@ def is_checked(value):
 # "A big update": this many packages changed, or this much to download
 BIG_CHANGES = 300
 BIG_DOWNLOAD = int(1.5 * diskspace.GiB)
-# a Tumbleweed version younger than this is "from today": its problems may not be known yet
+# a Tumbleweed version younger than this is "less than a day old": its problems may not be known yet
 FRESH_TW_HOURS = 24
 # a simulation of the dup is used for the question when it is younger than this and for the same options
 SIM_FRESH_S = 15 * 60
@@ -231,6 +234,30 @@ def change_items(res, short=False):
     return out
 
 
+def change_summary(res):
+    """Every change of a simulation in one item ("2,143 updates · 37 new packages · 12 to remove"), with all the
+    names under '▸ Show them': the question about the room on the disk puts its reason first, and the changes
+    must not push it below the fold (visual review 0.5, #5)."""
+    g = res.get("groups", {})
+    up = g.get("to-upgrade", [])
+    counts = []
+    if up:
+        counts.append(ngettext("{n} update", "{n} updates", len(up)).format(n=_n(len(up))))
+    n_in, n_rm = len(g.get("to-install", [])), len(g.get("to-remove", []))
+    if n_in:
+        counts.append(ngettext("{n} new package", "{n} new packages", n_in).format(n=_n(n_in)))
+    if n_rm:
+        counts.append(ngettext("{n} package to remove", "{n} packages to remove", n_rm).format(n=_n(n_rm)))
+    other = sum(len(g.get(k, [])) for k in ("to-downgrade", "to-change-vendor", "to-change-arch", "to-reinstall"))
+    if other:
+        counts.append(ngettext("{n} other change", "{n} other changes", other).format(n=_n(other)))
+    mark = {"to-install": "+ ", "to-remove": "− "}
+    lines = [mark.get(key, "") + _line(it) for key, _label in CATEGORIES for it in g.get(key, [])]
+    hl = highlights(up)
+    detail = _("Among them {names}.").format(names=", ".join(hl)) if hl else ""
+    return question.item("system-software-update", " · ".join(counts), detail, more=lines)
+
+
 def download_item(res, detail=None):
     size = _download(res)
     if size < diskspace.MiB:
@@ -240,9 +267,14 @@ def download_item(res, detail=None):
 
 
 def _copy(st):
-    """A new Step with the same command (a Step keeps its state and output: each run gets its own)."""
-    return Step(st.program, list(st.args), cond=st.cond, root=st.root, lang=st.lang, capture=st.capture,
-                strict=st.strict, shown=st.shown)
+    """A new Step with the same command (a Step keeps its state and output: each run gets its own). The title and
+    the short command of the routine band (band_title, band_cmd) go with it."""
+    new = Step(st.program, list(st.args), cond=st.cond, root=st.root, lang=st.lang, capture=st.capture,
+               strict=st.strict, shown=st.shown)
+    for attr in ("band_title", "band_cmd"):
+        if hasattr(st, attr):
+            setattr(new, attr, getattr(st, attr))
+    return new
 
 
 def _more(n):
@@ -252,13 +284,39 @@ def _more(n):
 def part_steps(plan, opts):
     """The commands of the parts of a heaps.plan(): 'zypper -n -v update --download-in-advance … -- names',
     each one only if the one before worked. On screen the list of names is shortened; the command has them
-    all."""
+    all. The routine band shows "Part 1 of 3 · 1,041 packages" and the command without the names."""
     out = []
-    for part in plan["parts"]:
-        args = ["-n", "-v", *heaps.part_args(part["names"], opts)]
+    n = len(plan["parts"])
+    for i, part in enumerate(plan["parts"], 1):
+        args = ["-n", "-v", *(opts.get("globals") or ()), *heaps.part_args(part["names"], opts)]
         head = args[:args.index("--") + 1]
-        out.append(Step("zypper", args, shown=heaps.shown(["zypper", *head], part["names"], _more)))
+        st = Step("zypper", args, shown=heaps.shown(["zypper", *head], part["names"], _more))
+        count = len(part["names"])
+        st.band_title = ngettext("Part {i} of {n} · {count} package", "Part {i} of {n} · {count} packages",
+                                 count).format(i=i, n=n, count=_n(count))
+        st.band_cmd = " ".join(["zypper", *head, "…"])
+        out.append(st)
     return out
+
+
+def final_step(now):
+    """The full update after the parts: only if every part worked (zypper review 0.5, #2: a routine's ';' before
+    its dup must not run the whole download-at-once update after a part failed)."""
+    st = _copy(now)
+    st.cond = "success"
+    st.band_title = _("Finish: update the rest (dup)")
+    return st
+
+
+def moved_text(names):
+    """The packages that heaps.review() left to the full update at the end, in a sentence."""
+    n = len(names)
+    shown = ", ".join(names[:3]) + ("…" if n > 3 else "")
+    return ngettext("{names} is left to the full update at the end: its update needs a decision that only a "
+                    "full update makes.",
+                    "{n} packages are left to the full update at the end ({names}): their update needs a "
+                    "decision that only a full update makes, or goes with a package that does.", n).format(
+        n=_n(n), names=shown)
 
 
 def free_steps(free):
@@ -273,7 +331,7 @@ def free_steps(free):
 
 
 def free_card(free, after):
-    """'Before, free up space': what can go, and a button. (widget, button); the button is never the default."""
+    """'First, free up space': what can go, and a button. (widget, button); the button is never the default."""
     parts = []
     if "clean" in free["steps"]:
         parts.append(_("Packages downloaded before: {size}").format(size=human_size(free["cache"]["bytes"])))
@@ -291,7 +349,7 @@ def free_card(free, after):
     btn = QPushButton(_("Free {size}").format(size=human_size(free["bytes"])))
     btn.setAutoDefault(False)  # Enter never runs a change as root
     btn.setDefault(False)
-    return question.item("edit-clear|edit-delete", _("Before, free up space"), "\n".join(lines), right=btn), btn
+    return question.item("edit-clear|edit-delete", _("First, free up space"), "\n".join(lines), right=btn), btn
 
 
 def _space_box(title, root, extra, caption, rows, tip=None):
@@ -322,7 +380,7 @@ def wait_reasons(res, facts, big, tip=True):
                             "within a day or two.", h).format(n=h)
             if tw < repostate.MIRROR_SETTLE_HOURS:
                 text += " " + _("The mirrors may still be copying it, so some downloads can fail for a few hours.")
-            rows.append((ORANGE, _("This Tumbleweed version is from today"), text))
+            rows.append((ORANGE, _("This Tumbleweed version is less than a day old"), text))
         else:
             d = int(tw // 24)
             rows.append((GREEN, ngettext("This Tumbleweed version came out {n} day ago",
@@ -345,9 +403,10 @@ def wait_reasons(res, facts, big, tip=True):
 
 def dup_question(parent, res, steps, facts):
     """The question before a real 'zypper dup'. steps: dict(now, download, parts=[Step…] (the parts and the final
-    dup), free=[Step…]): the commands each answer runs; facts: dup_facts(). Returns a question.Question whose
-    exec() gives 'now', 'download', 'parts', 'free', 'remind', 'no' or None; its .kind is 'D' (the usual one),
-    'G' (big, or a brand-new Tumbleweed) or 'H' (it does not fit on the disk with room to spare: in parts)."""
+    dup), free=[Step…]): the commands each answer runs; facts: dup_facts() (with the plan that heaps.review()
+    checked). Returns a question.Question whose exec() gives 'now', 'download', 'parts', 'free', 'remind',
+    'history', 'no' or None; its .kind is 'D' (the usual one), 'G' (big, or a brand-new Tumbleweed) or 'H' (it
+    does not fit on the disk with room to spare: in parts, or not at all)."""
     space = facts.get("space")
     download = _download(res)
     big = _changes(res) >= BIG_CHANGES or download >= BIG_DOWNLOAD
@@ -368,49 +427,83 @@ def dup_question(parent, res, steps, facts):
         if space["snapshots"]:
             caption += "\n" + _("The snapshot taken before the update keeps the old files, so the new ones take "
                                 "their whole size.")
-        rows = [(ORANGE, _("Downloading it all at once does not fit with room to spare"),
-                 _("If the disk fills up halfway, the system can be left half updated."))]
-        plan = facts.get("plan") or dict(parts=[], feasible=False, reason="none", need=0)
+        plan = facts.get("plan") or dict(parts=[], feasible=False, reason="none", need=0, short=0)
         feasible = plan["feasible"] and bool(steps.get("parts"))
-        if feasible:
+        # a small update on a nearly full disk: it fits, only not with the room to spare (code review 0.5, #2)
+        tight = not feasible and bool(space.get("fits_tight")) and steps.get("now") is not None
+        rows = [] if tight else [(ORANGE, _("There is not enough room to download it all at once"),
+                                  _("If the disk fills up halfway, the system can be left half updated."))]
+        if tight:
+            need = space["need_all"]
+            rows.append((ORANGE, _("The update itself fits"),
+                         _("It needs about {need} and there are {free} free, so about {left} would be left: less "
+                           "than the {margin} that Zypp Desk keeps free as room to spare.").format(
+                             need=hs(need), free=hs(root["free"]), left=hs(max(0, root["free"] - need)),
+                             margin=hs(space["margin"]))))
+            rows.append((RED, _("The disk is nearly full"),
+                         _("Free up space soon, for example by deleting old snapshots in History.")
+                         if space["snapshots"] else _("Free up space soon: other programs need room too.")))
+        elif feasible:
             n = len(plan["parts"])
             text = _("Each part is downloaded completely before it is installed, so if a download fails nothing of "
                      "that part is installed, and the system stays as the previous part left it. Then a normal "
                      "update finishes what is left.")
             if space["snapshots"]:
                 text += " " + _("Each part makes its own pair of snapshots.")
+            if plan.get("moved"):
+                text += " " + moved_text(plan["moved"])
             rows.append((GREEN, ngettext("It can be done in {n} part", "It can be done in {n} parts", n).format(n=n),
                          text))
         else:
-            if plan["reason"] == "none":
+            reason = plan.get("reason")
+            if reason == "none":
                 text = _("Its changes cannot be split into parts.")
-            elif plan["reason"] == "many":
+            elif reason == "many":
                 text = _("It would need more than {n} parts.").format(n=heaps.MAX_PARTS)
+            elif reason == "rounds":
+                text = _("zypper kept finding problems in the parts, so Zypp Desk could not find parts that work.")
             else:
-                text = _("Even split into parts it needs about {need} at once, and there are {free} free.").format(
-                    need=hs(plan["need"]), free=hs(root["free"]))
-            text += " " + (_("Free up space first, for example by deleting old snapshots in History.")
-                           if space["snapshots"] else _("Free up space first."))
+                text = _("Even split into parts, at least {short} more free space is needed, counting the {margin} "
+                         "that Zypp Desk keeps free as room to spare.").format(
+                    short=hs(plan.get("short") or space["short"]), margin=hs(space["margin"]))
+            if space["snapshots"]:
+                text += " " + _("Free up space first, for example by deleting old snapshots in History.")
+            elif not steps.get("free"):
+                text += " " + _("Free up space first.")
             rows.append((RED, _("Even in parts there is not enough room"), text))
         extra = [_space_box(_("There is little room on the system disk"), root,
-                            space["need_all"] if space["same"] else space["growth"], caption, rows)]
-        cmds = [(_("Yes, in parts:"), [st.display() for st in steps["parts"]])] if feasible else []
+                            space["need_all"] if space["same"] else space["growth"], caption, rows),
+                 change_summary(res)]
+        cmds = []
+        if feasible:
+            cmds.append((_("Yes, in parts:"), [st.display() for st in steps["parts"]]))
+        if tight:
+            cmds.append((_("Update it now anyway:"), [steps["now"].display()]))
         if steps.get("free"):
             card, free_btn = free_card(space["free"], _("After that it should fit all at once. The update is "
                                                          "simulated again and you are asked again.")
                                        if space["fits_after_free"] else
                                        _("Then the update is simulated again and you are asked again."))
             extra.append(card)
-            cmds.append((_("Before, free up space:"), [st.display() for st in steps["free"]]))
-        if big or fresh:
-            extra.append(wait_reasons(res, facts, big, tip=False))
-            buttons = [("remind", _("Remind me tomorrow"), False), ("parts", _("Yes, in parts"), True)]
+            cmds.append((_("First, free up space:"), [st.display() for st in steps["free"]]))
+        buttons = [("no", _("Not yet"), False)]
+        if feasible:
+            if big or fresh:
+                extra.append(wait_reasons(res, facts, big, tip=False))
+                buttons.append(("remind", _("Remind me tomorrow"), False))
+            buttons.append(("parts", _("Yes, in parts"), True))
+            title = _("Update in parts?")
         else:
-            buttons = [("no", _("Not yet"), False), ("parts", _("Yes, in parts"), True)]
-        dlg = question.Question(parent, _("Update in parts?"), icon_name="drive-harddisk|computer",
-                                items=change_items(res, short=not (big or fresh)), extra=extra, commands_=cmds or None,
-                                buttons=buttons, width=740)
-        dlg.buttons["parts"].setEnabled(feasible)
+            # nothing to say yes to (visual review 0.5, #4): what can be done is freeing space, or updating anyway
+            if space["snapshots"]:
+                buttons.append(("history", _("Open History"), False))
+            if tight:
+                buttons.append(("now", _("Update it now anyway"), False))
+            title = (_("Very little room on the disk: update anyway?") if tight else
+                     _("There is not enough room for this update"))
+        dlg = question.Question(parent, title, icon_name="drive-harddisk|computer", extra=extra,
+                                commands_=cmds or None, buttons=buttons, width=740, help_topic="update",
+                                password=feasible or tight or bool(steps.get("free")))
     elif big or fresh:
         kind = "G"
         dl_min, _total = minutes(res)
@@ -418,32 +511,34 @@ def dup_question(parent, res, steps, facts):
             "About {n} minute at {speed} Mbit/s.", "About {n} minutes at {speed} Mbit/s.", dl_min).format(
             n=dl_min, speed=ASSUMED_MBIT))]
         downloaded = download < diskspace.MiB
+        # always a plain way out that changes nothing (visual review 0.5, #4), and Enter takes it
         if downloaded:
             cmds = [steps["now"].display()]
-            buttons = [("remind", _("Remind me tomorrow"), False), ("now", _("Update it now"), True)]
+            buttons = [("no", _("Not yet"), False), ("remind", _("Remind me tomorrow"), False),
+                       ("now", _("Update it now"), True)]
         else:
             cmds = [(_("Only download it now:"), [steps["download"].display()]),
                     (_("Update it now:"), [steps["now"].display()])]
-            buttons = [("remind", _("Remind me tomorrow"), False), ("download", _("Only download it now"), False),
-                       ("now", _("Update it now"), True)]
+            buttons = [("no", _("Not yet"), False), ("remind", _("Remind me tomorrow"), False),
+                       ("download", _("Only download it now"), False), ("now", _("Update it now"), True)]
         title = _("A big update: shall we do it now?") if big else _("A brand-new Tumbleweed: update now?")
         dlg = question.Question(parent, title, items=items, extra=[wait_reasons(res, facts, big, tip=not downloaded)],
-                                commands_=cmds, buttons=buttons, width=740)
+                                commands_=cmds, buttons=buttons, width=760, help_topic="update")
     else:
         kind = "D"
         means = [_("it will take a few minutes and you can keep working."), restart_text(res)]
         if facts.get("snapshots"):
             means.append(_("If something goes wrong, the snapshot from before lets you go back."))
-        warning = _("Don't turn the computer off while it updates.")
+        warning = _("Do not turn the computer off while it updates.")
         if (facts.get("power") or (None,))[0] == "battery":
             warning += " " + _("It is on battery: plug in the charger first.")
         dlg = question.Question(parent, _("Update the whole system now?"),
                                 items=change_items(res, short=True) + [download_item(res)], means=" ".join(means),
                                 warning=warning, commands_=[steps["now"].display()],
                                 buttons=[("no", _("Not yet"), False), ("now", _("Yes, update everything"), True)],
-                                width=680)
+                                width=680, help_topic="update")
     if free_btn is not None:
-        free_btn.clicked.connect(lambda: (setattr(dlg, "result_key", "free"), dlg.accept()))
+        free_btn.clicked.connect(lambda: dlg.press("free"))
     dlg.kind = kind
     return dlg
 
@@ -473,13 +568,13 @@ def routine_question(parent, info, usual, parts, cleaning):
     if cleaning:
         card, free_btn = free_card(info["free"], _("Then the free space is checked again, and your routine runs."))
         extra.append(card)
-        cmds.append((_("Before, free up space:"), [st.display() for st in cleaning]))
+        cmds.append((_("First, free up space:"), [st.display() for st in cleaning]))
     dlg = question.Question(parent, _("Little room on the disk: run the routine in parts?"),
                             icon_name="drive-harddisk|computer", extra=extra, commands_=cmds,
-                            buttons=[("no", _("Not now"), False), ("usual", _("Run it as usual"), False),
-                                     ("parts", _("Yes, in parts"), True)], width=740)
+                            buttons=[("no", _("Not yet"), False), ("usual", _("Run it as usual"), False),
+                                     ("parts", _("Yes, in parts"), True)], width=740, help_topic="update")
     if free_btn is not None:
-        free_btn.clicked.connect(lambda: (setattr(dlg, "result_key", "free"), dlg.accept()))
+        free_btn.clicked.connect(lambda: dlg.press("free"))
     return dlg
 
 
@@ -615,12 +710,14 @@ class StepBox(QFrame):
         h.addWidget(self.badge, 0, Qt.AlignmentFlag.AlignTop)
         v = QVBoxLayout()
         v.setSpacing(1)
-        title = QLabel(routine.describe(step), self)
+        # a part of an update in parts says which part it is, and its command leaves the names to the tooltip and
+        # the terminal (visual review 0.5, #12)
+        title = QLabel(getattr(step, "band_title", None) or routine.describe(step), self)
         f = title.font()
         f.setBold(True)
         title.setFont(f)
         title.setWordWrap(True)  # German titles are long: they wrap instead of widening the window
-        cmd = QLabel(step.display(), self)
+        cmd = QLabel(getattr(step, "band_cmd", None) or step.display(), self)
         cmd.setTextFormat(Qt.TextFormat.PlainText)
         cmd.setFont(mono())
         cmd.setStyleSheet("color: palette(link);")
@@ -768,18 +865,25 @@ class UpdatesPage(Page):
             return
         self._show_steps(self.steps)
 
-    def _show_steps(self, steps):
-        """The band: one box per step (the saved routine, or this run's steps when it runs in parts)."""
+    def _show_steps(self, steps, custom=False):
+        """The band: one box per step (the saved routine, or this run's steps when it runs in parts: custom)."""
         while self.strip.count():
             w = self.strip.takeAt(0).widget()
             if w:
                 w.hide()  # out of sight at once: it is deleted only when the event loop gets to it
                 w.deleteLater()
         self.boxes = []
+        self._band_custom = custom
         for i, st in enumerate(steps, 1):
             box = StepBox(i, st, self)
             self.boxes.append(box)
             self.strip.addWidget(box, 1)
+
+    def _restore_band(self):
+        """After a run in parts (or its question), the band shows the saved routine again (code review 0.5,
+        #10): what this run did is in the terminal and in the line under the band."""
+        if getattr(self, "_band_custom", False) and not getattr(self, "_running", False):
+            self.show_routine()
 
     def edit_routine(self):
         from .routine_editor import RoutineEditorDialog
@@ -798,13 +902,16 @@ class UpdatesPage(Page):
         self.stop_btn.setEnabled(running)
         self.edit_btn.setEnabled(not running)
 
+    def _flow_busy(self):
+        """An update is on its way to its question: simulated, and now the free space is measured or the parts
+        are checked. Nothing else may start meanwhile (code review 0.5, #9): the question would be dropped."""
+        return bool(getattr(self, "_dup_asking", False) or getattr(self, "_routine_asking", False))
+
     def run_routine(self):
-        if self.ctx.runner.busy:
+        if self.ctx.runner.busy or self._flow_busy():
             self.result_lbl.setText(_("Wait until the current command finishes."))
             self.result_lbl.show()
             return
-        if getattr(self, "_routine_asking", False):
-            return  # the question about the free space is on its way
         self.show_routine()
         if not self.steps:
             return
@@ -869,13 +976,13 @@ class UpdatesPage(Page):
 
     def _routine_in_parts(self, split):
         """This run only: the refresh steps of the routine, then the same flow as the dup window with the
-        routine's own dup (simulate, plan the parts, ask), then the rest of the routine."""
+        routine's own dup (simulate, plan the parts, check them, ask), then the rest of the routine."""
         args, lic = routine.dup_arguments(split["dup"])
         dup = split["dup"]
         job = dict(args=tuple(args), now=_copy(dup),
                    download=Step(dup.program, [*dup.args, "--download-only"], cond=dup.cond, strict=dup.strict),
                    opts=heaps.update_options(args, lic), parent=self, say=self._routine_say, post=split["post"],
-                   done=self._routine_done, routine=True,
+                   done=self._routine_done, routine=True, end=self._restore_band,
                    cancel=lambda: self._routine_say(_("The repositories were refreshed; nothing else has been "
                                                       "changed.")))
         job["resimulate"] = lambda: self._routine_simulate(job)
@@ -884,26 +991,27 @@ class UpdatesPage(Page):
             return
         pre = [_copy(st) for st in split["pre"]]
         self.run_steps = pre
-        self._show_steps(pre)
+        self._show_steps(pre, custom=True)
         self._routine_say("")
         self._set_running(True)
         if not self.ctx.run(pre, _("Routine: {text}").format(text=routine.steps_text(pre)),
                             on_done=lambda ok: self._routine_pre_done(job, pre, split["join"], ok)):
             self._set_running(False)
+            self._restore_band()
 
     def _routine_pre_done(self, job, pre, join, ok):
         self._set_running(False)
         if getattr(self.ctx.runner, "stopped", False) or any(st.code in (126, 127) for st in pre):
-            self._routine_say(_("The routine was stopped: the steps after it did not run."))
+            self._job_end(job, _("The routine was stopped: the steps after it did not run."))
             return
         if not ok and join == "success":
-            self._routine_say(_("The routine stopped with errors: look at the terminal."))
+            self._job_end(job, _("The routine stopped with errors: look at the terminal."))
             return
         QTimer.singleShot(0, lambda: self._routine_simulate(job))
 
     def _routine_simulate(self, job):
         if self.ctx.runner.busy:
-            self._routine_say(_("Wait until the current command finishes."))
+            self._job_end(job, _("Wait until the current command finishes."))
             return
         sim = Step("zypper", ["--xmlout", "-n", *job["args"], "--dry-run"], lang="C", capture=True)
         self._sim_step = sim
@@ -912,18 +1020,26 @@ class UpdatesPage(Page):
 
     def _routine_simulated(self, job, sim):
         if sim.code in (126, 127):
-            self._routine_say(_("Not simulated: the administrator password was not given."))
+            self._job_end(job, _("Not simulated: the administrator password was not given."))
             return
         res = parse_dry_run(sim.output, source="zypper dup")
         for line in summary_lines(res):
             self.ctx.terminal.view.note(line, "ok")
         if res["problems"]:
-            self._routine_say(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
+            # the same window as in "Simulate the dup…" (zypper review 0.5, #12): choose, and the routine goes on
+            items = self._solvable(res)
+            if items:
+                self._routine_say(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
+                QTimer.singleShot(0, lambda: self._resolve(items, job=job))
+                return
+            self._job_end(job, _("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
             return
         if not _changes(res):
             self._routine_say(_("Nothing to do: the system is up to date."))
             if job["post"]:
                 self._run_job(job, [], "")  # the rest of the routine (Flatpak…) still runs
+            else:
+                self._restore_band()
             return
         self._prepare_question(job, res)
 
@@ -968,6 +1084,7 @@ class UpdatesPage(Page):
             self.result_lbl.setText(_("Routine finished.") if ok else _("The routine stopped with errors: look "
                                                                          "at the terminal."))
         self.result_lbl.show()
+        self._restore_band()
         if ok and self.ctx.settings["after_routine_check_restart"]:
             run_async(backend.processes_using_deleted_files, on_done=self._ps_done)
         self._after_change()  # what it updated is not waiting any more: the list (and the tray) look again
@@ -1408,10 +1525,17 @@ class UpdatesPage(Page):
         if err:
             return
         self._repos = repos  # for the question before the dup: how old the Tumbleweed version is
+        # "Only from:" keeps what you chose across the reloads (code review 0.5, #15), while the repository is
+        # still there and enabled
+        chosen = self.o_from.currentData()
+        self.o_from.blockSignals(True)
         self.o_from.clear()
         self.o_from.addItem(_("From every enabled repository"), "")
         for r in sorted((r for r in repos if r["enabled"]), key=lambda r: r["name"].lower()):
             self.o_from.addItem(r["name"], r["alias"])
+        self.o_from.setCurrentIndex(max(0, self.o_from.findData(chosen)) if chosen else 0)
+        self.o_from.blockSignals(False)
+        self._show_dup_cmd()
 
     def _save_options(self):
         # the change of vendor is not kept: it starts from zypp.conf each time (see open_dup)
@@ -1465,7 +1589,7 @@ class UpdatesPage(Page):
 
     def simulate_dup(self, args=None, then=None):
         """Simulate the dup. then(result): called after a simulation that can go ahead (the question)."""
-        if self.ctx.runner.busy:
+        if self.ctx.runner.busy or (then is None and self._flow_busy()):
             self.sim_lbl.setText(_("Wait until the current command finishes."))
             return
         args = tuple(self.dup_args() if args is None else args)
@@ -1473,6 +1597,20 @@ class UpdatesPage(Page):
         self._sim_step = st
         if self.ctx.run([st], _("Simulation of zypper dup"), on_done=lambda ok: self._simulated(st, args, then)):
             self.sim_lbl.setText(_("Simulating…"))
+
+    @staticmethod
+    def _solvable(res):
+        """The problems of a simulation that the problem window can show: those with a solution, or all of them
+        when there are many (with -n zypper gives solutions only for the first one; problemgroups makes a
+        "leave it as it is" for each)."""
+        all_items = res.get("problem_items") or []
+        try:
+            from ..problemgroups import MANY
+        except ImportError:
+            MANY = 4
+        if len(all_items) >= MANY:
+            return all_items
+        return [p for p in all_items if any(x.get("possible") for x in p.get("solutions") or [])]
 
     def _simulated(self, st, args=None, then=None):
         if st.code in (126, 127):
@@ -1506,17 +1644,10 @@ class UpdatesPage(Page):
             counts.append(_("Download: {size}").format(size=human_size(res["download"])))
         if res["disk"]:
             counts.append(disk_text(res["disk"]))
-        all_items = res.get("problem_items") or []
-        items = [p for p in all_items if any(x.get("possible") for x in p.get("solutions") or [])]
-        try:
-            from ..problemgroups import MANY
-        except ImportError:
-            MANY = 4
-        # with -n zypper gives solutions only for the first problem: many problems go to the window grouped by
-        # cause even without them (problemgroups makes a "leave it as it is" for each)
-        if items or len(all_items) >= MANY:
+        items = self._solvable(res)
+        if items:
             self.sim_lbl.setText(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
-            QTimer.singleShot(0, lambda: self._resolve(all_items if len(all_items) >= MANY else items, args, then))
+            QTimer.singleShot(0, lambda: self._resolve(items, args, then))
         elif res["problems"]:
             self.sim_lbl.setText(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:5]))
         elif not counts:
@@ -1526,13 +1657,19 @@ class UpdatesPage(Page):
             if then is not None:
                 QTimer.singleShot(0, lambda: then(res))
 
-    def _resolve(self, items, args=None, then=None):
-        """The dup cannot go on: choose a solution; it runs at once (a lock, a removal), then simulate again."""
+    def _resolve(self, items, args=None, then=None, job=None):
+        """The dup cannot go on: choose a solution; it runs at once (a lock, a removal), then simulate again.
+        job: the routine's job when the routine runs in parts (the window opens over the page, and after the
+        solutions the routine's dup is simulated again and goes on)."""
         try:
             from .problems import ProblemDialog
         except ImportError:
             return
-        dlg = ProblemDialog(items, self.dup_dialog, apply_label=_("Do it now and simulate again"),
+        if job is None:
+            parent, say, again = self.dup_dialog, self.sim_lbl.setText, (lambda: self.simulate_dup(args, then))
+        else:
+            parent, say, again = self, job["say"], job["resimulate"]
+        dlg = ProblemDialog(items, parent, apply_label=_("Do it now and simulate again"),
                             note=_("The dup is only simulated: what you choose here runs at once (with the "
                                    "password), and then the dup is simulated again."), now=True)
         accepted = dlg.exec()
@@ -1540,27 +1677,45 @@ class UpdatesPage(Page):
         wait = getattr(dlg, "wait_requested", False)
         dlg.deleteLater()
         if wait:
-            self.sim_lbl.setText(_("Zypp Desk will remind you tomorrow morning. Nothing has been changed."))
+            say(_("Zypp Desk will remind you tomorrow morning. Nothing has been changed."))
+            if job is not None:
+                job["end"]()
             return
         if accepted:
-            self.ctx.apply_solutions(chosen, then=lambda: self.simulate_dup(args, then), now=True)
+            self._apply_solutions(chosen, again)
+        elif job is not None:
+            job["cancel"]()
+            job["end"]()
+
+    def _apply_solutions(self, chosen, then):
+        """MainWindow.apply_solutions for a dup: the problem window was the question, so it does not ask again
+        (confirmed, when the main window knows that parameter)."""
+        fn = self.ctx.apply_solutions
+        kw = dict(then=then, now=True)
+        try:
+            if "confirmed" in inspect.signature(fn).parameters:
+                kw["confirmed"] = True
+        except (TypeError, ValueError):
+            pass
+        fn(chosen, **kw)
 
     # ------------------------------------------------ the real dup: first the question, with the numbers
     # A "job" is one real upgrade from its simulation to its run: the dup of the dup window, or the routine's dup
     # when the routine goes in parts. dict(args (the simulation's arguments), now, download (Steps), opts (for
     # the parts: heaps.update_options), parent (of the question), say(text), post (steps after the dup: the rest
-    # of the routine), done(ok), resimulate(), cancel(), routine (bool)).
+    # of the routine), done(ok), resimulate(), cancel(), end() (the band goes back to the saved routine), routine
+    # (bool)).
     def run_dup(self):
         if self.ctx.runner.busy:
             self.sim_lbl.setText(_("Wait until the current command finishes."))
             return
-        if getattr(self, "_dup_asking", False):
+        if self._flow_busy():
             return  # the question is on its way
         args = tuple(self.dup_args())
         steps = self._choice_steps(list(args))
         job = dict(args=args, now=steps["now"], download=steps["download"],
                    opts=heaps.update_options(args, self.ctx.settings["apply_accept_licenses"]), parent=self.dup_dialog,
-                   say=self.sim_lbl.setText, post=[], done=self._dup_done, resimulate=self.run_dup,
+                   say=self.sim_lbl.setText, post=[], done=self._dup_done, resimulate=self.run_dup, end=lambda: None,
                    cancel=lambda: self.sim_lbl.setText(_("Nothing has been changed.")), routine=False)
         res = self._fresh_sim(args)
         if res is not None:
@@ -1569,20 +1724,34 @@ class UpdatesPage(Page):
         # the question needs the numbers: simulate first (the same password is remembered for the real run)
         self.simulate_dup(args, then=lambda r: self._prepare_question(job, r))
 
+    def _job_end(self, job, text):
+        """The job ends here without running the update: nothing more is on its way."""
+        self._dup_asking = False
+        job["say"](text)
+        job["end"]()
+
     def _prepare_question(self, job, res):
         self._dup_asking = True
         job["say"](_("Looking at the free space…"))
         run_async(dup_facts, res, getattr(self, "_repos", None),
-                  on_done=lambda facts, err: self._ask(job, res, facts if not err else {}))
+                  on_done=lambda facts, err: self._facts_ready(job, res, facts if not err else {}))
+
+    def _facts_ready(self, job, res, facts):
+        plan = facts.get("plan")
+        if plan and plan["feasible"]:
+            self._check_parts(job, res, facts, plan, {})  # the question comes once every part is checked
+            return
+        self._ask(job, res, facts)
 
     def _ask(self, job, res, facts):
         try:
             if self.ctx.runner.busy:
                 job["say"](_("Wait until the current command finishes."))
+                job["end"]()
                 return
             space, plan = facts.get("space"), facts.get("plan")
             cleaning = free_steps(space["free"]) if space else []
-            parts = part_steps(plan, job["opts"]) + [job["now"]] if plan and plan["feasible"] else []
+            parts = part_steps(plan, job["opts"]) + [final_step(job["now"])] if plan and plan["feasible"] else []
             dlg = dup_question(job["parent"], res, dict(now=job["now"], download=job["download"], parts=parts,
                                                         free=cleaning), facts)
             key = dlg.exec()
@@ -1592,7 +1761,7 @@ class UpdatesPage(Page):
         if key == "now":
             self._run_job(job, [job["now"]], _("zypper dup"))
         elif key == "parts":
-            self._check_first_part(job, plan, facts)
+            self._run_parts(job, plan)
         elif key == "download":
             self.ctx.run([_copy(job["download"])], _("zypper dup, only download"),
                          on_done=lambda ok: self._downloaded(job, ok))
@@ -1600,102 +1769,168 @@ class UpdatesPage(Page):
             self._remind_tomorrow(job)
         elif key == "free":
             self.ctx.run(cleaning, _("Free up space"), on_done=lambda ok: self._job_freed(job, cleaning))
+        elif key == "history":
+            job["cancel"]()
+            job["end"]()
+            if not job["routine"]:
+                self.dup_dialog.hide()  # History is in the main window, under the dup window
+            self.ctx.go("history")
+            win = self.window()
+            win.raise_()
+            win.activateWindow()
         else:
             job["cancel"]()
+            job["end"]()
 
-    def _run_job(self, job, steps, title):
-        """The chosen steps, then the rest of the routine (when it is the routine's job)."""
+    def _run_job(self, job, steps, title, parts=0):
+        """The chosen steps, then the rest of the routine (when it is the routine's job). parts: how many of the
+        steps are parts of an update in parts (for the message when one of them stops)."""
         chain = [_copy(st) for st in list(steps) + list(job["post"])]
         if chain:
             chain[0].cond = "always"  # nothing before it in this run
+        job["say"]("")  # "Looking at the free space…" and the like are over: the terminal says what runs
         if job["routine"]:
             title = _("Routine: {text}").format(text=routine.steps_text(chain))
             self.run_steps = chain
-            self._show_steps(chain)  # the band shows what runs
+            self._show_steps(chain, custom=True)  # the band shows what runs
             self._set_running(True)
-        if not self.ctx.run(chain, title, on_done=job["done"]) and job["routine"]:
+
+        def done(ok):
+            job["done"](ok)
+            if parts and not ok:
+                self._parts_stopped(job, chain[:parts])
+
+        if not self.ctx.run(chain, title, on_done=done) and job["routine"]:
             self._set_running(False)
+            self._restore_band()
 
-    # ------------------------------------------------ in parts: the first part is simulated before anything runs
-    def _check_first_part(self, job, plan, facts, tries=0):
-        """Simulate the first part: does the solver keep to what was planned, and does it fit? If it needs more
-        room than there is, it is cut in two and simulated again (a few times at most)."""
-        names = plan["parts"][0]["names"]
-        args = heaps.part_args(names, job["opts"])
+    def _parts_stopped(self, job, parts):
+        """Which part stopped, and that its downloads stay (zypper review 0.5, #9)."""
+        n = len(parts)
+        i = next((k for k, st in enumerate(parts, 1) if st.state == "failed"), None)
+        if i is None:
+            return  # stopped before the parts, or after them
+        text = _("The update in parts stopped at part {i} of {n}: the parts after it and the full update did not "
+                 "run. What it downloaded and did not install stays in the package cache, so the next try does "
+                 "not download it again.").format(i=i, n=n)
+        self.ctx.terminal.view.note(text, "info")
+        label = self.result_lbl if job["routine"] else self.sim_lbl
+        job["say"]((label.text() + "\n" + text).strip())
+
+    # ------------------------------------------------ in parts: every part is simulated before the question
+    def _part_sim_step(self, names, opts):
+        args = heaps.part_args(names, opts)
         i = args.index("--")
-        sim = Step("zypper", ["--xmlout", "-n", *args[:i], "--dry-run", *args[i:]], lang="C", capture=True,
-                   shown=heaps.shown(["zypper", "--xmlout", "-n", *args[:i], "--dry-run", "--"], names, _more))
-        self._sim_step = sim
-        job["say"](_("Simulating the first part…"))
-        self.ctx.run([sim], _("Simulation of the first part"),
-                     on_done=lambda ok: self._first_part_simulated(job, plan, facts, sim, tries))
+        glob = list(opts.get("globals") or ())
+        return Step("zypper", ["--xmlout", "-n", *glob, *args[:i], "--dry-run", *args[i:]], lang="C", capture=True,
+                    cond="always",
+                    shown=heaps.shown(["zypper", "--xmlout", "-n", *glob, *args[:i], "--dry-run", "--"], names, _more))
 
-    def _first_part_simulated(self, job, plan, facts, sim, tries):
-        if sim.code in (126, 127):
-            job["say"](_("Not simulated: the administrator password was not given."))
+    def _check_parts(self, job, res, facts, p, sims):
+        """Simulate every part of plan p that is not simulated yet, all in one run (dry runs: nothing changes, and
+        the password given for the simulation of the dup is still remembered). Then heaps.review(): what needs
+        a decision goes to the final dup, the plan is made again with the real sizes, and a part that does not
+        fit is cut in two; the new parts are simulated in turn. Only then the question (zypper review 0.5, #1)."""
+        todo = [part for part in p["parts"] if heaps.part_key(part["names"]) not in sims]
+        if not todo:
+            self._parts_measured(job, res, facts, p, sims, {}, None)
             return
-        res1 = parse_dry_run(sim.output, source="zypper update")
-        for line in summary_lines(res1):
-            self.ctx.terminal.view.note(line, "ok")
-        if res1["problems"]:
-            job["say"](_("zypper found a problem with the first part, so nothing has been changed:") + "\n"
-                       + "\n".join(res1["problems"][:3]))
+        steps = [self._part_sim_step(part["names"], job["opts"]) for part in todo]
+        n = len(steps)
+        if self.ctx.run(steps, ngettext("Simulation of {n} part", "Simulation of {n} parts", n).format(n=n),
+                        on_done=lambda ok: self._parts_simulated(job, res, facts, p, sims, todo, steps)):
+            job["say"](ngettext("Checking the part with a simulation before asking…",
+                                "Checking each of the {n} parts with a simulation before asking…", n).format(n=n))
+        else:
+            self._job_end(job, _("Wait until the current command finishes."))
+
+    def _parts_simulated(self, job, res, facts, p, sims, todo, steps):
+        if any(st.code in (126, 127) or st.state == "skipped" for st in steps):
+            self._job_end(job, _("Not simulated: the administrator password was not given."))
             return
-        snapshots = bool(facts.get("snapshots"))
-        run_async(self._measure_part, res1, snapshots,
-                  on_done=lambda m, err: self._first_part_measured(job, plan, facts, m, err, tries))
+        new = []
+        for part, st in zip(todo, steps):
+            r = parse_dry_run(st.output, source="zypper update")
+            new.append((heaps.part_key(part["names"]), r))
+        run_async(self._measure_parts, new, bool(facts.get("snapshots")),
+                  on_done=lambda m, err: self._parts_measured(job, res, facts, p, sims, m, err))
 
     @staticmethod
-    def _measure_part(res1, snapshots):
-        download, growth = heaps.part_need(res1, snapshots)
-        root = diskspace.fs_info(diskspace.ROOT)
-        cache = diskspace.fs_info(diskspace.ZYPP_CACHE) or root
-        return dict(download=download, growth=growth, root=root, cache=cache, same=diskspace.same_fs(root, cache))
+    def _measure_parts(new, snapshots):
+        """{key: dict(res, download, growth)}: what each simulated part needs (rpm as the user, in a thread)."""
+        out = {}
+        for key, r in new:
+            download, growth = heaps.part_need(r, snapshots) if not r["problems"] else (0, 0)
+            out[key] = dict(res=r, download=download, growth=growth)
+        return out
 
-    def _first_part_measured(self, job, plan, facts, m, err, tries):
-        if err or not m or not m["root"]:
-            job["say"](_("Nothing has been changed.") + f" ({err})")
+    def _parts_measured(self, job, res, facts, p, sims, m, err):
+        if err or m is None:
+            self._job_end(job, _("Nothing has been changed.") + (f" ({err})" if err else ""))
             return
-        margin = facts["space"]["margin"]
-        if m["same"]:
-            need, free = m["download"] + m["growth"] + margin, m["root"]["free"]
-            fits = need <= free
-        else:
-            need, free = m["growth"] + margin, m["root"]["free"]
-            fits = need <= free and m["download"] + diskspace.margin(m["cache"]["total"]) <= m["cache"]["free"]
-        if fits:
-            n = len(plan["parts"])
-            self._run_job(job, part_steps(plan, job["opts"]) + [job["now"]],
-                          ngettext("zypper dup, in {n} part", "zypper dup, in {n} parts", n).format(n=n))
+        sims.update(m)
+        try:
+            out = heaps.review(p, sims, res, facts["space"])
+        except Exception as e:  # the check is a help: without it there is no update in parts
+            out = dict(action="stop", moved=[], plan=dict(p, feasible=False, reason="error", error=str(e)))
+        if out["moved"]:
+            self.ctx.terminal.view.note(
+                _("Left to the full update at the end (their update needs a decision): {names}").format(
+                    names=", ".join(out["moved"])), "info")
+        if out["action"] == "again":
+            self._check_parts(job, res, facts, out["plan"], sims)
             return
-        smaller = heaps.split_first(plan) if tries < 3 else None
-        if smaller is not None:
-            self._check_first_part(job, smaller, facts, tries + 1)
+        if out["action"] == "stop" and out["plan"].get("reason") == "error":
+            self._job_end(job, _("zypper could not simulate a part of the update, so nothing has been changed:")
+                          + "\n" + str(out["plan"].get("error") or "")[:600])
             return
-        job["say"](_("The first part needs more room than there is: about {need}, and there are {free} free. "
-                     "Nothing has been changed.").format(need=human_size(need), free=human_size(free)))
+        self._ask(job, res, dict(facts, plan=out["plan"]))
+
+    def _run_parts(self, job, plan):
+        """The parts (each one only if the one before worked), then the full update (zypper review 0.5, #2:
+        also only if they all worked), then the rest of the routine."""
+        steps = part_steps(plan, job["opts"]) + [final_step(job["now"])]
+        n = len(plan["parts"])
+        self._run_job(job, steps, ngettext("zypper dup, in {n} part", "zypper dup, in {n} parts", n).format(n=n),
+                      parts=n)
 
     # ------------------------------------------------ the other answers
     def _remind_tomorrow(self, job):
+        """"Remind me tomorrow": the tray icon reminds. It is started when it is not running, or nobody would
+        (code review 0.5, #3); update_reminder_reason tells it what to say."""
         when = tomorrow_morning()
-        self.ctx.settings["update_reminder_at"] = when
-        self.ctx.settings.save()
+        s = self.ctx.settings
+        s["update_reminder_at"] = when
+        s["update_reminder_reason"] = "big"
+        try:
+            s.save()
+        except OSError as e:
+            self._job_end(job, _("Nothing has been changed. The reminder could not be saved: {error}").format(
+                error=e))
+            return
         from .. import tray
-        tray.poke("reload")  # the tray icon reminds you; it reads the settings again
+        try:
+            reminds = tray.poke("reload") or tray.start_tray()  # a running tray reads the settings again
+        except Exception:
+            reminds = False
         at = QLocale().toString(QDateTime.fromSecsSinceEpoch(when).time(), QLocale.FormatType.ShortFormat)
-        job["say"](_("Nothing has been changed. You will be reminded tomorrow at {time}.").format(time=at))
+        if reminds:
+            self._job_end(job, _("Nothing has been changed. You will be reminded tomorrow at {time}.").format(time=at))
+        else:
+            self._job_end(job, _("Nothing has been changed. The tray icon, which reminds you, could not be started: "
+                                 "look at the update again tomorrow."))
 
     def _downloaded(self, job, ok):
         self._last_sim = None  # what is left to download is not what it was
         if not job["routine"]:
             self.sim_tree.clear()
-        job["say"](_("Downloaded. When you are ready, run the update: it will not download it again.")
-                   if ok else _("The download stopped with errors: look at the terminal."))
+        self._job_end(job, _("Downloaded. When you are ready, run the update: it will not download it again.")
+                      if ok else _("The download stopped with errors: look at the terminal."))
 
     def _job_freed(self, job, cleaning):
         self._last_sim = None
         if any(st.code in (126, 127) for st in cleaning):
-            job["say"](_("Nothing was freed: the administrator password was not given."))
+            self._job_end(job, _("Nothing was freed: the administrator password was not given."))
             return
         self._after_change()  # old kernels may have gone
         job["say"](_("Simulating the update again…"))

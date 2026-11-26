@@ -207,10 +207,12 @@ def is_download_only(step):
 def split_for_parts(steps):
     """The routine cut around its system update, for a run in parts (little disk space): dict(pre, dup, post,
     join). pre: the steps before the first one that downloads or updates (the refresh); dup: its last 'zypper
-    dup' that installs; post: the steps after that one; join: how the update joined pre ('always' for ';',
-    'success' for '&&'). The download-only steps and other updates between them are
-    left out: the update in parts does their work. None when the routine has no 'zypper dup' that installs.
-    The saved routine does not change."""
+    dup' that installs; post: the steps after that one (they keep their own ';' or '&&'); join: how the update
+    joined pre ('always' for ';', 'success' for '&&'). The download-only steps and other updates between them are
+    left out: the update in parts does their work. In the run, the dup comes after the parts and only if they
+    all worked, whatever joined it in the routine: after a failed part, a dup would download everything at once,
+    which is what did not fit (pages/updates.final_step). None when the routine has no 'zypper dup' that
+    installs. The saved routine does not change."""
     first = next((i for i, st in enumerate(steps) if _sub_args(st)[0] in _DOWNLOADING), None)
     last = next((i for i in range(len(steps) - 1, -1, -1)
                  if _sub_args(steps[i])[0] in ("dup", "dist-upgrade") and not is_download_only(steps[i])), None)

@@ -62,7 +62,8 @@ recordi demà</b>: t'avisarà la icona del costat del rellotge.</p>
 baixat altres vegades, nuclis antics) i actualitzar <b>a trossos</b>. Cada tros és una actualització normal de
 zypper d'uns quants paquets, i es baixa sencer abans d'instal·lar-se: si una baixada falla, d'aquell tros no
 s'instal·la res, i el sistema queda com l'havia deixat el tros anterior. Al final, una actualització normal
-acaba el que queda.</p>
+acaba el que queda. Abans d'instal·lar res, Zypp Desk prova cada tros amb zypper: un paquet que necessita una
+decisió per actualitzar-se espera l'actualització normal del final, i la pregunta et diu quins són.</p>
 
 <!-- topic: programs | Instal·lar i treure programes -->
 <h2>Instal·lar i treure programes</h2>
@@ -107,7 +108,8 @@ activar o desactivar, canviar-ne la prioritat (quan el mateix paquet és a diver
 més petit), mirar quins no responen, canviar-ne l'adreça i demanar a Zypp Desk que en proposi un ordre.</p>
 <p>Alguns programes fets per a Fedora deixen el seu repositori a <code>/etc/yum.repos.d</code>, on zypper no
 mira, i per això no s'actualitzarien mai. Zypp Desk ho detecta i et proposa afegir el repositori a zypper, amb
-la seva clau.</p>
+la seva clau. Si has triat <b>No l'afegeixis</b>, <b>Més → Mostra els repositoris de Fedora amagats</b> el torna a
+ensenyar.</p>
 <p>Una <b>clau de signatura</b> demostra qui ha fet un paquet o un repositori. A
 <a href="page:keys">Claus de signatura</a> hi veus les claus de què es refia l'ordinador, de qui són i quan
 caduquen, i n'hi pots importar una de nova des d'una adreça web, un fitxer o la seva empremta, i comparar-la amb

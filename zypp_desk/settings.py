@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Application settings, stored as JSON in ~/.config/zypp-desk/settings.json."""
 
+import copy
 import json
 import os
 import tempfile
@@ -29,6 +30,10 @@ DEFAULTS = {
     "update_reminder_at": 0,
     # why: "big" (a big update, Remind me tomorrow) or "problems" (an update with problems): the reminder's words
     "update_reminder_reason": "",
+    # the locks a "leave these as they are" made in the problem window ({spec, type, repo, added, tw}): Locks says so
+    "temp_locks": [],
+    # 2 once the tray's autostart entry was moved to the package's /etc/xdg/autostart one (tray.migrate_autostart)
+    "autostart_scheme": 0,
     # repositories for Fedora (/etc/yum.repos.d) whose banner was answered "Not now": "<file>#<section>"
     "yum_dismissed": [],
 }
@@ -41,7 +46,7 @@ def _path():
 
 class Settings(dict):
     def __init__(self):
-        super().__init__(DEFAULTS)
+        super().__init__(copy.deepcopy(DEFAULTS))  # lists in DEFAULTS are never shared
         try:
             self.update(json.loads(_path().read_text(encoding="utf-8")))
         except (OSError, ValueError):

@@ -39,7 +39,7 @@ from pathlib import Path
 
 from . import VERSION
 from .backend import ENV_C, vercmp
-from .i18n import _
+from .i18n import _, ngettext
 
 API = "https://api.github.com/repos/{repo}/releases/latest"
 USER_AGENT = f"ZyppDesk/{VERSION}"
@@ -213,8 +213,9 @@ def _get_json(url):
                 return entry["data"]
             reset = int(e.headers.get("X-RateLimit-Reset") or 0)
             minutes = max(1, int((reset - time.time()) / 60) + 1)
-            raise ValueError(_("GitHub answers only 60 questions an hour without an account: try again in {n} "
-                               "minutes.").format(n=minutes)) from None
+            raise ValueError(ngettext("GitHub answers only 60 questions an hour without an account: try again in "
+                                      "{n} minute.", "GitHub answers only 60 questions an hour without an account: "
+                                      "try again in {n} minutes.", minutes).format(n=minutes)) from None
         raise
     if etag:
         with _http_lock:
@@ -516,12 +517,38 @@ def clean_downloads(max_age=3600):
                 f.unlink()
         except OSError:
             pass
+    # the private copies of opened .rpm files (localrpm.private_copy): one folder per file
+    opened = d / "opened"
+    try:
+        subs = list(opened.iterdir()) if opened.is_dir() and not opened.is_symlink() else []
+    except OSError:
+        subs = []
+    for sub in subs:
+        try:
+            if sub.is_symlink() or not sub.is_dir():
+                if now - sub.lstat().st_mtime > max_age:
+                    sub.unlink()
+                continue
+            for f in sub.iterdir():
+                if (f.is_symlink() or f.is_file()) and now - f.lstat().st_mtime > max_age:
+                    f.unlink()
+            sub.rmdir()  # only when it is empty now
+        except OSError:
+            pass
 
 
 def download_dir():
+    """The private download folder: only you can read it or write in it (mode 0700, also when an older version
+    made it with other permissions)."""
     base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
     d = base / "zypp-desk" / "downloads"
     d.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        st = d.stat()
+        if st.st_uid == os.getuid() and st.st_mode & 0o077:
+            d.chmod(0o700)
+    except OSError:
+        pass
     return d
 
 

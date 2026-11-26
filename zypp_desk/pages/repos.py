@@ -6,6 +6,7 @@ answer? The list can be shown as a table or as cards.
 
 A program made for Fedora can leave its repository in /etc/yum.repos.d, where zypper never looks (yumrepos.py):
 a banner on top says so, and adds it to zypper through the queue, with its signing key when rpm does not have it.
+"Do not add it" hides a banner; More → "Show the hidden repositories for Fedora" brings them back.
 """
 
 import threading
@@ -16,17 +17,17 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QBrush, QColor, QFontMetrics
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog,
                                QFormLayout, QFrame, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QMenu, QMessageBox, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
+                               QMenu, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import backend, flatpak, repocheck, repoprio, yumrepos
-from ..i18n import _, ngettext
-from ..question import ask_change, confirm
+from ..i18n import _, ngettext, pgettext
+from ..question import Question, ask_change, confirm
 from ..runner import Step
 from ..style import GREEN, RED, dot
 from ..tasks import emit_safely, run_async
 from ..txqueue import Action, TxQueue
-from ..ui import Chip, Page, button, error_box, icon, info_box, muted, plain, tool
+from ..ui import Chip, Page, button, error_box, icon, info_box, muted, tool
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
 FCOL_NAME, FCOL_HEALTH, FCOL_ON, FCOL_INST, FCOL_URL = range(5)
@@ -511,14 +512,19 @@ class ReposPage(Page):
         more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(more)
         menu.addAction(icon("view-refresh"), _("Refresh all"), self.refresh_all)
-        menu.addAction(icon("edit-clear"), _("Clean the cache"), self.clean_cache)
+        menu.addAction(icon("edit-clear"), _("Clean the cache…"), self.clean_cache)
         menu.addAction(icon("document-edit"), _("Change the address…"), self.change_url)
         menu.addAction(icon("view-sort-ascending"), _("Suggest an order of priority…"), self.propose_order)
         menu.addSeparator()
         menu.addAction(icon("object-locked"), _("Import a signing key…"), self.import_key)
+        hidden = menu.addAction(icon("view-visible", "view-hidden"), _("Show the hidden repositories for Fedora"),
+                                self.show_hidden_yum)
+        hidden.setToolTip(_("The ones you put aside with “Do not add it”."))
+        menu.aboutToShow.connect(lambda: hidden.setEnabled(bool(self._yum_hidden())))
         more.setMenu(menu)
+        # "Search online…" is the green banner's button, right under the header: a second one here only made the
+        # header wider than the window in German (visual review 0.5, #21)
         return [tool(_("Add…"), "list-add", self.add_repo),
-                tool(_("Search online…"), "edit-find", self.search_online),
                 tool(_("Remove"), "list-remove", self.remove_repo),
                 tool(_("Refresh"), "view-refresh", self.refresh_selected),
                 tool(_("Check them"), "network-connect", self.check_all),
@@ -1068,34 +1074,33 @@ class ReposPage(Page):
         if not failing:
             return
         own = [r for r in failing if not r["service"]]
-        lines = "\n".join(f"• {r['name']} — {self.health['zypper:' + r['alias']]['text']}"
-                          + ("" if r["enabled"] else "  " + _("(already disabled)")) for r in failing)
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Question)
-        box.setWindowTitle(_("Repositories that do not work"))
-        box.setText(ngettext("This repository does not answer:", "These repositories do not answer:", len(failing)))
-        box.setInformativeText(lines + "\n\n" + _(
-            "Disabling keeps them in the list, in case they come back; removing deletes them. Nothing changes "
-            "until you apply the queue."))
-        b_off = box.addButton(_("Disable them"), QMessageBox.ButtonRole.AcceptRole)
-        b_rm = box.addButton(_("Remove them"), QMessageBox.ButtonRole.DestructiveRole)
-        cancel = box.addButton(QMessageBox.StandardButton.Cancel)
-        box.setDefaultButton(cancel)  # Enter must never remove repositories
-        box.setEscapeButton(cancel)
+        items = [("network-disconnect|dialog-warning|folder-cloud", r["name"],
+                  self.health["zypper:" + r["alias"]]["text"]
+                  + ("" if r["enabled"] else "  " + _("(already disabled)"))) for r in failing]
+        dlg = Question(
+            self, ngettext("This repository does not answer", "These repositories do not answer", len(failing)),
+            window_title=_("Repositories that do not work"), icon_name="network-disconnect|dialog-warning",
+            items=items, means=_("disabling keeps them in the list, in case they come back; removing deletes them. "
+                                 "Nothing changes until you apply the queue."),
+            password=False, help_topic="repos",
+            # Enter is "Not yet": it never removes repositories
+            buttons=[("no", _("Not yet"), False), ("remove", _("Remove them"), False),
+                     ("disable", _("Disable them"), True)])
         if not any(r["enabled"] for r in failing):
-            b_off.setEnabled(False)
+            dlg.buttons["disable"].setEnabled(False)
         if not own:
-            b_rm.setEnabled(False)
-            b_rm.setToolTip(_("They belong to a service: the service would add them again."))
-        plain(box).exec()
-        clicked = box.clickedButton()
-        box.deleteLater()
-        if clicked is b_off:
+            dlg.buttons["remove"].setEnabled(False)
+            dlg.buttons["remove"].setToolTip(_("They belong to a service: the service would add them again."))
+        try:
+            answer = dlg.exec()
+        finally:
+            dlg.deleteLater()
+        if answer == "disable":
             with self.ctx.queue.batch():
                 for r in failing:
                     if r["enabled"]:
                         self._queue_change(r, "enabled", False)
-        elif clicked is b_rm:
+        elif answer == "remove":
             with self.ctx.queue.batch():
                 for r in own:
                     self.ctx.queue.add(Action("repo-remove", r["alias"]))
@@ -1151,7 +1156,7 @@ class ReposPage(Page):
 
     def _show_yum(self):
         """One banner for each repository for Fedora that zypper does not have, that is not waiting in the queue
-        and that was not put aside with “Not now”. Rebuilt only when that list changes."""
+        and that was not put aside with “Do not add it”. Rebuilt only when that list changes."""
         want = self._yum_missing()
         state = [(e["id"], e["id"] in self._yum_busy) for e in want]
         if state == self._yum_shown:
@@ -1172,8 +1177,25 @@ class ReposPage(Page):
             self.yum_lay.addWidget(banner)
         self.yum_box.setVisible(bool(want))
 
+    def _yum_hidden(self):
+        """The repositories for Fedora put aside with “Do not add it” that zypper still does not have."""
+        dismissed = set(self.ctx.settings.get("yum_dismissed", []))
+        return [e for e in yumrepos.missing(self.yum_entries, (), [a.opts.get("url") or ""
+                                                                   for a in self.ctx.queue.of("repo-add")])
+                if e["id"] in dismissed]
+
+    def show_hidden_yum(self):
+        """More → “Show the hidden repositories for Fedora”: their banners come back (visual review 0.5, #10)."""
+        self.ctx.settings["yum_dismissed"] = []
+        self.ctx.settings.save()
+        self._yum_shown = None
+        self._show_yum()
+        if not self.yum_entries:  # never looked yet (or nothing there): look now
+            self._scan_yum()
+
     def _yum_dismiss(self, entry):
-        """“Not now”: this section of this file gets no banner again."""
+        """“Do not add it”: this section of this file gets no banner again, until More → “Show the hidden
+        repositories for Fedora”."""
         dismissed = list(self.ctx.settings.get("yum_dismissed", []))
         if entry["id"] not in dismissed:
             dismissed.append(entry["id"])
@@ -1252,10 +1274,10 @@ class ReposPage(Page):
             warning = _("It belongs to the service {service}: the next time the service is refreshed, it adds the "
                         "repository again. Disable it instead.").format(service=r["service"])
         answer = ask_change(
-            self, _("Remove the repository «{name}»?").format(name=r["name"]),
+            self, _("Remove the repository “{name}”?").format(name=r["name"]),
             icon_name="list-remove|edit-delete",
             items=[("folder-cloud|repository|folder-download",
-                    _("Remove the repository «{name}»").format(name=r["name"]), r["url"])],
+                    pgettext("change", "Remove the repository “{name}”").format(name=r["name"]), r["url"])],
             means=" ".join([
                 _("zypper will no longer look there for programs or updates. What you installed from it stays "
                   "installed, but it gets no more updates from there."),
@@ -1266,7 +1288,7 @@ class ReposPage(Page):
                        (_("Disable it instead"), commands_of([Action("repo-modify", r["alias"], enabled=False)]))]
             if r["enabled"] else commands_of([remove]),
             password=False,  # it only goes to the queue
-            buttons=buttons)
+            buttons=buttons, help_topic="repos")
         if answer == "yes":
             self.ctx.queue.add(remove)
         elif answer == "disable":
@@ -1279,20 +1301,16 @@ class ReposPage(Page):
                          _("Refresh {name}").format(name=r["name"]))
 
     def clean_cache(self):
-        step = Step("zypper", ["clean", "--all"])
-        if confirm(
-                self, _("Clean the cache of every repository?"), _("Clean the cache"),
-                icon_name="edit-clear",
-                items=[("package-x-generic|application-x-rpm", _("Delete the downloaded packages"),
-                        _("The packages zypper keeps: those of repositories set to keep them, and those downloaded "
-                          "ahead for the next update.")),
-                       ("view-refresh", _("Delete the lists of packages of every repository"),
-                        _("zypper downloads them again the next time it refreshes."))],
-                means=_("It frees disk space and changes nothing that is installed. The next refresh and the next "
-                        "update take a little longer, because they download all this again."),
-                commands_=[step.display()],
-                password=step.root):  # it runs now, as root
-            self.ctx.run([step], _("Clean the cache"))
+        """More → “Clean the cache…”: the same question, sizes and command as Maintenance → Clean the cache (one
+        question for one command: visual review 0.5, #16)."""
+        from .system import MaintenancePage, zypp_cache_sizes
+        step = Step("zypper", ["-v", "-n", "clean", "--all"])
+
+        def ask(sizes, err):
+            q = MaintenancePage._clean_question(step, None if err else sizes)
+            if confirm(self, **q):
+                self.ctx.run([step], _("Clean the cache"), on_done=lambda ok: self.ctx.after_change())
+        run_async(zypp_cache_sizes, on_done=ask)
 
     def import_key(self):
         from .keys import open_import_dialog

@@ -1,0 +1,166 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Die Hilfe von Zypp Desk, auf Deutsch. Siehe en.html. -->
+
+<!-- topic: start | Erste Schritte -->
+<h2>Erste Schritte</h2>
+<p>Zypp Desk ist ein Fenster für <b>zypper</b>, das Programm, das unter openSUSE Software installiert, entfernt
+und aktualisiert. Alles, was Zypp Desk tut, erledigt es mit zypper, und es zeigt dir immer den genauen Befehl.</p>
+<p>Drei Ideen sorgen dafür, dass die Benutzung sicher ist:</p>
+<ul>
+<li><b>Nichts ändert sich, bevor du es anwendest.</b> Was du auswählst, kommt in die <b>Warteschlange</b> unten im
+Fenster. Du kannst sie dir ansehen (<b>Überprüfen</b>), ausprobieren (<b>Simulieren</b>) und erst dann wirklich
+ausführen (<b>Anwenden</b>).</li>
+<li><b>Jede Frage sagt in einfachen Worten, was passieren wird</b>, was das für dich bedeutet, und darunter den
+genauen Befehl. Die Eingabetaste startet nie eine Änderung: Du musst die Schaltfläche wählen, die sie ausführt.</li>
+<li><b>Du siehst immer, was zypper sagt.</b> Das Terminal unten (<b>Terminal anzeigen</b>, in der Seitenleiste)
+zeigt die Ausgabe von zypper selbst, und der Bereich daneben erklärt seine Warnungen: wie ernst sie sind und was
+zu tun ist.</li>
+</ul>
+<p>Für Änderungen am System ist das Administratorpasswort nötig. Zypp Desk fragt danach, wenn es gebraucht wird,
+und der Computer merkt es sich fünf Minuten lang; bei mehreren Schritten hintereinander wird es also nur einmal
+abgefragt.</p>
+<p>Fang auf der Seite <a href="page:home">Start</a> an: ein großes Suchfeld und Karten, die dir sagen, ob es
+Aktualisierungen gibt, wie es um deine Paketquellen steht und was du dir ansehen solltest.</p>
+
+<!-- topic: queue | Die Warteschlange: Überprüfen, Simulieren und Anwenden -->
+<h2>Die Warteschlange: Überprüfen, Simulieren und Anwenden</h2>
+<p>Ein Paket installieren, entfernen oder sperren, eine Paketquelle hinzufügen oder einen Schlüssel importieren:
+Jede dieser Aktionen ist eine <b>Änderung</b> und wartet in der Warteschlange, bis du sie anwendest. Die Leiste
+unten zeigt, wie viele es sind und welche Befehle sie ausführen werden.</p>
+<ul>
+<li><b>Überprüfen</b> listet die Änderungen in Worten auf, in der Reihenfolge, in der sie ausgeführt werden. Jede
+hat eine eigene Schaltfläche, um sie aus der Warteschlange zu nehmen. Wenn eine Änderung eine andere braucht (ein
+Programm braucht die Paketquelle, aus der es kommt, und die Paketquelle braucht ihren Schlüssel), steht das in der
+Liste, und Zypp Desk fragt nach, bevor du etwas herausnimmst, das andere brauchen.</li>
+<li><b>Simulieren</b> fragt zypper, was es wirklich tun würde, ohne etwas zu ändern: was es sonst noch installieren
+oder entfernen würde, wie viel es herunterladen würde und ob es ein Problem gibt. Wenn ja, kannst du eine Lösung
+wählen, die in einfachen Worten beschrieben ist.</li>
+<li><b>Anwenden</b> zeigt die Änderungen noch einmal und führt sie aus. Wenn ein Schritt fehlschlägt, hält Zypp Desk
+dort an: Was erledigt ist, bleibt erledigt, und der Rest bleibt in der Warteschlange, damit du es noch einmal
+versuchen kannst.</li>
+<li><b>Leeren</b> leert die Warteschlange. Es macht nichts rückgängig, denn noch hat sich nichts geändert.</li>
+</ul>
+<p><b>Simulieren</b> probiert nur die Änderungen an Paketen aus: Änderungen an Paketquellen, Sperren, Sprachen und
+Flatpak-Apps haben keinen Probelauf und werden erst ausgeführt, wenn du sie anwendest.</p>
+
+<!-- topic: update | Das System aktuell halten -->
+<h2>Das System aktuell halten</h2>
+<p>openSUSE Tumbleweed bekommt alle paar Tage eine neue Version. Auf der Seite
+<a href="page:updates">Aktualisierungen</a> findest du:</p>
+<ul>
+<li><b>Deine Routine</b>: die Schritte, die du zum Aktualisieren normalerweise ausführst, zum Beispiel die
+Paketquellen neu laden, die Aktualisierungen herunterladen und sie dann installieren. <b>Routine ausführen</b>
+führt sie nacheinander aus und zeigt jeden Schritt. <b>Routine bearbeiten …</b> ändert sie mit Schaltflächen oder
+als Text, so wie du sie in einem Terminal eingeben würdest.</li>
+<li><b>Was es zu aktualisieren gibt</b>: Pakete aus den Paketquellen, Flatpak-Apps, Programme aus dem Web und
+Firmware, mit einem Kästchen, um jedes einzeln anzuhaken. Die Karte rechts erklärt dir das Paket, das du
+auswählst.</li>
+<li><b>dup simulieren …</b>: die vollständige Systemaktualisierung von Tumbleweed (<code>zypper dup</code>) in
+einem eigenen Fenster, mit ihren Optionen.</li>
+</ul>
+<h3>Eine große Aktualisierung</h3>
+<p>Wenn eine Aktualisierung groß ist oder das neue Tumbleweed vor weniger als einem Tag erschienen ist, fragt dich
+Zypp Desk, ob es sich lohnt zu warten. Es sagt dir, wie groß sie ist, wie neu die Version ist und ob der Computer
+mit Akku läuft. Du kannst jetzt aktualisieren, <b>sie jetzt nur herunterladen</b> (später geht das Installieren
+viel schneller) oder <b>dich morgen erinnern lassen</b>: Das Symbol neben der Uhr sagt dir dann Bescheid.</p>
+<h3>Wenig Platz auf der Festplatte</h3>
+<p>Wenn die Aktualisierung nicht mit genug Reserve auf die Festplatte passt, bietet Zypp Desk an, zuerst Platz
+freizumachen (aufbewahrte Pakete von früheren Downloads, alte Kernel) und <b>in Etappen</b> zu aktualisieren.
+Jede Etappe ist eine normale zypper-Aktualisierung einiger Pakete, die vollständig heruntergeladen wird, bevor sie
+installiert wird: Wenn ein Download fehlschlägt, wird von dieser Etappe nichts installiert, und das System bleibt
+so, wie die vorherige Etappe es hinterlassen hat. Eine normale Systemaktualisierung erledigt am Ende den Rest.
+Bevor etwas installiert wird, probiert Zypp Desk jede Etappe mit zypper aus: Ein Paket, dessen Aktualisierung eine
+Entscheidung braucht, wartet auf die normale Aktualisierung am Ende, und die Frage sagt dir, welche es sind.</p>
+
+<!-- topic: programs | Programme installieren und entfernen -->
+<h2>Programme installieren und entfernen</h2>
+<ul>
+<li>Gib einen Namen in das Suchfeld von <a href="page:home">Start</a> oder <a href="page:packages">Pakete</a> ein.
+Die Seite Pakete kann in den Beschreibungen suchen, in dem, was ein Paket bereitstellt oder braucht, in seinen
+Dateien und in den Listen der verwaisten oder nicht benötigten Pakete.</li>
+<li><a href="page:apps">Anwendungen</a> zeigt die Programme, die du hast, egal woher sie kommen (aus einer
+Paketquelle, von Flatpak oder aus dem Web), und die, für die es eine Aktualisierung gibt. <b>Nach Themen
+entdecken</b> zeigt die Kataloge von openSUSE und Flathub nach Kategorien.</li>
+<li>Die Karte eines Pakets enthält seine Informationen, seine Versionen (du kannst eine ältere installieren), was
+es braucht, seine Dateien und seine Änderungen.</li>
+<li><b>Entfernen …</b> fragt, ob auch entfernt werden soll, was nur dieses Programm gebraucht hat. Zypp Desk listet
+diese Pakete vorher auf, damit du siehst, was wegfällt.</li>
+<li><b>Sperren</b> lässt ein Paket so, wie es ist: zypper aktualisiert oder entfernt es nicht, bis du es unter
+<a href="page:locks">Paketsperren</a> entsperrst.</li>
+<li><a href="page:flatpak">Flatpak</a> enthält die Flatpak-Apps, ihre Aktualisierungen, ihre Flatpak-Quellen und
+ihre Berechtigungen. Sie kommen in dieselbe Warteschlange.</li>
+</ul>
+<p>Wenn das Programm nicht in deinen Paketquellen ist, sucht <b>Online suchen …</b> im openSUSE Build Service, in
+Fedora COPR und auf Flathub danach und erklärt, wie sehr du jeder Quelle vertrauen kannst.</p>
+
+<!-- topic: web | Programme aus dem Web und .rpm-Dateien -->
+<h2>Programme aus dem Web und .rpm-Dateien</h2>
+<p>Manche Programme werden nur als Dateien auf ihrer Website oder auf GitHub veröffentlicht. Unter
+<a href="page:websources">Programme aus dem Web</a> behält Zypp Desk sie im Blick: Es sucht nach neuen Versionen,
+lädt sie herunter, prüft sie (die Signatur oder die Prüfsumme, die der Autor veröffentlicht) und stellt sie in die
+Warteschlange. Nach der Installation kommen die Dateien in den Ordner, den du gewählt hast; das kann eine lokale
+Paketquelle von zypper sein.</p>
+<p>Du kannst auch eine heruntergeladene <code>.rpm</code>-Datei mit Zypp Desk öffnen (im Dateimanager mit <b>Mit
+Zypp Desk öffnen</b>). Bevor etwas installiert wird, sagt es dir, wer sie signiert hat, was sie braucht und was sie
+ersetzen würde.</p>
+<h3>Programme, die für Fedora gemacht sind</h3>
+<p>Manche <code>.rpm</code>-Dateien sind für Fedora gemacht und verlangen Dinge unter ihren Fedora-Namen. Wenn
+openSUSE dasselbe unter einem anderen Namen hat, zeigt dir Zypp Desk die Liste (Fedora-Name, openSUSE-Name, warum)
+und kann ein kleines <b>Brückenpaket</b> erstellen, das zypper sagt, dass es dasselbe ist. Das Brückenpaket enthält
+keine Dateien; es wird auf deinem Computer erstellt und unter Programme aus dem Web aufgeführt, wo du auch
+erfährst, wann es nicht mehr gebraucht wird. Wenn etwas keine Entsprechung in openSUSE hat, sagt Zypp Desk, was es
+ist, und erstellt kein Brückenpaket.</p>
+
+<!-- topic: repos | Paketquellen und Signaturschlüssel -->
+<h2>Paketquellen und Signaturschlüssel</h2>
+<p>Eine <b>Paketquelle</b> ist ein Ort, von dem zypper Pakete herunterlädt. Unter
+<a href="page:repos">Paketquellen</a> kannst du sie aktivieren oder deaktivieren, ihre Priorität ändern (die
+kleinere Zahl gewinnt, wenn dasselbe Paket in mehreren ist), prüfen, welche nicht antworten, ihre Adresse ändern
+und Zypp Desk bitten, eine Reihenfolge vorzuschlagen.</p>
+<p>Manche Programme, die für Fedora gemacht sind, legen ihre Paketquelle in <code>/etc/yum.repos.d</code> ab, wo
+zypper nicht nachsieht, daher würden sie nie aktualisiert. Zypp Desk bemerkt das und bietet an, die Paketquelle
+mit ihrem Schlüssel zu zypper hinzuzufügen. Wenn du <b>Nicht hinzufügen</b> gewählt hast, holt sie <b>Mehr →
+Ausgeblendete Fedora-Paketquellen anzeigen</b> zurück.</p>
+<p>Ein <b>Signaturschlüssel</b> beweist, wer ein Paket oder eine Paketquelle gemacht hat. Unter
+<a href="page:keys">Signaturschlüssel</a> siehst du die Schlüssel, denen dein Computer vertraut, wem sie gehören und
+wann sie ablaufen, und du kannst einen neuen über eine Webadresse, eine Datei oder seinen Fingerabdruck importieren
+und ihn mit dem vergleichen, den der Anbieter veröffentlicht. Vertraue einem Schlüssel nur, wenn er aus einer
+Quelle kommt, der du vertraust: Mit einem Schlüssel kann sein Besitzer alles auf deinem Computer installieren.</p>
+<p><a href="page:services">Dienste</a> sind Listen von Paketquellen, die jemand anderes pflegt (openSUSE pflegt die
+von Tumbleweed).</p>
+
+<!-- topic: problems | Wenn etwas schiefgeht -->
+<h2>Wenn etwas schiefgeht</h2>
+<ul>
+<li><b>Ein Abhängigkeitsproblem</b>: zypper kann nicht tun, worum du gebeten hast, ohne etwas anderes zu ändern.
+Zypp Desk zeigt jedes Problem in Worten, mit den Lösungen, die zypper anbietet, und empfiehlt die, die am wenigsten
+ändert. Wenn es viele sind, gruppiert es sie zuerst nach Ursache: Oft wurde eine Paketquelle, die auf Tumbleweed
+aufbaut (VideoLAN, Packman), noch nicht für die neue Version neu gebaut, und die Probleme verschwinden in ein oder
+zwei Tagen von selbst. Du kannst warten und dich erinnern lassen, den Rest aktualisieren und diese so lassen, wie
+sie sind, oder sie dir einzeln ansehen.</li>
+<li><b>Beim Herunterladen wird eine Datei nicht gefunden</b>: Direkt nach einer neuen Tumbleweed-Version brauchen
+die Spiegelserver ein paar Stunden, um sie zu kopieren. Versuche es in einer Stunde noch einmal.</li>
+<li><b>Nach einer Aktualisierung ist etwas kaputt</b>: <a href="page:history">Verlauf</a> zeigt, was sich bei jeder
+Aktualisierung geändert hat, und wenn das System Snapshots erstellt (snapper), kannst du dort die Änderungen
+rückgängig machen oder zum System zurückkehren, wie es vorher war.</li>
+<li><b>Eine Warnung, die du nicht verstehst</b>: Der Bereich neben dem Terminal erklärt sie und sagt, wie ernst sie
+ist und was zu tun ist.</li>
+<li><a href="page:maintenance">Wartung</a> prüft defekte Abhängigkeiten, entfernt alte Kernel, leert den
+Zwischenspeicher und sagt dir, welche Programme noch alte Dateien benutzen und ob der Computer neu gestartet werden
+muss.</li>
+</ul>
+
+<!-- topic: tray | Benachrichtigungen und Einstellungen -->
+<h2>Benachrichtigungen und Einstellungen</h2>
+<p>Ein kleines Symbol neben der Uhr sagt dir Bescheid, wenn es Aktualisierungen gibt. Es startet, wenn du dich
+anmeldest; unter <a href="page:settings">Einstellungen</a> kannst du es ausschalten oder ändern, wie oft es
+nachsieht. Zypp Desk installiert einen Timer, der die Paketquellen alle sechs Stunden neu lädt, damit die Anzahl
+aktuell ist. Es installiert nie etwas von selbst. Wenn du es in den Einstellungen einschaltest, lädt es außerdem
+die nächste Aktualisierung vorab herunter, aber nur, wenn der Computer am Strom ist und keine Verbindung mit
+Datenlimit benutzt (etwa einen Handy-Hotspot).</p>
+<p>In den Einstellungen findest du auch die Optionen von <code>zypp.conf</code> (empfohlene Pakete, wie viele
+Kernel behalten werden, Verbindungen pro Download …), das Terminal und welches Programm <code>.rpm</code>-Dateien
+öffnet. Den Ordner für Programme aus dem Web änderst du unter Programme aus dem Web (<b>Ordner ändern …</b>).</p>
+<p>Zypp Desk spricht Englisch, Katalanisch, Deutsch und Französisch. Wenn du es in deine Sprache übersetzen
+möchtest, sieh dir <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>
+an.</p>

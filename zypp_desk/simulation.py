@@ -27,14 +27,23 @@ CATEGORIES = [
 ]
 
 
-def human_size(n):
-    """A size in the user's own format (QLocale: '4,4 MiB' in Catalan)."""
+def human_size(n, precision=None):
+    """A size in the user's own format (QLocale): one decimal under 10 of its unit, none from 10 on and none when
+    it is a whole number ('1,5 GiB', '31 GiB', '400 MiB', '2 GiB'; visual review 0.5, #18). precision: a fixed
+    number of decimals instead, for two sizes that must not look the same."""
     try:
         n = float(n)
     except (TypeError, ValueError):
         return ""
     sign = "-" if n < 0 else ""
-    return sign + QLocale().formattedDataSize(int(abs(n)))
+    size = int(round(abs(n)))
+    if precision is None:
+        scaled = float(size)
+        while scaled >= 1024:
+            scaled /= 1024
+        one = round(scaled, 1)
+        precision = 1 if size >= 1024 and one < 10 and one != int(one) else 0
+    return sign + QLocale().formattedDataSize(size, precision)
 
 
 def disk_text(value):

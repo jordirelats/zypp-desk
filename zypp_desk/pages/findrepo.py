@@ -11,16 +11,18 @@ import html
 
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QTabWidget, QTreeWidget,
-                               QTreeWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QTabWidget, QTreeWidget, QTreeWidgetItem,
+                               QVBoxLayout, QWidget)
 
 from .. import backend, flatpak, keys, online
 from ..explain import SERIOUS, WARN, severity_label
-from ..i18n import _, ngettext
+from ..i18n import _, ngettext, pgettext
 from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action, pkg_ident
-from ..ui import ask, button, icon, muted, plain
+from ..question import ask_change, confirm
+from ..ui import button, icon, muted
+from .repotools import REPO_ICON, personal_project_question
 
 TRUST = {
     online.OFFICIAL: (GREEN, _("Official"), _("Official Tumbleweed package"),
@@ -405,9 +407,8 @@ class FindRepoDialog(QDialog):
             self._install(r["name"], r["name"])
             self._queued(_("Added to the queue: install {name}.").format(name=r["name"]))
             return
-        if r["trust"] == online.PERSONAL and not ask(self, _("Personal project"), _(
-                "{project} belongs to one person and nobody else reviews it. Add it anyway?").format(
-                project=r["project"])):
+        if r["trust"] == online.PERSONAL and not personal_project_question(
+                self, r["project"], r["url"], install=r["name"] if install else None):
             return
         have = self._repo_with_url(r["url"])
         alias = have["alias"] if have else self._free_alias(online.obs_alias(r["project"]))
@@ -426,17 +427,17 @@ class FindRepoDialog(QDialog):
         if not r:
             return
         color, short, title, text = trust_of(r, "copr")
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning if r.get("tumbleweed") else QMessageBox.Icon.Critical)
-        box.setWindowTitle(_("Fedora COPR"))
-        box.setText(title)
-        box.setInformativeText(text + "\n\n" + _("Add the repository {project} ({chroot}) and install {name} from "
-                                                 "it?").format(project=r["project"], chroot=r["chroot"],
-                                                               name=r["name"]))
-        plain(box)
-        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        box.setDefaultButton(QMessageBox.StandardButton.No)
-        if box.exec() != QMessageBox.StandardButton.Yes:
+        if not confirm(
+                self, _("Add the repository {project} ({chroot}) and install {name} from it?").format(
+                    project=r["project"], chroot=r["chroot"], name=r["name"]), _("Add them to the queue"),
+                window_title=_("Fedora COPR"), icon_name="dialog-warning" if r.get("tumbleweed") else "dialog-error",
+                items=[(REPO_ICON, pgettext("change", "Add the repository “{name}”").format(
+                            name=f"COPR {r['project']} ({r['chroot']})"), r["url"]),
+                       ("application-x-rpm|package-x-generic", pgettext("change", "Install {name}").format(
+                           name=r["name"]), _("From this repository."))],
+                warning=title + "\n" + text,
+                means=_("it only goes to the queue: nothing changes until you apply it."),
+                password=False, help_topic="repos"):
             return
         have = self._repo_with_url(r["url"])
         alias = have["alias"] if have else self._free_alias(online.copr_alias(r))
@@ -490,32 +491,33 @@ class FindRepoDialog(QDialog):
         fpr = k["fingerprint"]
         if k["known"] or self.ctx.queue.key_state(fpr) == "key-import":
             return
-        box = QMessageBox(self)
-        box.setWindowTitle(_("Import a signing key"))
         if packages_only:
-            box.setText(_("The packages of {project} are signed with this key. Add its import to the queue, so that "
-                          "they can be checked? From then on, rpm trusts every package signed with this key.").format(
-                project=project))
+            lead = _("The packages of {project} are signed with this key. Add its import to the queue, so that they "
+                     "can be checked?").format(project=project)
         else:
-            box.setText(_("zypper must trust the signing key of {project} before it can read the repository. Add its "
-                          "import to the queue? From then on, rpm trusts every package signed with this key.").format(
-                project=project))
-        info = _("Fingerprint: {fpr}").format(fpr=keys.nice_fpr(fpr))
+            lead = _("zypper must trust the signing key of {project} before it can read the repository. Add its "
+                     "import to the queue?").format(project=project)
+        detail = _("Fingerprint: {fpr}").format(fpr=keys.nice_fpr(fpr))
         if k["uids"]:
-            info += "\n\n" + _("Name in the key: {uid}").format(uid=k["uids"][0])
+            detail += "\n" + _("Name in the key: {uid}").format(uid=k["uids"][0])
+        warning = _("From then on, rpm trusts every package signed with this key.")
         if k.get("revoked") or k.get("expired"):
-            info += "\n\n" + (_("Its owner revoked this key: it must not be used.") if k.get("revoked") else
-                               _("This key has expired."))
-        box.setInformativeText(info + "\n\n" + _("It is imported first when you apply the queue, before the "
-                                                  "repository is added. Nothing changes until then."))
-        plain(box)
-        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if k.get("revoked"):
-            box.button(QMessageBox.StandardButton.Yes).setEnabled(False)
-            box.setDefaultButton(QMessageBox.StandardButton.No)
-        answer = box.exec()
-        box.deleteLater()
-        if answer != QMessageBox.StandardButton.Yes:
+            warning = (_("Its owner revoked this key: it must not be used.") if k.get("revoked") else
+                       _("This key has expired.")) + "\n\n" + warning
+        buttons = [("no", _("Not yet"), False)]
+        if not k.get("revoked"):
+            buttons.append(("yes", _("Add to the queue"), True))
+        answer = ask_change(
+            self, _("Trust the signing key of {project}?").format(project=project),
+            window_title=_("Import a signing key"),
+            icon_name="security-high|object-locked|dialog-password", lead=lead,
+            items=[("security-high|object-locked|dialog-password",
+                    pgettext("change", "Trust the signing key “{name}”").format(name=k.get("name") or project),
+                    detail)],
+            means=_("it is imported first when you apply the queue, before the repository is added. Nothing changes "
+                    "until then."),
+            warning=warning, password=False, buttons=buttons, help_topic="repos")
+        if answer != "yes":
             return
         link = {"for_repo": alias} if alias else {}  # the queue review: the repository needs this key
         self.ctx.queue.add(Action("key-import", fpr, path=k["path"], name=k.get("name") or project, **link))

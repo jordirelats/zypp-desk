@@ -8,7 +8,14 @@ left each one, and which of their signing keys rpm does not have yet.
 
 Only some can be used on openSUSE: an address on the web (http or https) whose only variables are $basearch and
 $arch. An address with $releasever is made for one version of Fedora, and a metalink or mirrorlist is a list of
-mirrors that zypper cannot read; those are listed as "cannot be used", with the reason.
+mirrors that zypper cannot read; those are listed as "cannot be used", with the reason. So is an address that
+carries settings for zypper in its query (?ssl_verify=no turns off the https check), and an http address whose
+packages are not signed either: anybody on the network could change what root installs (security review 0.5, #2).
+An http address is tried with https first (scan), and the https one is used when it answers.
+
+The signature checks follow the file: gpgcheck (the packages) and repo_gpgcheck (the list of packages) become the
+queue's 'default' (both), 'allow-unsigned-repo' (only the packages), 'allow-unsigned-package' (only the list:
+zypper addrepo --gpgcheck-allow-unsigned-package keeps the list checked, zypper review 0.5, #7) or 'off'.
 
 Nothing here changes the system: it reads the files, asks rpm as the normal user, and reads key files with gpg in a
 throwaway folder (keys.py). Adding a repository and importing its key go through the queue.
@@ -18,7 +25,10 @@ import configparser
 import os
 import re
 import subprocess
+import time
+import urllib.error
 import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from .backend import ENV_C
@@ -35,6 +45,12 @@ _VAR_RE = re.compile(r"\$(\{)?([A-Za-z_][A-Za-z0-9_]*)(?(1)\})")
 _ALIAS_BAD = re.compile(r"[^A-Za-z0-9._:+@-]+")
 _TRUE = ("1", "yes", "true", "on")
 _FALSE = ("0", "no", "false", "off")
+# options zypper reads from the query of an address (libzypp's media options): they change how it checks the server
+# (ssl_verify=no) or where it downloads through (proxy=…). A vendor's .repo file has no business setting them.
+_URL_OPTION_RE = re.compile(r"ssl_.*|proxy.*|mediahandler|credentials", re.I)
+HTTPS_TIMEOUT = 8
+HTTPS_TTL = 3600  # seconds: whether an address answers over https is asked again after an hour
+_https_memo = {}
 
 
 def machine():
@@ -140,7 +156,10 @@ def _section_entry(path, section, sec, mach):
          "gpgcheck": _flag(sec.get("gpgcheck"), True), "repo_gpgcheck": _flag(sec.get("repo_gpgcheck"), False),
          "gpgkeys": [_key_source(k, mach) for k in _split_list(sec.get("gpgkey"))],
          "in_zypper": None, "package": "", "program": "", "icon": ""}
-    e["gpg"] = ("off" if not e["gpgcheck"] else "default" if e["repo_gpgcheck"] else "allow-unsigned-repo")
+    e["gpg"] = (("default" if e["repo_gpgcheck"] else "allow-unsigned-repo") if e["gpgcheck"] else
+                ("allow-unsigned-package" if e["repo_gpgcheck"] else "off"))
+    e["plain_http"] = False  # scan: True when only http answers
+    e["https_from"] = ""  # scan: the http address of the file, when the same one with https is used instead
     urls = _split_list(sec.get("baseurl"))
     web = [u for u in urls if u.lower().startswith(("https://", "http://"))]
     if web:
@@ -154,7 +173,7 @@ def _section_entry(path, section, sec, mach):
                 variable="$" + left[0])
         else:
             from .repoprio import url_problem
-            problem = url_problem(url)
+            problem = url_problem(url) or _url_options_problem(url)
             if problem:
                 e["usable"], e["why"] = False, problem
     elif urls:
@@ -168,6 +187,68 @@ def _section_entry(path, section, sec, mach):
     if e["usable"] and not _safe_file(path):
         e["usable"], e["why"] = False, _("Other users can change this file, so it is not used.")
     return e
+
+
+def _url_options_problem(url):
+    """Why an address cannot be used because of the options in its query ('' when it has none of them)."""
+    try:
+        query = urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query, keep_blank_values=True)
+    except ValueError:
+        return _("This is not an address.")
+    found = sorted({k for k, _v in query if _URL_OPTION_RE.fullmatch(k)})
+    if not found:
+        return ""
+    return _("Its address carries settings for zypper ({options}) that change how it checks the server or where it "
+             "downloads from.").format(options=", ".join(found))
+
+
+def https_answers(url):
+    """Whether the same address with https serves a repository (repodata/repomd.xml answers, without leaving https).
+    Network; remembered for an hour."""
+    https = "https://" + url[len("http://"):] if url.lower().startswith("http://") else url
+    memo = _https_memo.get(https)
+    if memo and time.monotonic() - memo[0] < HTTPS_TTL:
+        return memo[1]
+    from .repocheck import _join
+    from .websources import USER_AGENT, https_open
+    target = _join(https, "repodata/repomd.xml")
+    ok = False
+    for method in ("HEAD", "GET"):
+        headers = {"User-Agent": USER_AGENT}
+        if method == "GET":
+            headers["Range"] = "bytes=0-1023"
+        try:
+            with https_open(urllib.request.Request(target, method=method, headers=headers),
+                            timeout=HTTPS_TIMEOUT) as r:
+                ok = 200 <= r.status < 300 and r.geturl().startswith("https://")
+                if method == "GET":
+                    r.read(1024)
+            break
+        except urllib.error.HTTPError as e:
+            if method == "HEAD" and e.code in (400, 403, 405, 406, 501):
+                continue  # some servers only refuse HEAD
+            break
+        except (urllib.error.URLError, OSError, ValueError):
+            break
+    _https_memo[https] = (time.monotonic(), ok)
+    return ok
+
+
+def secure_transport(entry):
+    """For a usable repository whose file says http: use the same address with https when it answers; otherwise it
+    stays http, and one whose packages are not signed either cannot be used (security review 0.5, #2). Network."""
+    if not entry["usable"] or not entry["url"].lower().startswith("http://"):
+        return entry
+    if https_answers(entry["url"]):
+        entry["https_from"] = entry["url"]
+        entry["url"] = "https://" + entry["url"][len("http://"):]
+        return entry
+    entry["plain_http"] = True
+    if entry["gpg"] == "off":
+        entry["usable"], entry["why"] = False, _(
+            "Its address is not encrypted (http, and https does not answer there), and its packages are not "
+            "signed: anybody on the network could change what zypper installs as root.")
+    return entry
 
 
 def read_folder(folder=None, mach=None):
@@ -251,12 +332,14 @@ def program_of(package):
 def scan(zypper_repos, folder=None, mach=None):
     """The repositories for Fedora on this computer, each a dict:
 
-    file, section, id (file#section, for "Not now"), name, url (variables replaced), raw_url, usable, why (when it
-    cannot be used), gpgcheck, repo_gpgcheck, gpg (the queue's signature setting: 'default', 'allow-unsigned-repo'
-    or 'off'), gpgkeys [{url, kind, path}], in_zypper (the alias of the zypper repository at the same address, or
-    None), package (that left the file, '' when none), program and icon (what to call it).
+    file, section, id (file#section, for "Do not add it"), name, url (variables replaced; https when the file says
+    http and https answers), raw_url, usable, why (when it cannot be used), gpgcheck, repo_gpgcheck, gpg (the queue's
+    signature setting: 'default', 'allow-unsigned-repo', 'allow-unsigned-package' or 'off'), plain_http (only http
+    answers), https_from (the http address of the file, when https is used instead), gpgkeys [{url, kind, path}],
+    in_zypper (the alias of the zypper repository at the same address, or None), package (that left the file, ''
+    when none), program and icon (what to call it).
 
-    zypper_repos: backend.repos(). Runs rpm: call it in a thread."""
+    zypper_repos: backend.repos(). Runs rpm, and asks the network about http addresses: call it in a thread."""
     mach = mach or machine()
     entries = read_folder(folder, mach)
     if not entries:
@@ -267,6 +350,8 @@ def scan(zypper_repos, folder=None, mach=None):
     for e in entries:
         if e["url"]:
             e["in_zypper"] = have.get(norm_url(e["url"], mach))
+        if not e["in_zypper"]:  # one zypper already has needs no question about http
+            secure_transport(e)
     owners = _owners(e["file"] for e in entries)
     programs = {}
     for e in entries:
@@ -280,7 +365,7 @@ def scan(zypper_repos, folder=None, mach=None):
 
 def missing(entries, dismissed=(), queued_urls=(), mach=None):
     """The usable ones that zypper does not have, that are not waiting in the queue, and that were not put aside
-    with "Not now"."""
+    with "Do not add it"."""
     queued = {norm_url(u, mach) for u in queued_urls}
     dismissed = set(dismissed)
     return [e for e in entries if e["usable"] and not e["in_zypper"] and e["id"] not in dismissed

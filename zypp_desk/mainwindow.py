@@ -8,7 +8,7 @@ from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QListWidget,
                                QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSplitter,
-                               QStackedWidget, QVBoxLayout, QWidget)
+                               QStackedWidget, QToolButton, QVBoxLayout, QWidget)
 
 from . import APP_NAME, VERSION, appicons, backend, question, repostate, websources
 from .i18n import _, ngettext
@@ -29,15 +29,48 @@ from .simulation import SimulationDialog, merge_results, parse_dry_run, summary_
 from .tasks import run_async
 from .terminal import TerminalPanel
 from .style import ORANGE
-from .txqueue import PKG_KINDS, Action, TxQueue, describe_actions, installed_names, pkg_ident, step_actions
-from .ui import button, error_box, heading, icon, info_box, mono, muted
+from .txqueue import (PKG_KINDS, REVIEW_GROUP_FROM, Action, Needs, TxQueue, describe_actions, grouped,
+                      installed_names, is_file_target, pkg_ident, quoted, repo_info, repo_name, step_actions)
+from .ui import button, error_box, icon, info_box, mono, muted
 
 SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
     (_("Sources"), ["repos", "keys", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
-    (_("Help"), ["help", "about"]),
 ]
+# Help and About are small buttons under the list (and F1 opens Help): with them in the list, it did not fit a
+# window lower than ~850 px, and Help was hidden below the fold (visual review 0.5, #1)
+SIDEBAR_FOOT = ["help", "about"]
+# the heights of a row and of a group's header, from roomy to tight: the first that lets every row be seen
+ROW_HEIGHTS = ((38, 32), (36, 30), (34, 28), (32, 26), (30, 24))
+FOOT_STYLE = ("QToolButton { border: none; border-radius: 8px; padding: 4px 8px; }"
+              "QToolButton:hover { background: rgba(39, 174, 96, 0.10); }"
+              "QToolButton:checked { background: rgba(39, 174, 96, 0.22); }")
+
+
+class Sidebar(QListWidget):
+    """The list of places. Its rows get lower when the window does, so that every place shows without scrolling
+    (1100×700, or a 1080p laptop at 125 %); only below that does it scroll."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._heights = None
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        self.fit_rows()
+
+    def fit_rows(self):
+        items = [self.item(i) for i in range(self.count())]
+        headers = [it for it in items if it.data(Qt.ItemDataRole.UserRole) is None]
+        rows = len(items) - len(headers)
+        room = self.viewport().height()
+        heights = next((rh for rh in ROW_HEIGHTS if rows * rh[0] + len(headers) * rh[1] <= room), ROW_HEIGHTS[-1])
+        if heights == self._heights:
+            return
+        self._heights = heights
+        for it in items:
+            it.setSizeHint(QSize(0, heights[1] if it.data(Qt.ItemDataRole.UserRole) is None else heights[0]))
 
 
 class ElidedLabel(QLabel):
@@ -134,7 +167,7 @@ class TakeOutDialog(QDialog):
                 lead = ngettext("Without this key, zypper will not trust the repository {repos}. These changes in "
                                 "the queue need it:",
                                 "Without this key, zypper will not trust the repositories {repos}. These changes in "
-                                "the queue need it:", len(repos)).format(repos=", ".join(f"«{r}»" for r in repos))
+                                "the queue need it:", len(repos)).format(repos=", ".join(quoted(r) for r in repos))
             else:
                 lead = _("Without this key, what it signed cannot be checked. These changes in the queue need it:")
         elif k == "repo-add":
@@ -205,15 +238,21 @@ class TakeOutDialog(QDialog):
 
 class QueueDialog(QDialog):
     """What is in the queue, change by change (mockup preguntes-v1-B): numbered in the order they run, each with
-    its own button to take it out, nothing selected, and what each change needs from an earlier one. Taking out a
-    change that others need asks first (TakeOutDialog). Close is the default button: Enter never takes anything
-    out of the queue. "Apply…" closes the window and asks the Apply question (apply_requested)."""
+    its own button to take it out, nothing selected, and what each change needs from an earlier one. Many changes
+    of one kind (installs, updates, removals…) are one row with "Show them" and one button, so that a queue of
+    thousands of packages opens at once (code review 0.5, #4). Taking out a change that others need asks first
+    (TakeOutDialog). Close is the default button: Enter never takes anything out of the queue. "Apply…" closes the
+    window and asks the Apply question (apply_requested)."""
 
     def __init__(self, queue, parent=None, catalog=None):
         super().__init__(parent)
         self.queue = queue
         self.catalog = catalog or {}
         self.apply_requested = False
+        # while a row's own question is open, a change of the queue (a download that ends) does not draw the rows
+        # again: that would delete the button whose click is still being handled (code review 0.5, #8)
+        self._holding = 0
+        self._pending = False
         self.setWindowTitle(_("Pending changes"))
         self.resize(760, 560)
         outer = QVBoxLayout(self)
@@ -236,6 +275,10 @@ class QueueDialog(QDialog):
         line.setFrameShadow(QFrame.Shadow.Sunken)
         outer.addWidget(line)
         bh = QHBoxLayout()
+        b_help = QPushButton(icon("help-contents", "help-about"), _("Help"), self)
+        b_help.setAutoDefault(False)
+        b_help.setFlat(True)
+        b_help.clicked.connect(lambda: question.show_help(self, "queue"))
         self.b_empty = QPushButton(_("Empty the queue"), self)
         self.b_empty.setAutoDefault(False)
         self.b_empty.clicked.connect(self.queue.clear)
@@ -246,6 +289,7 @@ class QueueDialog(QDialog):
         self.b_apply.setProperty("primary", True)
         self.b_apply.setAutoDefault(False)
         self.b_apply.clicked.connect(self._apply)
+        bh.addWidget(b_help)
         bh.addWidget(self.b_empty)
         bh.addStretch(1)
         bh.addWidget(self.b_close)
@@ -281,25 +325,32 @@ class QueueDialog(QDialog):
         super().done(r)
 
     def fill(self):
+        if self._holding:
+            self._pending = True  # drawn again when the question closes
+            return
         acts = self.queue.ordered()
-        names = [pkg_ident(a) for a in acts if a.kind == "install"]
-        installed = installed_names(names)
-        number = {id(a): i for i, a in enumerate(acts, 1)}
+        installed = installed_names(TxQueue.update_candidates(acts))
+        rows = grouped(acts, installed=installed, group_from=REVIEW_GROUP_FROM)
+        links = Needs(acts)  # what needs what, worked out once for every row
+        row_of = {}
+        for i, (_words, members) in enumerate(rows, 1):
+            for a in members:
+                row_of[id(a)] = i
         body = QWidget()
         v = QVBoxLayout(body)
         v.setContentsMargins(0, 0, 4, 0)
         v.setSpacing(10)
         if not acts:
             v.addWidget(question.label(_("The queue is empty."), muted=True))
-        for a in acts:
-            nums = sorted(number[id(n)] for n in self.queue.all_needs(a) if id(n) in number)
-            v.addWidget(self._row(number[id(a)], a, a.words(acts, installed), nums))
+        for i, (words, members) in enumerate(rows, 1):
+            nums = sorted({row_of[id(n)] for a in members for n in links.all_needs(a) if id(n) in row_of} - {i})
+            v.addWidget(self._row(i, members, words, nums))
         steps = self.queue.steps()
         if steps:
             cmds = question.commands([s.display() for s in steps])
             cmds.setVisible(False)
-            more = question._More(_("▸ Show the exact commands ({n})").format(n=len(steps)),
-                                  _("▾ Hide the exact commands"), cmds)
+            more = question.More(_("▸ Show the exact commands ({n})").format(n=len(steps)),
+                                 _("▾ Hide the exact commands"), cmds)
             v.addWidget(more)
             v.addWidget(cmds)
         v.addStretch(1)
@@ -307,7 +358,7 @@ class QueueDialog(QDialog):
         self.b_empty.setEnabled(bool(acts))
         self.b_apply.setEnabled(bool(acts))
 
-    def _row(self, n, action, words, nums):
+    def _row(self, n, members, words, nums):
         f = QFrame()
         f.setObjectName("qrow")
         f.setStyleSheet("QFrame#qrow { background: palette(base); border: 1px solid rgba(127, 140, 141, 0.35); "
@@ -330,33 +381,51 @@ class QueueDialog(QDialog):
         tv.addWidget(question.label(words["title"], bold=True))
         if words.get("detail"):
             tv.addWidget(question.label(words["detail"], small=True, muted=True))
+        more = words.get("more")
+        if more and len(members) > 1:  # the names of a group, under "Show them"
+            names = question.label("\n".join(more) if len(more) <= 400 else "\n".join(list(more[:400]) + ["…"]),
+                                   small=True, selectable=True, font=mono())
+            names.setVisible(False)
+            tv.addWidget(question.More(_("▸ Show them ({n})").format(n=len(more)), _("▾ Hide them"), names))
+            tv.addWidget(names)
         if nums:
             tv.addWidget(question.label(_steps_list(nums), small=True, color=ORANGE))
         h.addLayout(tv, 1)
-        b = _small_button(_("✕ Take it out of the queue"))
-        b.clicked.connect(lambda _c=False, a=action: self.take_out(a))
+        b = _small_button(_("✕ Take it out of the queue") if len(members) == 1 else
+                          _("✕ Take them out of the queue"))
+        b.clicked.connect(lambda _c=False, m=members: self.take_out(m))
         h.addWidget(b, 0, Qt.AlignmentFlag.AlignTop)
         return f
 
-    def take_out(self, action):
-        if action not in self.queue.actions:
+    def take_out(self, members):
+        """Take a change (or a row's group of changes) out of the queue; when others need it, ask first."""
+        members = [members] if isinstance(members, Action) else list(members)
+        queued = set(map(id, self.queue.actions))
+        members = [a for a in members if id(a) in queued]
+        if not members:
             return
-        deps = self.queue.needed_by(action)
-        if not deps:
-            self.queue.discard_action(action)
+        links = self.queue.links()
+        mine = set(map(id, members))
+        dep_ids = {id(d) for a in members for d in links.needed_by(a) if id(d) not in mine}
+        if not dep_ids:
+            self.queue.discard_actions(members)
             return
         acts = self.queue.ordered()
-        deps = [a for a in acts if a in deps]  # in the order they run
-        dlg = TakeOutDialog(self, action, deps, acts, installed_names(
-            [pkg_ident(a) for a in acts if a.kind == "install"]))
-        choice = dlg.exec()
-        dlg.deleteLater()
+        deps = [a for a in acts if id(a) in dep_ids]  # in the order they run
+        dlg = TakeOutDialog(self, members[0], deps, acts, installed_names(TxQueue.update_candidates(acts)))
+        self._holding += 1
+        try:
+            choice = dlg.exec()
+        finally:
+            self._holding -= 1
+            dlg.deleteLater()
         if choice == "all":
-            with self.queue.batch():
-                for a in [action, *deps]:
-                    self.queue.discard_action(a)
+            self.queue.discard_actions([*members, *deps])
         elif choice == "one":
-            self.queue.discard_action(action)
+            self.queue.discard_actions(members)
+        if self._pending and not self._holding:
+            self._pending = False
+            self._refill.start()  # after this click has been handled
 
     def _apply(self):
         self.apply_requested = True
@@ -401,7 +470,7 @@ class MainWindow(QMainWindow):
         self.pages["websources"].sources_changed.connect(self.pages["updates"]._web_changed)
 
         # ------------------------------------------------ sidebar
-        self.sidebar = QListWidget(self)
+        self.sidebar = Sidebar(self)
         self.sidebar.setIconSize(QSize(22, 22))
         self.sidebar.setFrameShape(QFrame.Shape.NoFrame)
         self.sidebar.setObjectName("sidebar")
@@ -410,7 +479,7 @@ class MainWindow(QMainWindow):
             if group:
                 hdr = QListWidgetItem(group)
                 hdr.setFlags(Qt.ItemFlag.NoItemFlags)
-                hdr.setSizeHint(QSize(0, 32))  # fixed heights: the highlight never covers the next row
+                hdr.setSizeHint(QSize(0, ROW_HEIGHTS[0][1]))  # fixed heights: the highlight never covers the next row
                 f = hdr.font()
                 f.setPointSizeF(f.pointSizeF() * 0.9)
                 hdr.setFont(f)
@@ -419,10 +488,34 @@ class MainWindow(QMainWindow):
                 p = self.pages[k]
                 it = QListWidgetItem(icon(p.icon_name, "application-vnd.flatpak.ref", "package-x-generic"), p.title)
                 it.setData(Qt.ItemDataRole.UserRole, k)
-                it.setSizeHint(QSize(0, 38))
+                it.setSizeHint(QSize(0, ROW_HEIGHTS[0][0]))
+                it.setToolTip(p.title)  # a long name (German) is shortened with "…"
                 self.sidebar.addItem(it)
                 self._rows[k] = it
         self.sidebar.currentItemChanged.connect(lambda cur, _p: cur and self.go(cur.data(Qt.ItemDataRole.UserRole)))
+        # Help and About: small buttons under the list, always in sight
+        foot = QHBoxLayout()
+        foot.setContentsMargins(2, 0, 2, 0)
+        foot.setSpacing(2)
+        self.foot = {}
+        for k in SIDEBAR_FOOT:
+            p = self.pages[k]
+            b = QToolButton(self)
+            b.setText(p.title)
+            b.setIcon(icon(p.icon_name, "help-about", "help-contents"))
+            b.setIconSize(QSize(18, 18))
+            b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            b.setCheckable(True)
+            b.setStyleSheet(FOOT_STYLE)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.clicked.connect(lambda _c=False, key=k: self.go(key))
+            foot.addWidget(b)
+            self.foot[k] = b
+        foot.addStretch(1)
+        self.foot["help"].setToolTip(_("Help (F1)"))
+        line = QFrame(self)
+        line.setFrameShape(QFrame.Shape.HLine)
+        line.setStyleSheet("color: rgba(127, 140, 141, 0.35);")
         self.status_lbl = muted("", self)
         self.term_toggle = QCheckBox(_("Show the terminal"), self)
         self.term_toggle.setChecked(self.settings["show_terminal"])
@@ -431,12 +524,22 @@ class MainWindow(QMainWindow):
         side.setFixedWidth(240)
         sv = QVBoxLayout(side)
         sv.setContentsMargins(6, 8, 6, 8)
+        sv.setSpacing(4)
         sv.addWidget(self.sidebar, 1)
+        sv.addWidget(line)
+        sv.addLayout(foot)
+        sv.addSpacing(2)
         sv.addWidget(self.status_lbl)
         sv.addWidget(self.term_toggle)
 
         # ------------------------------------------------ header, terminal, queue bar
-        self.page_title = heading("", 1.35)
+        # the title gives way ("…") before the page's buttons make the window wider than the screen (German
+        # Repositories widened a 1100 px window to 1113: visual review 0.5, #21)
+        self.page_title = ElidedLabel(self)
+        f = self.page_title.font()
+        f.setBold(True)
+        f.setPointSizeF(f.pointSizeF() * 1.35)
+        self.page_title.setFont(f)
         self.page_icon = QLabel(self)
         self.actions_box = QHBoxLayout()
         header = QWidget(self)
@@ -521,10 +624,18 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------ navigation
     def go(self, key, run_routine=False):
         page = self.pages[key]
-        if self.sidebar.currentItem() is not self._rows[key]:
-            self.sidebar.setCurrentItem(self._rows[key])
+        row = self._rows.get(key)
+        if row is not None:
+            if self.sidebar.currentItem() is not row:
+                self.sidebar.setCurrentItem(row)
+        elif self.sidebar.currentItem() is not None:  # Help or About: a button under the list, not a row
+            self.sidebar.setCurrentRow(-1)
+            self.sidebar.clearSelection()
+        for k, b in self.foot.items():
+            b.setChecked(k == key)
         self.stack.setCurrentWidget(self._wrap[key])
-        self.page_title.setText(page.title)
+        self.page_title.set_full_text(page.title)
+        self.page_title.setToolTip(page.title)
         self.page_icon.setPixmap(icon(page.icon_name, "application-vnd.flatpak.ref", "package-x-generic").pixmap(28, 28))
         while self.actions_box.count():
             w = self.actions_box.takeAt(0).widget()
@@ -579,7 +690,9 @@ class MainWindow(QMainWindow):
     def set_badge(self, key, text):
         """A number after a section's name in the sidebar (for example, new versions found)."""
         page = self.pages[key]
-        self._rows[key].setText(f"{page.title}  ({text})" if text else page.title)
+        row = self._rows.get(key)
+        if row is not None:
+            row.setText(f"{page.title}  ({text})" if text else page.title)
 
     def show_terminal(self):
         """Bring the terminal in (a download or a run writes there)."""
@@ -719,10 +832,13 @@ class MainWindow(QMainWindow):
         if rc == QDialog.DialogCode.Accepted:
             self.apply_queue(confirm=False, expected=snapshot)
         elif rc == getattr(SimulationDialog, "RESOLVE", 2):
-            self.apply_solutions(chosen, then=self.simulate_queue)
+            # the problem window already showed what runs now and asked: no second question (visual review 0.5, #7)
+            self.apply_solutions(chosen, then=self.simulate_queue, confirmed=True)
 
-    def apply_solutions(self, solutions, then=None, now=False):
-        """What Jordi chose for each problem of a simulation, then `then` (simulate again).
+    def apply_solutions(self, solutions, then=None, now=False, confirmed=False):
+        """What Jordi chose for each problem of a simulation, then `then` (simulate again). confirmed: the window
+        the choice came from already showed what runs now and asked for it (the problem window), so the question
+        before the commands that run at once is not asked again.
 
         Queue simulation (now=False): installs and removals join the queue, a "discard" takes an install or a
         removal out of it, and locks and unlocks run at once, because a dry run only knows the locks that exist.
@@ -739,14 +855,12 @@ class MainWindow(QMainWindow):
                 # 'pattern:kde' only matches the pattern; 'packman:vlc' (queued from Search online) matches vlc
                 want = pkg_ident(Action("install", d.get("target") or ""))
                 kinds = (d["of"],) if d.get("of") else ("install", "remove")
-                for x in list(self.queue.of(*kinds)):
-                    if pkg_ident(x) == want:
-                        self.queue.discard_action(x)
+                self.queue.discard_actions([x for x in self.queue.of(*kinds) if pkg_ident(x) == want])
         if not steps:
             if then:
                 then()
             return
-        if not self._ask_solutions(steps, then, now, queued=bool(add or discard)):
+        if not confirmed and not self._ask_solutions(steps, then, now, queued=bool(add or discard)):
             return
         self.run(steps, _("Choose a solution"), on_done=lambda ok: self._solutions_done(ok, then))
 
@@ -769,40 +883,47 @@ class MainWindow(QMainWindow):
         else:
             title, lead = _("Do this now?"), _("Zypp Desk will do this now:")
         return question.confirm(self, title, _("Yes, do it now"), window_title=_("Choose a solution"), lead=lead,
-                                items=items, means=" ".join(means), commands_=[s.display() for s in steps])
+                                items=items, means=" ".join(means), commands_=[s.display() for s in steps],
+                                help_topic="problems")
 
     def _solutions_done(self, ok, then):
         self.after_change()  # locks, installs or removals may have changed: the pages look again
         if ok and then:
             then()
 
-    def apply_queue(self, confirm=True, expected=None):
+    def apply_queue(self, confirm=True, expected=None, why=None):
+        """Apply the queue, after the Apply question (confirm=False: the simulation window already asked, for the
+        queue it simulated: expected). why: why the question is asked again ("simulation", "question")."""
         actions = list(self.queue.actions)
         steps = self.queue.steps()
         if not steps:
             return
-        changed = expected is not None and actions != expected
-        if changed:
+        if expected is not None and actions != expected:
             # something joined or left the queue after the simulation (a download finished): show it and ask again
-            confirm = True
-        if confirm and not self._ask_apply(steps, changed_after_simulation=changed):
+            confirm, why = True, why or "simulation"
+        if confirm and not self._ask_apply(steps, changed=why):
             return
-        if list(self.queue.actions) != actions:  # it changed while the question was open
-            return self.apply_queue(confirm=True)
+        if list(self.queue.actions) != actions:
+            # it changed while the question was open: ask again, and say why (code review 0.5, #11)
+            return self.apply_queue(confirm=True, why="question")
         if not self._files_unchanged(actions):
             return
         self.run(steps, _("Applying the queue"), on_done=lambda ok: self._applied(ok, actions, steps))
 
-    def _ask_apply(self, steps, changed_after_simulation=False):
+    def _ask_apply(self, steps, changed=None):
         """The Apply question (mockup preguntes-v3-A): each change in words, in the order it runs, what it means
-        for you, a warning when it can hurt, and the exact commands underneath, small."""
+        for you, a warning when it can hurt, and the exact commands underneath, small. changed: why it is asked
+        again ("simulation": the queue changed after the simulation; "question": while the question was open)."""
         acts = self.queue.actions
         n = len(acts)
         items = question_items(self.queue.words(), self.icon_catalog)
         extra = []
-        if changed_after_simulation:
+        if changed == "simulation":
             extra.append(question.box("info", _("The queue changed after the simulation: this is what it holds "
                                                  "now.")))
+        elif changed:
+            extra.append(question.box("info", _("The queue changed while the question was open: this is what it "
+                                                 "holds now.")))
         # what really happens (runner.py): every step after the first runs only if the one before it succeeded,
         # and Apply takes out of the queue only the changes whose commands all ended well (_applied)
         means = [_("it is what you put in the queue.")]
@@ -812,12 +933,19 @@ class MainWindow(QMainWindow):
         else:
             means.append(_("If it fails, it stays in the queue."))
         if any(a.kind in PKG_KINDS for a in acts):
-            means.append(_("Simulate shows first what else zypper would install or remove with these changes."))
+            means.append(_("“Simulate” shows first what else zypper would install or remove with these changes."))
         warnings = []
-        tw = [a.target for a in acts if (a.kind == "repo-remove" or (a.kind == "repo-modify"
-              and a.opts.get("enabled") is False)) and repostate.is_tumbleweed({"alias": a.target})]
-        for alias in tw:
-            warnings.append(_("Without the repository «{alias}», Tumbleweed is not updated.").format(alias=alias))
+        for a in acts:
+            if a.kind == "repo-remove" or (a.kind == "repo-modify" and a.opts.get("enabled") is False):
+                if repostate.is_tumbleweed({"alias": a.target, "url": repo_info(a.target).get("url", "")}):
+                    warnings.append(_("Without the repository “{name}”, Tumbleweed is not updated.").format(
+                        name=repo_name(a.target)))
+        # --allow-unsigned-rpm: say which files go in without a signature (a bridge says it under its own title)
+        loose = [a for a in self.queue.unsigned_files() if not a.opts.get("bridge_for")]
+        if loose:
+            warnings.append(ngettext("This file is not signed, so nothing can check who made it: {files}.",
+                                     "These files are not signed, so nothing can check who made them: {files}.",
+                                     len(loose)).format(files=", ".join(os.path.basename(a.target) for a in loose)))
         if any(a.kind == "firmware" for a in acts):
             warnings.append(_("Keep the computer plugged in and do not turn it off while the firmware is updated."))
         password = any(s.root or (s.program in ("flatpak", "fwupdmgr") and "--user" not in s.args) for s in steps)
@@ -827,7 +955,7 @@ class MainWindow(QMainWindow):
             window_title=_("Apply"),
             lead=_("Zypp Desk will do this, in this order:") if len(items) > 1 else _("Zypp Desk will do this:"),
             items=items, extra=extra, means=" ".join(means), warning="\n⚠ ".join(warnings) or None,
-            commands_=[s.display() for s in steps], password=password)
+            commands_=[s.display() for s in steps], password=password, help_topic="queue")
 
     def _files_unchanged(self, actions):
         """Downloaded files must still be exactly the ones that were checked and accepted."""
@@ -855,9 +983,7 @@ class MainWindow(QMainWindow):
         else:
             done = [a for a in applied if self._made(a, steps)]
         if done:
-            with self.queue.batch():
-                for a in done:  # changes added while it ran stay in the queue
-                    self.queue.discard_action(a)
+            self.queue.discard_actions(done)  # changes added while it ran stay in the queue
             # files from the web wait in the private download folder until they are installed; now they join the
             # folder where you keep them (often a local zypper repository, synced with a cloud)
             web = []
@@ -877,6 +1003,14 @@ class MainWindow(QMainWindow):
                     except OSError as e:
                         self.terminal.view.note(_("{file} could not be moved to {folder}: {error}").format(
                             file=a.target, folder=a.opts["move_to"], error=e), "error")
+                elif a.kind == "install" and is_file_target(a.target, a.opts):
+                    # the private copy of a file you opened (what root read): installed, and kept above if asked
+                    try:
+                        from . import localrpm
+                        if localrpm.is_private_copy(a.target):
+                            localrpm.drop_private_copy(a.target)
+                    except (ImportError, AttributeError, OSError):
+                        pass
             if web:  # new versions of programs from the web: offer to throw the old ones away
                 QTimer.singleShot(800, lambda pk=set(filter(None, web)): self.pages["websources"].tidy(packages=pk))
         self.after_change()

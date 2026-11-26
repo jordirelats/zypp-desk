@@ -2,9 +2,12 @@
 """Bridge packages in the window: the question before making one, and the list in Programs from the web.
 
 ask_bridge() is the question of the mockup idees-v1-J-fedora-pont: the program, what it asks for by its Fedora
-names and what openSUSE calls each thing, the bridge Zypp Desk will make, and the commands. queue_bridge()
-writes the bridge (bridge.build_bridge, as the normal user) and puts it in the queue next to the program: both
-are installed by one 'zypper install', the bridge with --allow-unsigned-rpm (it is made here, nobody signs it).
+names and what openSUSE calls each thing, the bridge Zypp Desk will make, and the commands. It only puts things in
+the queue, so it says so and asks for no password (visual review 0.5, #3); what else there is to know about the
+file (not signed, older than yours) goes in the same question, as a warning, instead of a question of its own
+(#7). queue_bridge() writes the bridge (bridge.build_bridge, as the normal user) and puts it in the queue next to
+the program. The queue installs both (TxQueue.package_args); the bridge with --allow-unsigned-rpm: it is made
+here, nobody signs it.
 
 BridgesBox is the "Bridge packages" list of the Programs from the web page: each bridge with its program, the
 names it translates and whether it is still needed (bridge.check_bridges), and "Remove it".
@@ -61,7 +64,8 @@ def _targets_text(m):
         if t.get("installed", True):
             parts.append(t["name"])
         else:
-            parts.append(_("{name} (zypper installs it from {repo})").format(name=t["name"], repo=t.get("repo") or "?"))
+            parts.append(_("{name} (zypper installs it from the repository {repo})").format(
+                name=t["name"], repo=t.get("repo") or "?"))
     every = all(t.get("installed", True) for t in m["targets"])
     return ("✓ " if every else "+ ") + ", ".join(parts), GREEN if every else BLUE
 
@@ -131,19 +135,21 @@ def bridge_actions(plan, program_action, folder, built=None):
 
 
 def commands_for(plan, program_action, settings):
-    """The commands of the question: the bridge written here (no command runs for it), then zypper."""
+    """The commands of the question: the bridge written here (no command runs for it), then zypper's (as the queue
+    will run them: the bridge may be installed on its own first)."""
     path = bridge.planned_file(plan, str(websources.download_dir()))
     q = TxQueue(settings)
     q.actions = bridge_actions(plan, program_action, "")
-    args = q.package_args()
-    zyp = Step("zypper", ["-n", *args[0]]).display() if args else ""
     home = os.path.expanduser("~") + "/"
-    zyp = zyp.replace(" " + home, " ~/")  # shorter, and the same for the shell
-    return [_("Zypp Desk writes {file} (as you, without rpmbuild)").format(file=home_short(path)), zyp]
+    # shorter, and the same for the shell
+    zyp = [Step("zypper", ["-n", *args]).display().replace(" " + home, " ~/") for args in q.package_args()]
+    return [_("Zypp Desk writes {file} (as you, without rpmbuild)").format(file=home_short(path)), *zyp]
 
 
-def ask_bridge(parent, plan, info, program_action, settings, folder):
-    """The question before making a bridge. True when the answer is "Create the bridge and install it"."""
+def ask_bridge(parent, plan, info, program_action, settings, folder, warnings=()):
+    """The question before making a bridge. True when the answer is "Create the bridge and add both to the
+    queue". warnings: what else to know about the file (not signed, older than yours), said here instead of in a
+    question of its own."""
     system, short = system_words(plan)
     maps = list(plan["mapped"]) + list(plan["kept"])
     n = len(plan["mapped"])
@@ -168,17 +174,20 @@ def ask_bridge(parent, plan, info, program_action, settings, folder):
             list=", ".join(plan["available"]))))
     answer = ask_change(
         parent, _title(plan), window_title=_("A program for another system"), icon_name=RPM_ICON, extra=extra,
-        means=_("both packages go to the queue together, and one zypper command installs them when you apply it."),
-        commands_=commands_for(plan, program_action, settings), password=True, width=780,
-        buttons=[("no", _("Cancel"), False), ("yes", _("Create the bridge and install it"), True)])
+        means=_("both packages go to the queue together. Nothing is installed now: zypper installs them when you "
+                "apply the queue."),
+        warning="\n\n".join(warnings) or None,
+        commands_=commands_for(plan, program_action, settings), password=False, width=780, help_topic="web",
+        buttons=[("no", _("Not yet"), False), ("yes", _("Create the bridge and add both to the queue"), True)])
     return answer == "yes"
 
 
-def ask_unmapped(parent, plan, info):
+def ask_unmapped(parent, plan, info, warnings=()):
     """A program from the web that asks for things openSUSE has under no name Zypp Desk knows: say which, and
-    let you decide whether it goes to the queue anyway (zypper will say it cannot install it). No bridge."""
+    let you decide whether it goes to the queue anyway (zypper will say it cannot install it). No bridge.
+    warnings: what else to know about the file (not signed…)."""
     rows = "\n".join("• {req}: {why}".format(req=r, why=why) for r, why in plan["unmapped"])
-    system, short = system_words(plan)
+    system = system_words(plan)[0]
     made_for = _("made for {system}").format(system=system) if system else _("made for another system")
     head = item(RPM_ICON, "{name} {version} ({made_for})".format(name=info.get("name", ""),
                                                                   version=info.get("version", ""), made_for=made_for),
@@ -190,8 +199,8 @@ def ask_unmapped(parent, plan, info):
                                                   len(plan["unmapped"])).format(n=len(plan["unmapped"])))],
         means=_("zypper will not be able to install it as it is. A bridge package cannot help here: openSUSE has "
                 "these things under no name Zypp Desk knows. Look for a version of the program made for openSUSE."),
-        password=False, width=720,
-        buttons=[("no", _("Cancel"), False), ("yes", _("Add it to the queue anyway"), True)])
+        warning="\n\n".join(warnings) or None, password=False, width=720, help_topic="web",
+        buttons=[("no", _("Not yet"), False), ("yes", _("Add it to the queue anyway"), True)])
     return answer == "yes"
 
 
@@ -239,8 +248,8 @@ class BridgesBox(QFrame):
         top.addWidget(self.state, 1)
         v.addLayout(top)
         v.addWidget(muted(_("Zypp Desk made them so that programs made for Fedora could be installed: each one tells "
-                            "zypper that a Fedora name is met by what openSUSE calls it. They are checked every time "
-                            "this page looks again."), self))
+                            "zypper that a Fedora name is met by what openSUSE calls it. Zypp Desk checks them each "
+                            "time you open this page."), self))
         self.rows = QWidget(self)
         self.rows_lay = QVBoxLayout(self.rows)
         self.rows_lay.setContentsMargins(0, 0, 0, 0)
@@ -345,8 +354,9 @@ class BridgesBox(QFrame):
         st.addWidget(label(text(b), small=True), 1)
         v.addLayout(st)
         if state == "needed" and len(b.get("asked", {})) < len(b["provides"]):
-            v.addWidget(label(_("Some of its names are no longer asked for; a new version of {program} makes a "
-                                "smaller bridge.").format(program=b["program"]), small=True, muted=True))
+            v.addWidget(label(_("Some of its names are no longer asked for: when you install a new version of "
+                                "{program}, Zypp Desk makes a smaller bridge.").format(program=b["program"]),
+                              small=True, muted=True))
         h.addLayout(v, 1)
         queued = self.ctx.queue.state_of(b["name"]) == "remove"
         rm = button(_("In the queue") if queued else _("Remove it"), "list-remove",
@@ -370,7 +380,7 @@ class BridgesBox(QFrame):
                                                "names.").format(program=b["program"]))],
                 warning=_("{program} still needs it: removing the bridge removes {program} too.").format(
                     program=b["program"]),
-                commands_=cmds, password=False,
+                commands_=cmds, password=False, help_topic="web",
                 buttons=[("no", _("Not yet"), False), ("yes", _("Remove both"), True)]) == "yes"
             if not ok:
                 return

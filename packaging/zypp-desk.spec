@@ -9,7 +9,7 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.5.0
+Version:        0.5.1
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
@@ -32,6 +32,9 @@ Requires:       python3-pyside6
 Requires:       python3-rpm
 Requires:       zypper
 Recommends:     flatpak
+Recommends:     fwupd
+Recommends:     xdg-utils
+Suggests:       snapper
 Recommends:     kf6-breeze-icons
 %{?systemd_ordering}
 
@@ -127,6 +130,14 @@ fi
 %service_del_postun_without_restart %{name}-refresh.service %{name}-refresh.timer
 
 %check
+# a version forgotten in one place: the window would warn that the helper is from another version
+grep -qx 'VERSION = "%{version}"' zypp_desk/__init__.py
+grep -qx 'VERSION = "%{version}"' helper/%{name}-helper
+grep -q '<release version="%{version}"' data/%{app_id}.metainfo.xml
+# every translation of the help has the same topics as the English one
+for f in zypp_desk/help/*.html; do
+  test "$(grep -o 'topic: [a-z-]*' "$f")" = "$(grep -o 'topic: [a-z-]*' zypp_desk/help/en.html)"
+done
 desktop-file-validate %{buildroot}%{_datadir}/applications/%{app_id}.desktop
 desktop-file-validate %{buildroot}%{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 appstreamcli validate --no-net %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml

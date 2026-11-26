@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Open downloaded .rpm files (Dolphin: “Open with Zypp Desk”): what each one is, and install it through the queue.
 
-Nothing is installed here. The file goes to the queue with its SHA-256 (Apply checks it again), like the
-programs from the web. Before that the window says what the file is, who made it, the version you have now,
+Nothing is installed here. What goes to the queue is a private copy of the file, in the 0700 download folder
+(localrpm.copy_for_queue), with its SHA-256 (Apply checks it again), like the programs from the web: nobody else
+can change it between the check and the moment root installs it (security review 0.5, #1). The file itself stays
+where it is. Before that the window says what the file is, who made it, the version you have now,
 whether its signature can be checked and what it needs. Files that must not be installed are refused, with
 the reason: not an RPM package, a source package, another processor, damaged, or a signature that does not
 verify. A file signed with a key that rpm does not know waits until the key is imported; a file without a
@@ -21,21 +23,23 @@ from collections import Counter
 
 from PySide6.QtCore import QRect, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QColor, QDesktopServices, QFont, QPainter, QPalette, QTextOption
-from PySide6.QtWidgets import (QCheckBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QListWidget,
-                               QListWidgetItem, QMessageBox, QPlainTextEdit, QScrollArea, QSplitter, QStyle,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QListWidget, QListWidgetItem, QPlainTextEdit, QScrollArea, QSplitter, QStyle,
                                QStyledItemDelegate, QVBoxLayout, QWidget)
 
-from .. import backend, bridge, localrpm, websources
+from .. import backend, bridge, localrpm, question, websources
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action, TxQueue
-from ..ui import ask, button, error_box, heading, hline, icon, info_box, mono, muted, plain
+from ..ui import button, error_box, heading, hline, icon, info_box, mono, muted
 from . import bridges as bridgeui
+from .repotools import personal_project_question
 from .websources import fmt_size, home_short, local_state
 
 GREY = "#7f8c8d"
+RPM_ICON = bridgeui.RPM_ICON
 ITEM_ROLE = Qt.ItemDataRole.UserRole
 MAX_PROVIDERS = 6
 MAX_MISSING = 5
@@ -341,7 +345,18 @@ class LocalRpmDialog(QDialog):
 
     def done(self, result):
         self._closed = True
+        self._drop_copies()
         super().done(result)
+
+    def _drop_copies(self):
+        """The private copies of files that did not go to the queue are deleted when the window closes."""
+        for it in self.items:
+            self._drop_unqueued((it.get("info") or {}).get("private"))
+
+    def _drop_unqueued(self, path):
+        """Delete a private copy unless the queue uses it (the same file may be queued from another window)."""
+        if path and not any(a.target == path for a in self.ctx.queue.actions):
+            localrpm.drop_private_copy(path)
 
     def closeEvent(self, ev):
         self._closed = True
@@ -380,6 +395,8 @@ class LocalRpmDialog(QDialog):
 
     def _read(self, it, res, err):
         if self._closed:
+            if res and res.get("private"):  # read after the window closed: its copy is not needed
+                self._drop_unqueued(res["private"])
             return
         it["busy"] = False
         if err:
@@ -490,9 +507,11 @@ class LocalRpmDialog(QDialog):
         return os.path.expanduser(self.folder)
 
     # ------------------------------------------------------------ queue
-    def _action(self, it):
+    def _action(self, it, target=None):
+        """The install for the queue. target: the private copy root installs (copy_for_queue); without it (the
+        command shown before anything is copied) the path that copy will have."""
         info = it["info"]
-        return Action("install", info["path"], package=info["name"], sha256=info["sha256"],
+        return Action("install", target or localrpm.planned_copy(info), package=info["name"], sha256=info["sha256"],
                       allow_unsigned=info["signature"] == "unsigned", oldpackage=info["compare"] == "older",
                       copy_to=self._copy_to(it), keyid=info.get("keyid") or "")  # keyid: the review links the key
 
@@ -505,8 +524,9 @@ class LocalRpmDialog(QDialog):
                 bridgeui.commands_for(plan, self._action(it), self.ctx.settings), 1))
         q = TxQueue(self.ctx.settings)
         q.actions = [self._action(it)]
-        args = q.package_args()
-        return Step("zypper", ["-n", *args[0]]).display() if args else ""
+        home = os.path.expanduser("~") + "/"
+        return "\n".join(Step("zypper", ["-n", *args]).display().replace(" " + home, " ~/")
+                         for args in q.package_args())
 
     def _bridge_folder(self):
         """Where Apply moves a bridge: the folder of programs from the web (a local zypper repository)."""
@@ -541,17 +561,37 @@ class LocalRpmDialog(QDialog):
         targets = self._queueable()
         if not targets:
             return
-        unsigned = [it for it in targets if it["info"]["signature"] == "unsigned"]
-        older = [it for it in targets if it["info"]["compare"] == "older"]
+        # one question per decision (visual review 0.5, #7): a file that needs a bridge says in the bridge's own
+        # question that it is not signed or older; the other files share one question
+        bridged = [it for it in targets if (it.get("plan") or {}).get("needs_bridge")]
+        rest = [it for it in targets if not (it.get("plan") or {}).get("needs_bridge")]
+        unsigned = [it for it in rest if it["info"]["signature"] == "unsigned"]
+        older = [it for it in rest if it["info"]["compare"] == "older"]
         if unsigned or (self.multi and older):
             if not self._confirm(unsigned, older):
                 return
-        # a program made for Fedora that needs a bridge: the question of the bridge, one file after the other
-        bridged = [it for it in targets if (it.get("plan") or {}).get("needs_bridge")]
         for it in bridged:
             if not bridgeui.ask_bridge(self, it["plan"], it["info"], self._action(it), self.ctx.settings,
-                                       self._bridge_folder()):
+                                       self._bridge_folder(), warnings=self._file_warnings(it)):
                 return
+        # what root will install: a private copy of each file, exactly as it was read
+        copies = {}
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            for it in targets:
+                copies[id(it)] = localrpm.copy_for_queue(it["info"])
+        except localrpm.FileChanged as e:
+            QApplication.restoreOverrideCursor()
+            error_box(self, self.windowTitle(), _(
+                "{file} changed after Zypp Desk read it, so nothing went to the queue. Close this window and open "
+                "the file again.").format(file=home_short(str(e))))
+            return
+        except OSError as e:
+            QApplication.restoreOverrideCursor()
+            error_box(self, self.windowTitle(), _("The file cannot be read: {error}").format(
+                error=e.strerror or e))
+            return
+        QApplication.restoreOverrideCursor()
         built = {}
         folder = os.path.expanduser(self._bridge_folder())
         for it in bridged:  # written first: if one cannot be written, nothing goes to the queue
@@ -563,11 +603,12 @@ class LocalRpmDialog(QDialog):
                 return
         with self.ctx.queue.batch():
             for it in targets:
+                action = self._action(it, copies[id(it)])
                 if id(it) in built:
-                    for a in bridgeui.bridge_actions(it["plan"], self._action(it), folder, built[id(it)]):
+                    for a in bridgeui.bridge_actions(it["plan"], action, folder, built[id(it)]):
                         self.ctx.queue.add(a)
                 else:
-                    self.ctx.queue.add(self._action(it))
+                    self.ctx.queue.add(action)
         if not self.copy_row.isHidden() and self.copy.isEnabled():
             self.ctx.settings["local_rpm_keep_copy"] = self.copy.isChecked()
             self.ctx.settings.save()
@@ -575,46 +616,54 @@ class LocalRpmDialog(QDialog):
         if simulate:
             QTimer.singleShot(0, self.ctx.simulate_queue)
 
+    @staticmethod
+    def _file_warnings(it):
+        """What to know about a file before it goes to the queue: not signed, older than yours."""
+        i = it["info"]
+        out = []
+        if i["signature"] == "unsigned":
+            out.append(_("It is not signed: nothing confirms who made this file, or that nobody changed it after it "
+                         "was published. Install it only if you trust the place you downloaded it from."))
+        if i["compare"] == "older":
+            out.append(_("It is older than the version you have ({version}): installing it goes back to an older "
+                         "version.").format(version=i["installed_evr"]))
+        return out
+
     def _confirm(self, unsigned, older):
-        box = QMessageBox(self)
-        box.setIcon(QMessageBox.Icon.Warning)
-        if len(unsigned) == 1 and not self.multi:
-            i = unsigned[0]["info"]
-            box.setWindowTitle(_("Not signed"))
-            box.setText(_("{name} {version} is not signed.").format(name=i["name"], version=i["evr"]))
-            more = ""
-            if i["compare"] == "older":
-                more = "\n\n" + _("It is also older than the version you have ({version}): installing it goes back "
-                                  "to an older version.").format(version=i["installed_evr"])
-            box.setInformativeText(_("Nothing confirms who made this file, or that nobody changed it after it was "
-                                     "published. Install it only if you trust the place you downloaded it from.")
-                                   + more + "\n\n" + _("Add it to the queue anyway?"))
+        """The question before files that are not signed (or older than yours) go to the queue."""
+        no_sig, old = {id(x) for x in unsigned}, {id(x) for x in older}
+        files = [x for x in self.items if id(x) in no_sig | old]
+        items = []
+        for it in files:
+            i = it["info"]
+            why = []
+            if id(it) in no_sig:
+                why.append(_("not signed"))
+            if id(it) in old:
+                why.append(_("older than yours ({version})").format(version=i["installed_evr"]))
+            items.append((RPM_ICON, "{name} {version}".format(name=i["name"], version=i["evr"]),
+                          "{file} · {why}".format(file=i["file_name"], why=", ".join(why))))
+        warnings = []
+        if unsigned:
+            warnings.append(ngettext(
+                "Nothing confirms who made this file, or that nobody changed it after it was published. Install it "
+                "only if you trust the place you downloaded it from.",
+                "Nothing confirms who made a file without a signature, or that nobody changed it after it was "
+                "published. Install them only if you trust the place you downloaded them from.", len(unsigned)))
+        if older:
+            warnings.append(ngettext("An older version replaces the newer one you have.",
+                                     "Older versions replace the newer ones you have.", len(older)))
+        if len(files) == 1:
+            i = files[0]["info"]
+            title = (_("{name} {version} is not signed").format(name=i["name"], version=i["evr"]) if unsigned else
+                     _("{name} {version} is older than yours").format(name=i["name"], version=i["evr"]))
         else:
-            box.setWindowTitle(_("Some files need your OK"))
-            lines = []
-            no_sig, old = {id(x) for x in unsigned}, {id(x) for x in older}
-            for it in (x for x in self.items if id(x) in no_sig | old):
-                i = it["info"]
-                why = []
-                if id(it) in no_sig:
-                    why.append(_("not signed"))
-                if id(it) in old:
-                    why.append(_("older than yours ({version})").format(version=i["installed_evr"]))
-                lines.append("• {name} {version}: {why}".format(name=i["name"], version=i["evr"], why=", ".join(why)))
-            box.setText(_("Some files need your OK:") + "\n\n" + "\n".join(lines))
-            parts = []
-            if unsigned:
-                parts.append(_("Nothing confirms who made a file without a signature, or that nobody changed it. "
-                               "Install it only if you trust the place you downloaded it from."))
-            if older:
-                parts.append(_("An older version replaces the newer one you have."))
-            box.setInformativeText(" ".join(parts) + "\n\n" + _("Add them to the queue anyway?"))
-        plain(box)
-        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        box.setDefaultButton(QMessageBox.StandardButton.No)
-        answer = box.exec()
-        box.deleteLater()
-        return answer == QMessageBox.StandardButton.Yes
+            title = ngettext("{n} file needs your OK", "{n} files need your OK", len(files)).format(n=len(files))
+        return question.confirm(
+            self, title, _("Add it to the queue anyway") if len(files) == 1 else _("Add them to the queue anyway"),
+            window_title=self.windowTitle(), icon_name="security-low|dialog-warning", items=items,
+            means=_("it only goes to the queue: nothing is installed until you apply it."),
+            warning="\n\n".join(warnings), password=False, help_topic="web")
 
     # ------------------------------------------------------------ OBS repository and key
     def _repo_with_url(self, url):
@@ -638,9 +687,7 @@ class LocalRpmDialog(QDialog):
         obs = it["obs"]
         if not obs or self._repo_with_url(obs["url"]):
             return
-        if obs["project"].startswith("home:") and not ask(self, _("Personal project"), _(
-                "{project} belongs to one person and nobody else reviews it. Add its repository anyway?").format(
-                project=obs["project"])):
+        if obs["project"].startswith("home:") and not personal_project_question(self, obs["project"], obs["url"]):
             return
         self.ctx.queue.add(Action("repo-add", self._free_alias(obs["alias"]), url=obs["url"], name=obs["name"],
                                   autorefresh=True, priority=99, gpg="default"))
@@ -666,7 +713,9 @@ class LocalRpmDialog(QDialog):
             return
         it["busy"] = True
         self._redraw(it)
-        run_async(localrpm.signature_now, it["path"], on_done=lambda res, err, it=it: self._rechecked(it, res, err))
+        # the private copy when there is one: the check is about what will be installed
+        where = it["info"].get("private") or it["path"]
+        run_async(localrpm.signature_now, where, on_done=lambda res, err, it=it: self._rechecked(it, res, err))
 
     def _rechecked(self, it, res, err):
         if self._closed:
@@ -818,6 +867,9 @@ class LocalRpmDialog(QDialog):
             v.addWidget(muted(_("The commands it will use, in this order:") if (it.get("plan") or {}).get(
                 "needs_bridge") else _("Command that will run:")))
             v.addWidget(_CommandView(self._command(it)))
+            if not info.get("exposed"):  # the note above says it for a file others can change
+                v.addWidget(muted(_("zypper installs a copy of the file, made when it goes to the queue and kept where "
+                                    "only you can change it. The file itself stays where it is.")))
 
     def _installed_label(self, info):
         c, have = info["compare"], info["installed_evr"]
@@ -937,7 +989,7 @@ class LocalRpmDialog(QDialog):
         else:
             text += " " + _("Adding it to the queue offers to make a bridge package ({name}): a small empty package "
                             "that tells zypper so.").format(name=plan["bridge_name"])
-        return [_Note(ORANGE, "dialog-information", bridgeui._title(plan), text)]
+        return [_Note(ORANGE, "dialog-warning", bridgeui._title(plan), text)]
 
     def _notes(self, it):
         info, obs, chk = it["info"], it["obs"], it.get("obs_check")
@@ -947,6 +999,13 @@ class LocalRpmDialog(QDialog):
             return notes
         if info["compare"] != "same":
             notes += self._plan_notes(it)
+        if info.get("exposed") and info["compare"] != "same":
+            text = info["exposed"] + " " + _("Zypp Desk read a copy of it that only you can change, and that copy is "
+                                             "what gets installed: a change made to the file from now on does not "
+                                             "reach the computer.")
+            if info["signature"] == "unsigned":
+                text += " " + _("It is not signed, so nothing tells whether somebody changed it before you opened it.")
+            notes.append(_Note(ORANGE, "security-medium|dialog-warning", _("Other users can change this file"), text))
         # nothing to install (the same version): its signature does not matter
         sig = info["signature"] if info["compare"] != "same" else ""
         key8 = (info["keyid"] or sig[6:])[-8:].upper()

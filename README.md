@@ -23,6 +23,26 @@ maintenance — and always see the exact zypper command and its real output.
 | --- | --- |
 | ![Updates](docs/screenshots/updates.png) | ![Packages](docs/screenshots/packages.png) |
 
+## Install
+
+Zypp Desk is built on the openSUSE Build Service for Tumbleweed:
+
+```bash
+sudo zypper addrepo --refresh https://download.opensuse.org/repositories/home:/jordirelats/openSUSE_Factory/home:jordirelats.repo
+sudo zypper install zypp-desk
+```
+
+When zypper asks whether to trust the repository's signing key, compare its fingerprint with
+`0FF9 D4D2 6264 C149 3957 0657 FD53 6322 2423 2811`.
+
+The package starts a small tray icon at login for every user, which tells you when there are
+updates. Each user can turn it off in Settings → Notifications; for the whole computer, add
+`Hidden=true` to `/etc/xdg/autostart/io.github.jordirelats.ZyppDesk.tray.desktop` (a
+configuration file: the change survives upgrades). If you had turned the icon off in an earlier
+version, it stays off. After an upgrade the icon restarts itself with the new version.
+
+The window has a **Help** section (F1) in English, Catalan, German and French.
+
 ## Ideas behind it
 
 - **Nothing is hidden.** Every change shows the exact `zypper` command it will run, and a
@@ -50,8 +70,18 @@ maintenance — and always see the exact zypper command and its real output.
   day. A system timer refreshes the repositories as root; it never installs anything.
 - **Undo, with snapper.** The history shows the snapshots before and after each change, compares
   their files and undoes a change.
+- **Questions in plain words.** Every question that changes the system says what will be done,
+  what it means for you and, underneath, the exact commands. Enter never starts a change.
 - **Problems in plain words.** When a simulation finds a dependency problem, zypper's solutions
-  are explained and you choose one; it goes to the queue and the queue is simulated again.
+  are explained and you choose one; it goes to the queue and the queue is simulated again. Many
+  problems are first grouped by cause (a repository not yet rebuilt for the new Tumbleweed,
+  packages that no longer exist, locks).
+- **Big upgrades and a full disk.** A big upgrade asks whether it is worth waiting, and can only
+  download it or remind you tomorrow. When the disk is nearly full, the upgrade runs in parts:
+  each part is a normal zypper transaction, downloaded completely before it is installed.
+- **RPMs made for Fedora.** When a Fedora RPM asks for things by their Fedora names and openSUSE
+  has them under other names, Zypp Desk shows the list and can write a small, empty bridge
+  package; repositories that Fedora packages leave in `/etc/yum.repos.d` can be added to zypper.
 - **Keys and settings.** Which signing key signs which repository and which of your packages,
   delete the ones nobody uses, import new ones after checking the fingerprint; and the settings
   of `zypp.conf`, written to a drop-in file of its own.
@@ -62,10 +92,13 @@ maintenance — and always see the exact zypper command and its real output.
 ## How it gets root
 
 The window runs as your user. Commands that change the system go through `pkexec` and a small
-helper, [`helper/zypp-desk-helper`](helper/zypp-desk-helper), which only runs `zypper` with a
-fixed list of subcommands and refuses options that point zypper at another root, configuration
-or cache directory. The polkit action uses `auth_admin_keep`, so the password is asked once and
-remembered for a few minutes.
+helper, [`helper/zypp-desk-helper`](helper/zypp-desk-helper). It runs `zypper` with a fixed list
+of subcommands and refuses options that point zypper at another root, configuration or cache
+directory. Besides zypper it only does a few fixed things: snapper's list, status, undo and
+rollback; importing a signing key (after checking its fingerprint again, from a clean copy) and
+removing one; writing `/etc/zypp/zypp.conf.d/50-zypp-desk.conf`; and switching the
+`/etc/zypp-desk/download-ahead` flag. The polkit action uses `auth_admin_keep`, so the password
+is asked once and remembered for a few minutes.
 
 ## Requirements
 
@@ -103,7 +136,8 @@ The spec file is `packaging/zypp-desk.spec`.
 ## Translations
 
 Source strings are in English. Translations live in `po/`: Catalan, German and French are
-complete. To add a language, see [TRANSLATING.md](TRANSLATING.md).
+complete, and so is the Help (`zypp_desk/help/`). To add a language, see
+[TRANSLATING.md](TRANSLATING.md).
 
 ## License
 
