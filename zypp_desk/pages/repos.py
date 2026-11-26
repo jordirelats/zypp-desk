@@ -1295,10 +1295,14 @@ class ReposPage(Page):
             self._queue_change(r, "enabled", False)
 
     def refresh_selected(self):
+        """The selected repository, or every one when none is selected: before, "Refresh" with nothing selected did
+        nothing at all, and the new version on the server never showed (Jordi, 26/11/2026: "no refresca")."""
         r = self._selected()
-        if r:
-            self.ctx.run([Step("zypper", ["-n", "-v", "refresh", "--", r["alias"]])],
-                         _("Refresh {name}").format(name=r["name"]))
+        if not r:
+            self.refresh_all()
+            return
+        self.ctx.run([Step("zypper", ["-n", "-v", "refresh", "--", r["alias"]])],
+                     _("Refresh {name}").format(name=r["name"]), on_done=lambda ok: self.reload())
 
     def clean_cache(self):
         """More → “Clean the cache…”: the same question, sizes and command as Maintenance → Clean the cache (one
