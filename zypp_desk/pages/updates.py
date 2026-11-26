@@ -802,12 +802,16 @@ class UpdatesPage(Page):
         # tick or untick every row at once (Jordi, 26/11/2026: to update only Zypp Desk he unticked 95 rows by hand)
         self.mark_all_btn = tool(_("Mark all"), "edit-select-all", lambda: self.set_all_ticked(True))
         self.unmark_all_btn = tool(_("Unmark all"), "edit-select-none", lambda: self.set_all_ticked(False))
-        lh.addWidget(self.mark_all_btn)
-        lh.addWidget(self.unmark_all_btn)
         again = button(_("Look again"), "view-refresh", lambda: self.load_updates())
         again.setToolTip(_("Since the last refresh of the repositories. On Tumbleweed your routine (zypper dup) "
                            "updates everything at once; here you can pick only some."))
         lh.addWidget(again)
+        # "Look again" only reads what the computer already knows; this asks the repositories for what is new
+        # (Jordi, 26/11/2026: a new Zypp Desk on OBS did not show until the repositories were refreshed)
+        fresh = button(_("Refresh the repositories"), "download", self.refresh_and_look)
+        fresh.setToolTip(_("Ask every repository for what is new (with the administrator password), then look "
+                           "again."))
+        lh.addWidget(fresh)
         lc.lay.addLayout(lh)
         self.up_lbl = muted(_("Looking…"), self)
         lc.lay.addWidget(self.up_lbl)
@@ -826,6 +830,8 @@ class UpdatesPage(Page):
         self.up_list.itemDoubleClicked.connect(self._up_double)
         lc.lay.addWidget(self.up_list, 1)
         ub = QHBoxLayout()
+        ub.addWidget(self.mark_all_btn)  # under the list, next to what is done with the ticked ones
+        ub.addWidget(self.unmark_all_btn)
         ub.addStretch(1)
         self.up_sim_btn = button(_("Simulate the ticked ones"), "media-playback-start",
                                  lambda: self.queue_ticked(simulate=True))
@@ -1391,6 +1397,13 @@ class UpdatesPage(Page):
         row = item.data(ROW_ROLE)
         if row and row.get("kind") == "web":
             self.ctx.go("websources")
+
+    def refresh_and_look(self):
+        if self.ctx.runner.busy:
+            self.up_lbl.setText(_("Wait until the current command finishes."))
+            return
+        self.ctx.run([Step("zypper", ["-n", "-v", "refresh"])], _("Refresh every repository"),
+                     on_done=lambda ok: self.load_updates())
 
     def set_all_ticked(self, on):
         """Tick (or untick) every row that can be ticked, in one go: one repaint, no card loaded per row."""
