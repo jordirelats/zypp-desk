@@ -162,6 +162,7 @@ class Runner(QObject):
         self.stop_requested = False
         self._user_stop = False
         self.stopped = False  # after a run: you asked to stop, and some steps did not run
+        self.stop_sent = False  # "Stop now" reached the running step
         self._decoder = None
 
     @property
@@ -177,8 +178,34 @@ class Runner(QObject):
         self.stop_requested = False
         self._user_stop = False
         self.stopped = False
+        self.stop_sent = False
         self._next()
         return True
+
+    def stop_now(self):
+        """"Stop now": zypper finishes the package it is installing or removing and does no more; the steps after
+        it do not run. A zypper step as root gets the line "stop" on its input (the helper sends zypper SIGINT); a
+        step as the user (flatpak) gets SIGINT; any other step (a key import, snapper) ends as it is and nothing
+        after it runs. True when the running step was asked to stop at once."""
+        self.stop_after_current()
+        if self.proc is None or not (0 <= self.index < len(self.steps)):
+            return False
+        st = self.steps[self.index]
+        if st.root and st.program == "zypper":
+            self.proc.write(b"stop\n")
+            self.stop_sent = True
+            return True
+        if not st.root:
+            import signal
+            pid = self.proc.processId()
+            if pid:
+                try:
+                    os.kill(pid, signal.SIGINT)
+                    self.stop_sent = True
+                    return True
+                except OSError:
+                    pass
+        return False
 
     def stop_after_current(self):
         """"Stop after this step": the step that runs now ends, the next ones do not run, and the run does not
@@ -216,7 +243,9 @@ class Runner(QObject):
         # Nobody can type into the child. zypper reads its answers from the terminal, and without one it gives
         # up ("cannot read input", exit 4): every zypper step that can ask a question must carry -n (the queue
         # and the routines add it). The null device only makes sure nothing waits for ever.
-        self.proc.setStandardInputFile(QProcess.nullDevice())
+        # A root step keeps a pipe: the helper reads "stop" there ("Stop now") and gives zypper /dev/null itself.
+        if not st.root:
+            self.proc.setStandardInputFile(QProcess.nullDevice())
         self.proc.readyReadStandardOutput.connect(self._read)
         self.proc.finished.connect(self._done)
         self.proc.errorOccurred.connect(self._error)
@@ -287,7 +316,11 @@ class Runner(QObject):
             self.stop_requested = True  # do not ask for the password again for the next steps
         st.state = "done" if ok else "failed"
         self.last_ok = ok
-        if not ok and code not in PKEXEC_CANCELLED:
+        if self.stop_sent and code in (105, 130, -1, 2):  # stopped as you asked: say it plainly, not as an error
+            self.stopped = True
+            self.note.emit(_("Stopped as you asked: what was already done stays done, and nothing more was done. "
+                             "“Undo…” can put it back."), "info")
+        elif not ok and code not in PKEXEC_CANCELLED:
             if st.program == "zypper":
                 self.note.emit(_("Exit code {code}: {meaning}").format(
                     code=code, meaning=exit_meaning(code, zypper_subcommand(st.args))), "error")

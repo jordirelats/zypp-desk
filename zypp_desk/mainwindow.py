@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFrame, QHBoxLa
                                QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSplitter,
                                QStackedWidget, QToolButton, QVBoxLayout, QWidget)
 
-from . import APP_NAME, VERSION, appicons, backend, question, repostate, websources
+from . import APP_NAME, VERSION, appicons, backend, operations, question, repostate, websources
 from .i18n import _, ngettext, pgettext
 from .pages.apps import AppsPage
 from .pages.flatpak import FlatpakPage
@@ -601,6 +601,17 @@ class MainWindow(QMainWindow):
         self.b_apply = button(_("Apply the queue…"), "dialog-ok-apply", lambda: self.apply_queue(), primary=True)
         self.b_apply.setToolTip(_("Make the changes in the queue: Zypp Desk asks first, then runs the commands shown "
                                   "on the left."))
+        # while something runs: stop it, at once and safely (zypper finishes the package it is on)
+        self.b_stop = button(_("Stop now"), "process-stop", self.stop_now)
+        self.b_stop.setObjectName("stopnow")
+        self.b_stop.setStyleSheet("QPushButton#stopnow { background: #da4453; color: white; font-weight: bold;"
+                                  " border: 1px solid #b8303f; border-radius: 6px; padding: 4px 12px; }"
+                                  "QPushButton#stopnow:disabled { background: rgba(246,116,0,0.15); color: #a65200;"
+                                  " border-color: #f67400; }")
+        self.b_stop.setToolTip(_("zypper finishes the package it is installing or removing and does no more; the "
+                                 "commands after it do not run. What was already done stays done, and “Undo…” "
+                                 "can put it back."))
+        self.b_stop.hide()
         # in a narrow window (or a language with long words) the labels get short: the bar is titled "Queue" on the
         # left, and each tooltip says the rest. Each button's minimum is its short label, so the window can shrink.
         self._qbar_labels = [(self.b_review, _("Review the queue…"), pgettext("queue bar", "Review…")),
@@ -622,6 +633,7 @@ class MainWindow(QMainWindow):
         qh.addWidget(self.q_title)
         qh.addWidget(self.q_summary)
         qh.addWidget(self.q_cmd, 1)
+        qh.addWidget(self.b_stop)
         for b in (self.b_review, self.b_clear, self.b_sim, self.b_apply):
             qh.addWidget(b)
 
@@ -630,6 +642,10 @@ class MainWindow(QMainWindow):
         rv.setContentsMargins(0, 0, 0, 0)
         rv.setSpacing(0)
         rv.addWidget(header)
+        # after a change that touched packages: what it did, "Show what it did" and "Undo…"
+        from .pages.operations import OperationBand
+        self.op_band = OperationBand(self, right)
+        rv.addWidget(self.op_band)
         rv.addWidget(self.split, 1)
         rv.addWidget(qbar)
 
@@ -654,6 +670,9 @@ class MainWindow(QMainWindow):
         self.status_timer.start(30000)
         self.update_status()
         run_async(appicons.load_catalog, on_done=self._catalog_loaded)
+        # the installed packages as they are now: a run that changes packages compares with it afterwards
+        self._pkgs, self._pkgs_stamp, self._op = None, None, None
+        self._refresh_pkgs()
         run_async(websources.clean_downloads, on_done=lambda _r, _e: None)
         self.sidebar.setCurrentItem(self._rows["home"])
         self.terminal.view.note(_("zypper's own output appears here while it works."), "info")
@@ -773,6 +792,15 @@ class MainWindow(QMainWindow):
         self.terminal.notes.hide()
         self._run_start = self.terminal.view.document().blockCount()
         self._on_done = on_done
+        self._op = None
+        if operations.changes_packages(steps):
+            # what is installed before it, to know afterwards what it did (and to undo it): the list taken at
+            # start or after the last run, unless something changed the packages since (then taken now)
+            before = self._pkgs if self._pkgs is not None and self._pkgs_stamp == operations.rpmdb_stamp() else None
+            if before is None:
+                before = operations.snapshot()
+            if before is not None:
+                self._op = dict(before=before, title=title, commands=[s.display() for s in steps])
         self._set_busy(True)
         self._starting = True
         try:
@@ -814,16 +842,44 @@ class MainWindow(QMainWindow):
         else:
             self.terminal.view.note(_("Finished with errors."), "error")
         self._explain_run()
+        if self._op is not None:
+            op, self._op = self._op, None
+            outcome = "done" if ok else ("stopped" if self.runner.stopped else "failed")
+            run_async(operations.snapshot, on_done=lambda after, err, o=op, out=outcome: self._recorded(o, out, after))
         cb, self._on_done = self._on_done, None
         if cb:
             cb(ok)
         self.update_status()
+
+    def _refresh_pkgs(self):
+        stamp = operations.rpmdb_stamp()
+        run_async(operations.snapshot, on_done=lambda snap, err, st=stamp: self._pkgs_loaded(snap, st))
+
+    def _pkgs_loaded(self, snap, stamp):
+        if snap is not None:
+            self._pkgs, self._pkgs_stamp = snap, stamp
+
+    def _recorded(self, op, outcome, after):
+        """After a run that may have changed packages: keep what it did, and say it with "Undo…"."""
+        if after is None:
+            return
+        self._pkgs, self._pkgs_stamp = after, operations.rpmdb_stamp()
+        d = operations.diff(op["before"], after)
+        if operations.empty(d):
+            return
+        saved = operations.save(op["title"], op["commands"], outcome, d)
+        if hasattr(self, "op_band"):
+            self.op_band.show_operation(saved)
 
     def _finished_later(self, ok):
         self._finish_pending = False
         self._finished(ok)
 
     def _set_busy(self, busy):
+        self.b_stop.setVisible(busy)
+        if busy:
+            self.b_stop.setEnabled(True)
+            self.b_stop.setText(_("Stop now"))
         for b in (self.b_sim, self.b_apply, self.b_clear):
             b.setEnabled(not busy and len(self.queue) > 0)
         self._paint_apply()
@@ -844,6 +900,17 @@ class MainWindow(QMainWindow):
         for b in (self.b_review, self.b_clear, self.b_sim, self.b_apply):
             b.setEnabled(n > 0 and not busy)
         self._paint_apply()
+
+    def stop_now(self):
+        """"Stop now": zypper finishes the package it is on and does no more (runner.stop_now)."""
+        if not self.runner.busy:
+            return
+        at_once = self.runner.stop_now()
+        self.b_stop.setEnabled(False)
+        self.b_stop.setText(_("Stopping…"))
+        self.terminal.view.note(_("Stopping: zypper finishes the package it is on and does no more.") if at_once else
+                                _("This command cannot be interrupted safely: it ends, and nothing after it runs."),
+                                "info")
 
     def _fit_qbar(self):
         """Full labels ("Review the queue…") when they fit in the bar, short ones ("Review…") when they do not."""

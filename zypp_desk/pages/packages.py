@@ -335,7 +335,9 @@ class PackagesPage(Page):
                 it.setCheckState(0, Qt.CheckState.Unchecked)
                 it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
                 it.setData(0, Qt.ItemDataRole.CheckStateRole, None)  # no box: it cannot be removed from here
-                shown = ", ".join(who[:3]) + (" " + _("and {n} more").format(n=len(who) - 3) if len(who) > 3 else "")
+                more = len(who) - 3
+                shown = ", ".join(who[:3]) + (" " + ngettext("and {n} more", "and {n} more", more).format(n=more)
+                                              if more > 0 else "")
                 it.setText(2, _("Still needed by {names}").format(names=shown))
                 it.setForeground(2, QColor(ORANGE))
                 tip = _("No repository has {name} any more, but these installed packages still need it: {names}. "

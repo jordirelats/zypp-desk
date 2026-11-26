@@ -21,6 +21,7 @@ zypp_desk/localrpm.py
 zypp_desk/mainwindow.py
 zypp_desk/migrate.py
 zypp_desk/online.py
+zypp_desk/operations.py
 zypp_desk/pages/__init__.py
 zypp_desk/pages/apps.py
 zypp_desk/pages/bridges.py
@@ -38,6 +39,7 @@ zypp_desk/pages/locks.py
 zypp_desk/pages/markbar.py
 zypp_desk/pages/migrate.py
 zypp_desk/pages/notifysettings.py
+zypp_desk/pages/operations.py
 zypp_desk/pages/packages.py
 zypp_desk/pages/pkgdetails.py
 zypp_desk/pages/problems.py

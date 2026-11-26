@@ -26,7 +26,7 @@ import tempfile
 
 ZYPPER = "/usr/bin/zypper"
 # The window compares this with its own version and asks to reinstall the helper when they differ.
-VERSION = "0.5.6"
+VERSION = "0.5.7"
 RPM = "/usr/bin/rpm"
 HISTORY = "/var/log/zypp/history"
 
@@ -130,8 +130,37 @@ def check_zypper_args(args):
 
 
 def run_zypper(args, lang):
+    """zypper as a child, so that the window can stop it: a line "stop" on our standard input (the only thing read
+    there) sends zypper SIGINT, and zypper then finishes the package it is installing or removing and does no more
+    (exit code 105). zypper itself reads nothing: its input is /dev/null, as before (every step that may ask a
+    question carries -n). Its output goes straight to ours."""
+    import signal
+    import threading
     check_zypper_args(args)
-    os.execve(ZYPPER, ["zypper", *args], clean_env(lang))
+    child = subprocess.Popen([ZYPPER, *args], env=clean_env(lang), stdin=subprocess.DEVNULL)
+
+    def stop():
+        if child.poll() is None:
+            child.send_signal(signal.SIGINT)
+
+    def watch():
+        try:
+            for line in sys.stdin:
+                if line.strip() == "stop":
+                    stop()
+        except (OSError, ValueError):
+            pass
+
+    threading.Thread(target=watch, daemon=True).start()
+    for sig in (signal.SIGINT, signal.SIGTERM):  # a signal to us is passed on as the same gentle stop
+        signal.signal(sig, lambda _s, _f: stop())
+    while True:
+        try:
+            code = child.wait()
+            break
+        except InterruptedError:
+            continue
+    sys.exit(code if code >= 0 else 128 - code)
 
 
 def key_fingerprints(path):

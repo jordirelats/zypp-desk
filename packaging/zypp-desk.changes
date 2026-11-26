@@ -1,4 +1,21 @@
 -------------------------------------------------------------------
+Thu Nov 26 22:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.7: stop now, and undo
+  * "Stop now": a red button while anything runs; zypper finishes the
+    package it is installing or removing and does no more (the root
+    helper now runs zypper as a child and passes it SIGINT), and the
+    commands after it do not run
+  * Every change that installs, removes or updates packages is kept
+    (rpm before and after it): a band after it says what it did, with
+    "Show what it did" and "Undo…", and History has "Zypp Desk
+    changes…" with all of them
+  * "Undo…" puts back what a change removed, removes what it installed
+    and puts back earlier versions when a repository still has them,
+    through the queue and the simulation of the whole queue; what
+    cannot be undone is said before
+
+-------------------------------------------------------------------
 Thu Nov 26 21:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.6: removals can no longer take away more than you chose

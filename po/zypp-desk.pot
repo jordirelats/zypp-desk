@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 21:49+0100\n"
+"POT-Creation-Date: 2026-11-26 22:14+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1916,20 +1916,20 @@ msgid "Help"
 msgstr ""
 
 #: zypp_desk/mainwindow.py:299 zypp_desk/mainwindow.py:596
-#: zypp_desk/mainwindow.py:607
+#: zypp_desk/mainwindow.py:618
 msgid "Empty the queue"
 msgstr ""
 
 #: zypp_desk/mainwindow.py:302 zypp_desk/pages/findrepo.py:167
-#: zypp_desk/pages/localrpm.py:548 zypp_desk/pages/locks.py:1072
-#: zypp_desk/pages/scripts.py:249 zypp_desk/pages/system.py:422
-#: zypp_desk/pages/system.py:649 zypp_desk/pages/system.py:650
-#: zypp_desk/pages/updates.py:1839
+#: zypp_desk/pages/localrpm.py:548 zypp_desk/pages/locks.py:1073
+#: zypp_desk/pages/operations.py:184 zypp_desk/pages/scripts.py:249
+#: zypp_desk/pages/system.py:422 zypp_desk/pages/system.py:649
+#: zypp_desk/pages/system.py:650 zypp_desk/pages/updates.py:1839
 msgid "Close"
 msgstr ""
 
 #: zypp_desk/mainwindow.py:305 zypp_desk/mainwindow.py:601
-#: zypp_desk/mainwindow.py:609
+#: zypp_desk/mainwindow.py:620
 msgid "Apply the queue…"
 msgstr ""
 
@@ -1977,7 +1977,7 @@ msgstr ""
 msgid "Queue"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:594 zypp_desk/mainwindow.py:606
+#: zypp_desk/mainwindow.py:594 zypp_desk/mainwindow.py:617
 msgid "Review the queue…"
 msgstr ""
 
@@ -1989,7 +1989,7 @@ msgstr ""
 msgid "Take every change out of the queue. Nothing on the computer changes."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:598 zypp_desk/mainwindow.py:608
+#: zypp_desk/mainwindow.py:598 zypp_desk/mainwindow.py:619
 msgid "Simulate the queue"
 msgstr ""
 
@@ -2005,36 +2005,47 @@ msgid ""
 "shown on the left."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:606
+#: zypp_desk/mainwindow.py:605 zypp_desk/mainwindow.py:882
+msgid "Stop now"
+msgstr ""
+
+#: zypp_desk/mainwindow.py:611
+msgid ""
+"zypper finishes the package it is installing or removing and does no more; "
+"the commands after it do not run. What was already done stays done, and "
+"“Undo…” can put it back."
+msgstr ""
+
+#: zypp_desk/mainwindow.py:617
 msgctxt "queue bar"
 msgid "Review…"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:607
+#: zypp_desk/mainwindow.py:618
 msgctxt "queue bar"
 msgid "Empty"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:608
+#: zypp_desk/mainwindow.py:619
 msgctxt "queue bar"
 msgid "Simulate"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:609
+#: zypp_desk/mainwindow.py:620
 msgctxt "queue bar"
 msgid "Apply…"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:659
+#: zypp_desk/mainwindow.py:678
 msgid "zypper's own output appears here while it works."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:730 zypp_desk/pages/repos.py:1377
+#: zypp_desk/mainwindow.py:749 zypp_desk/pages/repos.py:1377
 #, python-brace-format
 msgid "This part is not available: {error}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:766 zypp_desk/pages/updates.py:1124
+#: zypp_desk/mainwindow.py:785 zypp_desk/pages/updates.py:1124
 #: zypp_desk/pages/updates.py:1160 zypp_desk/pages/updates.py:1231
 #: zypp_desk/pages/updates.py:1694 zypp_desk/pages/updates.py:1751
 #: zypp_desk/pages/updates.py:1953 zypp_desk/pages/updates.py:2070
@@ -2042,167 +2053,181 @@ msgstr ""
 msgid "Wait until the current command finishes."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:811
+#: zypp_desk/mainwindow.py:839
 msgid "Finished."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:813
+#: zypp_desk/mainwindow.py:841
 msgid "Stopped as you asked: the steps after it did not run."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:815
+#: zypp_desk/mainwindow.py:843
 msgid "Finished with errors."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:830
+#: zypp_desk/mainwindow.py:886
 msgid "Working…"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:838
+#: zypp_desk/mainwindow.py:894
 msgid "empty"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:840
+#: zypp_desk/mainwindow.py:896
 msgid "Nothing to do yet: choose packages, locks or repository changes."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:900
+#: zypp_desk/mainwindow.py:910
+msgid "Stopping…"
+msgstr ""
+
+#: zypp_desk/mainwindow.py:911
+msgid "Stopping: zypper finishes the package it is on and does no more."
+msgstr ""
+
+#: zypp_desk/mainwindow.py:912
+msgid ""
+"This command cannot be interrupted safely: it ends, and nothing after it "
+"runs."
+msgstr ""
+
+#: zypp_desk/mainwindow.py:967
 #, python-brace-format
 msgid "{names} is no longer installed: it left the queue."
 msgid_plural "{names} are no longer installed: they left the queue."
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:913
+#: zypp_desk/mainwindow.py:980
 #, python-brace-format
 msgid ""
 "Not simulated, because their repository is only added when the queue is "
 "applied: {list}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:916
+#: zypp_desk/mainwindow.py:983
 msgid ""
 "Changes to repositories, locks, languages and Flatpak apps cannot be "
 "simulated. These commands will run:"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:916
+#: zypp_desk/mainwindow.py:983
 msgid "Simulate"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:919
+#: zypp_desk/mainwindow.py:986
 msgid "Simulation of the queue"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:937 zypp_desk/simulation.py:148
+#: zypp_desk/mainwindow.py:1004 zypp_desk/simulation.py:148
 #: zypp_desk/simulation.py:715
 #, python-brace-format
 msgid "Problem: {text}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:939
+#: zypp_desk/mainwindow.py:1006
 msgid ""
 "A lock or an unlock you choose runs at once (a simulation only knows the "
 "locks that exist); the rest goes to the queue."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:954
+#: zypp_desk/mainwindow.py:1021
 #, python-brace-format
 msgid "{n} removal taken out of the queue: nothing will be removed."
 msgid_plural "{n} removals taken out of the queue: nothing will be removed."
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:988 zypp_desk/mainwindow.py:1008
+#: zypp_desk/mainwindow.py:1055 zypp_desk/mainwindow.py:1075
 #: zypp_desk/pages/problems.py:483 zypp_desk/pages/problems.py:990
 msgid "Choose a solution"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:995
+#: zypp_desk/mainwindow.py:1062
 msgid "an upgrade has no queue, so these changes are made now."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:996
+#: zypp_desk/mainwindow.py:1063
 msgid ""
 "locks and unlocks are made now, not in the queue, because a simulation only "
 "knows the locks that exist."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:999
+#: zypp_desk/mainwindow.py:1066
 msgid "The other choices went to the queue."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1003 zypp_desk/pages/problems.py:729
+#: zypp_desk/mainwindow.py:1070 zypp_desk/pages/problems.py:729
 msgid "You can unlock it later in Locks."
 msgid_plural "You can unlock them later in Locks."
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:1005
+#: zypp_desk/mainwindow.py:1072
 msgid "Do this now, then simulate again?"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1005
+#: zypp_desk/mainwindow.py:1072
 msgid "Zypp Desk will do this now, then simulate again:"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1007
+#: zypp_desk/mainwindow.py:1074
 msgid "Do this now?"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1007
+#: zypp_desk/mainwindow.py:1074
 msgid "Zypp Desk will do this now:"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1008
+#: zypp_desk/mainwindow.py:1075
 msgid "Yes, do it now"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1029
+#: zypp_desk/mainwindow.py:1096
 msgid ""
 "The queue removes packages: it is simulated first, so that you see "
 "everything that would be removed."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1043
+#: zypp_desk/mainwindow.py:1110
 msgid "Applying the queue"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1054
+#: zypp_desk/mainwindow.py:1121
 msgid "The queue changed after the simulation: this is what it holds now."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1057
+#: zypp_desk/mainwindow.py:1124
 msgid ""
 "The queue changed while the question was open: this is what it holds now."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1061
+#: zypp_desk/mainwindow.py:1128
 msgid "it is what you put in the queue."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1063
+#: zypp_desk/mainwindow.py:1130
 msgid ""
 "If a step fails, Zypp Desk stops there: what was done stays done, and the "
 "rest stays in the queue."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1066
+#: zypp_desk/mainwindow.py:1133
 msgid "If it fails, it stays in the queue."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1068
+#: zypp_desk/mainwindow.py:1135
 msgid ""
 "“Simulate” shows first what else zypper would install or remove with these "
 "changes."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1073
+#: zypp_desk/mainwindow.py:1140
 #, python-brace-format
 msgid "Without the repository “{name}”, Tumbleweed is not updated."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1078
+#: zypp_desk/mainwindow.py:1145
 #, python-brace-format
 msgid "This file is not signed, so nothing can check who made it: {files}."
 msgid_plural ""
@@ -2210,91 +2235,91 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:1082
+#: zypp_desk/mainwindow.py:1149
 msgid ""
 "Keep the computer plugged in and do not turn it off while the firmware is "
 "updated."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1085
+#: zypp_desk/mainwindow.py:1152
 #, python-brace-format
 msgid "Make this change to the computer?"
 msgid_plural "Make these {n} changes to the computer?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:1086
+#: zypp_desk/mainwindow.py:1153
 #, python-brace-format
 msgid "Yes, make the change"
 msgid_plural "Yes, make the {n} changes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/mainwindow.py:1087 zypp_desk/mainwindow.py:1101
-#: zypp_desk/mainwindow.py:1104
+#: zypp_desk/mainwindow.py:1154 zypp_desk/mainwindow.py:1168
+#: zypp_desk/mainwindow.py:1171
 msgid "Apply"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1088 zypp_desk/pages/drivers.py:438
+#: zypp_desk/mainwindow.py:1155 zypp_desk/pages/drivers.py:438
 msgid "Zypp Desk will do this, in this order:"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1088
+#: zypp_desk/mainwindow.py:1155
 msgid "Zypp Desk will do this:"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1101
+#: zypp_desk/mainwindow.py:1168
 #, python-brace-format
 msgid "{file} cannot be read any more: {error}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1104
+#: zypp_desk/mainwindow.py:1171
 #, python-brace-format
 msgid ""
 "{file} changed after it was checked, so it is not installed. Take it out of "
 "the queue and download it again."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1129
+#: zypp_desk/mainwindow.py:1196
 #, python-brace-format
 msgid "{file} could not be copied to {folder}: {error}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1136
+#: zypp_desk/mainwindow.py:1203
 #, python-brace-format
 msgid "{file} could not be moved to {folder}: {error}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1180
+#: zypp_desk/mainwindow.py:1247
 msgid "Package manager free"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1180
+#: zypp_desk/mainwindow.py:1247
 #, python-brace-format
 msgid "Package manager in use by {proc}"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1181
+#: zypp_desk/mainwindow.py:1248
 msgid "No restart needed"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1181 zypp_desk/tray.py:884 zypp_desk/tray.py:1278
+#: zypp_desk/mainwindow.py:1248 zypp_desk/tray.py:884 zypp_desk/tray.py:1278
 msgid "Restart needed"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1188
+#: zypp_desk/mainwindow.py:1255
 msgid "older than 0.4.1"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1190
+#: zypp_desk/mainwindow.py:1257
 msgid "Run install.sh from the source folder again."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1192
+#: zypp_desk/mainwindow.py:1259
 msgid "Update the zypp-desk package."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1193
+#: zypp_desk/mainwindow.py:1260
 #, python-brace-format
 msgid ""
 "The helper that runs zypper as root ({path}) is from another version of Zypp "
@@ -2302,19 +2327,19 @@ msgid ""
 "match."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1199
+#: zypp_desk/mainwindow.py:1266
 msgid ""
 "The helper that runs zypper as root is not installed, so the window can "
 "search and show information but cannot change anything yet. Run install.sh "
 "from the source folder."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1206
+#: zypp_desk/mainwindow.py:1273
 msgid ""
 "zypper is still working. Wait until it finishes before closing the window."
 msgstr ""
 
-#: zypp_desk/mainwindow.py:1212
+#: zypp_desk/mainwindow.py:1279
 msgid ""
 "A program from the web is still downloading. Close anyway? The download "
 "stops and nothing is added to the queue."
@@ -3936,7 +3961,7 @@ msgid ""
 msgstr ""
 
 #: zypp_desk/pages/apps.py:1366 zypp_desk/pages/apps.py:1611
-#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:481
+#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:483
 #: zypp_desk/pages/removedlg.py:26 zypp_desk/pages/removedlg.py:36
 #: zypp_desk/simulation.py:375
 #, python-brace-format
@@ -4175,7 +4200,7 @@ msgstr ""
 #: zypp_desk/pages/apps.py:1588 zypp_desk/pages/apps.py:1841
 #: zypp_desk/pages/apps.py:1900 zypp_desk/pages/findrepo.py:382
 #: zypp_desk/pages/flatpak.py:269 zypp_desk/pages/flatpak.py:304
-#: zypp_desk/pages/packages.py:509 zypp_desk/pages/repos.py:1405
+#: zypp_desk/pages/packages.py:511 zypp_desk/pages/repos.py:1405
 msgid "Nothing changes until you apply the queue."
 msgstr ""
 
@@ -4278,7 +4303,7 @@ msgid ""
 msgstr ""
 
 #: zypp_desk/pages/apps.py:1639 zypp_desk/pages/apps.py:1930
-#: zypp_desk/pages/locks.py:397
+#: zypp_desk/pages/locks.py:398
 #, python-brace-format
 msgid "Show {name} in Packages"
 msgstr ""
@@ -4346,25 +4371,25 @@ msgstr ""
 
 #: zypp_desk/pages/apps.py:1831 zypp_desk/pages/apps.py:1926
 #: zypp_desk/pages/findrepo.py:390 zypp_desk/pages/findrepo.py:435
-#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:481
+#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:483
 #, python-brace-format
 msgid "Install {name}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:484
+#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:486
 #, python-brace-format
 msgid "Install the ticked one"
 msgid_plural "Install the {n} ticked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:498
+#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:500
 #, python-brace-format
 msgid "Puts {names} in the queue to be installed ({command})."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:1843 zypp_desk/pages/locks.py:1185
-#: zypp_desk/pages/packages.py:473
+#: zypp_desk/pages/apps.py:1843 zypp_desk/pages/locks.py:1186
+#: zypp_desk/pages/packages.py:475
 #, python-brace-format
 msgid "{n} marked"
 msgid_plural "{n} marked"
@@ -4392,8 +4417,8 @@ msgid "Status"
 msgstr ""
 
 #: zypp_desk/pages/apps.py:1890 zypp_desk/pages/localrpm.py:872
-#: zypp_desk/pages/localrpm.py:917 zypp_desk/pages/locks.py:417
-#: zypp_desk/pages/locks.py:441 zypp_desk/pages/locks.py:1125
+#: zypp_desk/pages/localrpm.py:917 zypp_desk/pages/locks.py:418
+#: zypp_desk/pages/locks.py:442 zypp_desk/pages/locks.py:1126
 #: zypp_desk/pages/websources.py:641
 msgid "not installed"
 msgstr ""
@@ -4627,7 +4652,7 @@ msgid ""
 msgstr ""
 
 #: zypp_desk/pages/bridges.py:370 zypp_desk/pages/drivers.py:121
-#: zypp_desk/pages/expert.py:932 zypp_desk/pages/locks.py:882
+#: zypp_desk/pages/expert.py:932 zypp_desk/pages/locks.py:883
 #: zypp_desk/pages/markbar.py:40 zypp_desk/pages/pkgdetails.py:275
 #: zypp_desk/pages/updates.py:1748 zypp_desk/pages/websources.py:816
 msgid "In the queue ✓"
@@ -5180,7 +5205,7 @@ msgstr ""
 
 #: zypp_desk/pages/expert.py:76 zypp_desk/pages/findrepo.py:127
 #: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/flatpak.py:158
-#: zypp_desk/pages/locks.py:1050 zypp_desk/pages/packages.py:60
+#: zypp_desk/pages/locks.py:1051 zypp_desk/pages/packages.py:60
 msgid "Search"
 msgstr ""
 
@@ -5903,7 +5928,7 @@ msgid "Close this window. What you put in the queue stays there."
 msgstr ""
 
 #: zypp_desk/pages/findrepo.py:229 zypp_desk/pages/flatpak.py:440
-#: zypp_desk/pages/locks.py:1095 zypp_desk/pages/packages.py:247
+#: zypp_desk/pages/locks.py:1096 zypp_desk/pages/packages.py:247
 #: zypp_desk/pages/websources.py:261
 msgid "Searching…"
 msgstr ""
@@ -6278,9 +6303,10 @@ msgstr ""
 msgid "Uninstall the selected app"
 msgstr ""
 
-#: zypp_desk/pages/flatpak.py:125 zypp_desk/pages/packages.py:20
-#: zypp_desk/pages/pkgdetails.py:251 zypp_desk/pages/scripts.py:473
-#: zypp_desk/pages/updates.py:1641 zypp_desk/pages/websources.py:434
+#: zypp_desk/pages/flatpak.py:125 zypp_desk/pages/operations.py:65
+#: zypp_desk/pages/packages.py:20 zypp_desk/pages/pkgdetails.py:251
+#: zypp_desk/pages/scripts.py:473 zypp_desk/pages/updates.py:1641
+#: zypp_desk/pages/websources.py:434
 msgid "Installed"
 msgstr ""
 
@@ -6497,7 +6523,7 @@ msgstr ""
 msgid "no longer maintained"
 msgstr ""
 
-#: zypp_desk/pages/flatpak.py:449 zypp_desk/pages/locks.py:1144
+#: zypp_desk/pages/flatpak.py:449 zypp_desk/pages/locks.py:1145
 #: zypp_desk/pages/packages.py:276
 #, python-brace-format
 msgid "{n} found"
@@ -6842,6 +6868,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: zypp_desk/pages/history.py:78 zypp_desk/pages/locales.py:869
+#: zypp_desk/pages/operations.py:41
 #, python-brace-format
 msgid "{n} package installed"
 msgid_plural "{n} packages installed"
@@ -6855,7 +6882,7 @@ msgid_plural "{n} installed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:81
+#: zypp_desk/pages/history.py:81 zypp_desk/pages/operations.py:38
 #, python-brace-format
 msgid "{n} package removed"
 msgid_plural "{n} packages removed"
@@ -7077,6 +7104,7 @@ msgid "Today at {time}"
 msgstr ""
 
 #: zypp_desk/pages/history.py:223 zypp_desk/pages/notifysettings.py:100
+#: zypp_desk/pages/operations.py:27
 #, python-brace-format
 msgid "today at {time}"
 msgstr ""
@@ -7087,6 +7115,7 @@ msgid "Yesterday at {time}"
 msgstr ""
 
 #: zypp_desk/pages/history.py:225 zypp_desk/pages/notifysettings.py:102
+#: zypp_desk/pages/operations.py:29
 #, python-brace-format
 msgid "yesterday at {time}"
 msgstr ""
@@ -7240,115 +7269,125 @@ msgstr ""
 msgid "Shows only the changes that touch a package, a repository or a word"
 msgstr ""
 
-#: zypp_desk/pages/history.py:794
+#: zypp_desk/pages/history.py:791
+msgid "Zypp Desk changes…"
+msgstr ""
+
+#: zypp_desk/pages/history.py:792
+msgid ""
+"Every change made with Zypp Desk that installed, removed or updated "
+"packages, with what it did and “Undo…”"
+msgstr ""
+
+#: zypp_desk/pages/history.py:798
 msgid ""
 "Reads what zypper changed (/var/log/zypp/history). It asks for the "
 "administrator password. Nothing changes."
 msgstr ""
 
-#: zypp_desk/pages/history.py:797 zypp_desk/pages/history.py:804
+#: zypp_desk/pages/history.py:801 zypp_desk/pages/history.py:808
 msgid "The list of snapshots is read at the same time."
 msgstr ""
 
-#: zypp_desk/pages/history.py:801
+#: zypp_desk/pages/history.py:805
 msgid ""
 "zypper writes what it changes to /var/log/zypp/history, which only root can "
 "read. Nothing is loaded until you ask, and then the password is asked once."
 msgstr ""
 
-#: zypp_desk/pages/history.py:815
+#: zypp_desk/pages/history.py:819
 msgid "Read the history"
 msgstr ""
 
-#: zypp_desk/pages/history.py:820
+#: zypp_desk/pages/history.py:824
 msgid "The password was not given, so the history was not read."
 msgstr ""
 
-#: zypp_desk/pages/history.py:822
+#: zypp_desk/pages/history.py:826
 #, python-brace-format
 msgid "The history could not be read (exit code {code}): look at the terminal."
 msgstr ""
 
-#: zypp_desk/pages/history.py:849
+#: zypp_desk/pages/history.py:853
 #, python-brace-format
 msgid "The history could not be read: {error}"
 msgstr ""
 
-#: zypp_desk/pages/history.py:862
+#: zypp_desk/pages/history.py:866
 msgid "Load the history again"
 msgstr ""
 
-#: zypp_desk/pages/history.py:904
+#: zypp_desk/pages/history.py:908
 #, python-brace-format
 msgid "Also show the command that changed nothing ({n})"
 msgid_plural "Also show the commands that changed nothing ({n})"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:907 zypp_desk/pages/repotools.py:201
+#: zypp_desk/pages/history.py:911 zypp_desk/pages/repotools.py:201
 #, python-brace-format
 msgid "{n} change"
 msgid_plural "{n} changes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:909
+#: zypp_desk/pages/history.py:913
 msgid "zypper has not written anything in its history yet."
 msgstr ""
 
-#: zypp_desk/pages/history.py:911
+#: zypp_desk/pages/history.py:915
 msgid "Nothing matches the filter."
 msgstr ""
 
-#: zypp_desk/pages/history.py:959
+#: zypp_desk/pages/history.py:963
 msgid "no snapshot"
 msgstr ""
 
-#: zypp_desk/pages/history.py:964
+#: zypp_desk/pages/history.py:968
 msgid "This computer does not take snapshots: they need Btrfs and snapper."
 msgstr ""
 
-#: zypp_desk/pages/history.py:966
+#: zypp_desk/pages/history.py:970
 msgid ""
 "The list of snapshots could not be read, so the snapshots of this change are "
 "not shown."
 msgstr ""
 
-#: zypp_desk/pages/history.py:969
+#: zypp_desk/pages/history.py:973
 msgid ""
 "This change did not finish: there is no snapshot from after it, so it cannot "
 "be compared or undone from here."
 msgstr ""
 
-#: zypp_desk/pages/history.py:974
+#: zypp_desk/pages/history.py:978
 msgid "No snapshot: zypper only takes snapshots when packages change."
 msgstr ""
 
-#: zypp_desk/pages/history.py:976
+#: zypp_desk/pages/history.py:980
 msgid ""
 "Its snapshots have already been deleted: snapper keeps only the most recent "
 "ones."
 msgstr ""
 
-#: zypp_desk/pages/history.py:977
+#: zypp_desk/pages/history.py:981
 msgid "No snapshot was taken for this change."
 msgstr ""
 
-#: zypp_desk/pages/history.py:986
+#: zypp_desk/pages/history.py:990
 #, python-brace-format
 msgid "Compare snapshots #{pre} and #{post}"
 msgstr ""
 
-#: zypp_desk/pages/history.py:993
+#: zypp_desk/pages/history.py:997
 msgid "Compare the files"
 msgstr ""
 
-#: zypp_desk/pages/history.py:994
+#: zypp_desk/pages/history.py:998
 #, python-brace-format
 msgid "snapper could not compare the snapshots (exit code {code})."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1006
+#: zypp_desk/pages/history.py:1010
 #, python-brace-format
 msgid ""
 "snapper puts the system files back as they were before this change, in "
@@ -7356,7 +7395,7 @@ msgid ""
 "other changes made later to the same files are lost."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1012
+#: zypp_desk/pages/history.py:1016
 #, python-brace-format
 msgid ""
 "Not everything goes back: {folders} is not in the snapshots, so what this "
@@ -7367,15 +7406,15 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:1020 zypp_desk/pages/localrpm.py:934
-#: zypp_desk/pages/packages.py:338
+#: zypp_desk/pages/history.py:1024 zypp_desk/pages/localrpm.py:934
+#: zypp_desk/pages/packages.py:339
 #, python-brace-format
 msgid "and {n} more"
 msgid_plural "and {n} more"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:1022
+#: zypp_desk/pages/history.py:1026
 #, python-brace-format
 msgid ""
 "This program of the change is installed there, so it keeps its new files "
@@ -7388,86 +7427,86 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/history.py:1027
+#: zypp_desk/pages/history.py:1031
 msgid ""
 "Your own files in /home are not touched. Restarting the computer afterwards "
 "is recommended."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1030 zypp_desk/pages/history.py:1058
+#: zypp_desk/pages/history.py:1034 zypp_desk/pages/history.py:1062
 msgid "Undo this change"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1030
+#: zypp_desk/pages/history.py:1034
 #, python-brace-format
 msgid "Undo “{title}”?"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1031
+#: zypp_desk/pages/history.py:1035
 msgid "Undo the change"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1053
+#: zypp_desk/pages/history.py:1057
 #, python-brace-format
 msgid "Undo the change #{pre}..#{post}"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1059
+#: zypp_desk/pages/history.py:1063
 msgid ""
 "The files are back as they were before the change. Restart the computer so "
 "that every program uses them."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1070
+#: zypp_desk/pages/history.py:1074
 #, python-brace-format
 msgid "You are using snapshot #{n}, taken {when}"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1072
+#: zypp_desk/pages/history.py:1076
 msgid ""
 "The computer was started from an older snapshot chosen in the boot menu. If "
 "everything works as it should, keep it; if not, just restart and the "
 "computer starts as usual."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1075
+#: zypp_desk/pages/history.py:1079
 #, python-brace-format
 msgid "Keep snapshot #{n}…"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1076
+#: zypp_desk/pages/history.py:1080
 #, python-brace-format
 msgid ""
 "Asks first, then makes snapshot #{n} the one the computer starts from "
 "(snapper rollback). Restart afterwards."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1081
+#: zypp_desk/pages/history.py:1085
 #, python-brace-format
 msgid "Snapshot #{n} will be used from the next start"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1082
+#: zypp_desk/pages/history.py:1086
 msgid "snapper has made it the default. Restart the computer to finish."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1088
+#: zypp_desk/pages/history.py:1092
 #, python-brace-format
 msgid "Keep snapshot #{n}?"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1088 zypp_desk/pages/history.py:1109
+#: zypp_desk/pages/history.py:1092 zypp_desk/pages/history.py:1113
 msgid "Keep this snapshot"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1089
+#: zypp_desk/pages/history.py:1093
 #, python-brace-format
 msgid ""
 "The computer was started from snapshot #{n}, taken {when}, chosen in the "
 "boot menu."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1091
+#: zypp_desk/pages/history.py:1095
 msgid ""
 "snapper rollback makes it the one the computer starts from next time: it "
 "makes a writable copy of it and sets it as the default. The newer state is "
@@ -7475,16 +7514,16 @@ msgid ""
 "afterwards."
 msgstr ""
 
-#: zypp_desk/pages/history.py:1094
+#: zypp_desk/pages/history.py:1098
 msgid "Keep this one"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1104
+#: zypp_desk/pages/history.py:1108
 #, python-brace-format
 msgid "Keep snapshot #{n}"
 msgstr ""
 
-#: zypp_desk/pages/history.py:1109
+#: zypp_desk/pages/history.py:1113
 msgid "Done. Restart the computer to start from it."
 msgstr ""
 
@@ -8573,6 +8612,7 @@ msgid "{name} (installed)"
 msgstr ""
 
 #: zypp_desk/pages/locales.py:891 zypp_desk/pages/migrate.py:418
+#: zypp_desk/pages/operations.py:52
 #, python-brace-format
 msgid "{names} and {n} more"
 msgid_plural "{names} and {n} more"
@@ -9317,14 +9357,14 @@ msgid "Versions"
 msgstr ""
 
 #: zypp_desk/pages/locks.py:307 zypp_desk/pages/locks.py:392
-#: zypp_desk/pages/locks.py:887
+#: zypp_desk/pages/locks.py:888
 #, python-brace-format
 msgid "Put the unlock in the queue"
 msgid_plural "Put the {n} unlocks in the queue"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:309 zypp_desk/pages/locks.py:398
+#: zypp_desk/pages/locks.py:309 zypp_desk/pages/locks.py:399
 msgid "Show in Packages"
 msgstr ""
 
@@ -9380,159 +9420,159 @@ msgstr ""
 msgid "It stays locked: the unlock comes out of the queue, now."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:393
+#: zypp_desk/pages/locks.py:394
 msgid "It is unlocked when you apply the queue. Until then, nothing changes."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:399
+#: zypp_desk/pages/locks.py:400
 #, python-brace-format
 msgid "Opens Packages, searched for {name}."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:410
+#: zypp_desk/pages/locks.py:411
 #, python-brace-format
 msgid "Could not be read: {error}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:418 zypp_desk/pages/locks.py:447
+#: zypp_desk/pages/locks.py:419 zypp_desk/pages/locks.py:448
 msgid ""
 "no package has this name now: “Clean the useless locks” takes this lock away"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:434 zypp_desk/pages/locks.py:1124
+#: zypp_desk/pages/locks.py:435 zypp_desk/pages/locks.py:1125
 #, python-brace-format
 msgid "installed, {version}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:439
+#: zypp_desk/pages/locks.py:440
 msgid "none: you have the newest one"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:445
+#: zypp_desk/pages/locks.py:446
 #, python-brace-format
 msgid "none in the repository {repo}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:452
+#: zypp_desk/pages/locks.py:453
 #, python-brace-format
 msgid "{version} (the lock keeps it from being installed)"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:453
+#: zypp_desk/pages/locks.py:454
 #, python-brace-format
 msgid "{version} (not one of the locked versions: zypper may install it)"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:461
+#: zypp_desk/pages/locks.py:462
 #, python-brace-format
 msgid "{n} installed package matches it: {names}"
 msgid_plural "{n} installed packages match it: {names}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:465
+#: zypp_desk/pages/locks.py:466
 msgid "no installed package matches it"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:467
+#: zypp_desk/pages/locks.py:468
 #, python-brace-format
 msgid "{n} package matches it: {names}"
 msgid_plural "{n} packages match it: {names}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:470
+#: zypp_desk/pages/locks.py:471
 msgid ""
 "no package matches it now: “Clean the useless locks” takes this lock away"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:493
+#: zypp_desk/pages/locks.py:494
 msgid "Locks"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:523 zypp_desk/pages/locks.py:888
+#: zypp_desk/pages/locks.py:524 zypp_desk/pages/locks.py:889
 msgid "Put the unlocks in the queue"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:532 zypp_desk/pages/locks.py:599
+#: zypp_desk/pages/locks.py:533 zypp_desk/pages/locks.py:600
 msgid "Reading the locks…"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:544 zypp_desk/pages/locks.py:1041
+#: zypp_desk/pages/locks.py:545 zypp_desk/pages/locks.py:1042
 msgid ""
 "A locked package is never installed, removed or updated by any zypper "
 "command until you unlock it."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:546
+#: zypp_desk/pages/locks.py:547
 msgid "“Lock a package…” finds packages and locks them."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:567
+#: zypp_desk/pages/locks.py:568
 msgid "Lock a package…"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:568
+#: zypp_desk/pages/locks.py:569
 msgid "Opens a window to find packages and put their locks in the queue."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:570 zypp_desk/pages/system.py:200
+#: zypp_desk/pages/locks.py:571 zypp_desk/pages/system.py:200
 msgid "Clean the useless locks…"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:571
+#: zypp_desk/pages/locks.py:572
 msgid "Asks first, then removes now the locks that match no package."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:606
+#: zypp_desk/pages/locks.py:607
 #, python-brace-format
 msgid "The locks could not be read: {error}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:608
+#: zypp_desk/pages/locks.py:609
 msgid "The locks could not be read."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:689
+#: zypp_desk/pages/locks.py:690
 msgid "every package whose name matches it"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:694
+#: zypp_desk/pages/locks.py:695
 msgid "no package has this name now"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:701
+#: zypp_desk/pages/locks.py:702
 msgid "will be unlocked"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:703 zypp_desk/pages/locks.py:986
+#: zypp_desk/pages/locks.py:704 zypp_desk/pages/locks.py:987
 msgid "will be locked"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:705
+#: zypp_desk/pages/locks.py:706
 msgid "Zypp Desk · temporary"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:709
+#: zypp_desk/pages/locks.py:710
 msgid "any repository"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:719
+#: zypp_desk/pages/locks.py:720
 #, python-brace-format
 msgid "locked by Zypp Desk on {date}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:723
+#: zypp_desk/pages/locks.py:724
 #, python-brace-format
 msgid "{repo} has published since then: you can probably unlock it."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:790
+#: zypp_desk/pages/locks.py:791
 #, python-brace-format
 msgid "Locked only in these versions: {range}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:798 zypp_desk/pages/migrate.py:149
+#: zypp_desk/pages/locks.py:799 zypp_desk/pages/migrate.py:149
 #: zypp_desk/pages/migrate.py:468
 #, python-brace-format
 msgid "{n} lock"
@@ -9540,117 +9580,117 @@ msgid_plural "{n} locks"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:800
+#: zypp_desk/pages/locks.py:801
 #, python-brace-format
 msgid "{n} will be locked"
 msgid_plural "{n} will be locked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:802
+#: zypp_desk/pages/locks.py:803
 #, python-brace-format
 msgid "{n} will be unlocked"
 msgid_plural "{n} will be unlocked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:805
+#: zypp_desk/pages/locks.py:806
 msgid "You have no locks."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:816
+#: zypp_desk/pages/locks.py:817
 msgid "Nothing is locked"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:816
+#: zypp_desk/pages/locks.py:817
 msgid "zypper may install, update or remove any package."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:884
+#: zypp_desk/pages/locks.py:885
 msgid "Their unlocks wait in the queue: they are made when you apply it."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:890
+#: zypp_desk/pages/locks.py:891
 msgid ""
 "They are unlocked when you apply the queue. Until then, nothing changes."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:914 zypp_desk/pages/system.py:31
+#: zypp_desk/pages/locks.py:915 zypp_desk/pages/system.py:31
 #: zypp_desk/pages/system.py:178
 msgid "Clean useless locks"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:944
+#: zypp_desk/pages/locks.py:945
 msgid ""
 "No lock was removed: zypper found none written exactly like this. A lock can "
 "be for some versions only, or for one repository: unlock it in Locks, which "
 "knows how it is written."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:984
+#: zypp_desk/pages/locks.py:985
 msgid "locked"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1028
+#: zypp_desk/pages/locks.py:1029
 msgid "Lock packages"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1040
+#: zypp_desk/pages/locks.py:1041
 msgid "Which packages do you want to lock?"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1047
+#: zypp_desk/pages/locks.py:1048
 msgid "Name of a package, or a pattern like vlc-*"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1051
+#: zypp_desk/pages/locks.py:1052
 msgid ""
 "Looks for packages with this name in your repositories (zypper search). "
 "Nothing changes."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1057
+#: zypp_desk/pages/locks.py:1058
 msgid "Wildcards work too: vlc-* is every package whose name starts with vlc-."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1117
+#: zypp_desk/pages/locks.py:1118
 msgid "Every package whose name matches it, also the ones that come later"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1118
+#: zypp_desk/pages/locks.py:1119
 msgid ""
 "No package has this name now: the lock keeps it from being installed if one "
 "comes later."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1138
+#: zypp_desk/pages/locks.py:1139
 msgid "It is locked already."
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1141 zypp_desk/pages/packages.py:268
+#: zypp_desk/pages/locks.py:1142 zypp_desk/pages/packages.py:268
 #, python-brace-format
 msgid "The search failed: {error}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1146
+#: zypp_desk/pages/locks.py:1147
 #, python-brace-format
 msgid "showing the first {shown}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1181 zypp_desk/pages/migrate.py:469
-#: zypp_desk/pages/packages.py:482 zypp_desk/pages/system.py:1053
+#: zypp_desk/pages/locks.py:1182 zypp_desk/pages/migrate.py:469
+#: zypp_desk/pages/packages.py:484 zypp_desk/pages/system.py:1053
 #, python-brace-format
 msgid "Lock {name}"
 msgstr ""
 
-#: zypp_desk/pages/locks.py:1182
+#: zypp_desk/pages/locks.py:1183
 #, python-brace-format
 msgid "Lock the marked one"
 msgid_plural "Lock the {n} marked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/locks.py:1183
+#: zypp_desk/pages/locks.py:1184
 msgid "Puts the locks in the queue: nothing changes until you apply it."
 msgstr ""
 
@@ -9664,7 +9704,7 @@ msgid ""
 "queue."
 msgstr ""
 
-#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:457
+#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:459
 #: zypp_desk/pages/updates.py:887
 msgid "Unmark all"
 msgstr ""
@@ -10478,6 +10518,156 @@ msgid ""
 "The timer is installed but turned off. To turn it on, run this in a terminal:"
 msgstr ""
 
+#: zypp_desk/pages/operations.py:44
+#, python-brace-format
+msgid "{n} package updated or changed"
+msgid_plural "{n} packages updated or changed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/operations.py:58 zypp_desk/pages/operations.py:59
+#, python-brace-format
+msgid "Done: {what}."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:58
+#, python-brace-format
+msgid "Stopped half way: {what}."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:59
+#, python-brace-format
+msgid "Ended with errors: {what}."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:65
+msgid "Changed"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:65
+msgid "Removed"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:77
+msgid "Commands:"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:109
+msgid "Show what it did"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:110 zypp_desk/pages/operations.py:181
+msgid "Undo…"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:111
+msgid ""
+"Puts back what this change removed and removes what it installed (after a "
+"question, through the queue and its simulation)."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:116
+msgid "Hide this band (History → “Zypp Desk changes…” still has it)"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:132
+msgid "If something does not work as before, you can undo it."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:133
+msgid "You can undo what was done."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:158
+msgid "Changes made with Zypp Desk"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:161
+msgid ""
+"Every change that installed, removed or updated packages, with what it did. "
+"“Undo…” puts back what it removed and removes what it installed."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:178
+msgid "Nothing yet: changes made with Zypp Desk will show here."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:214
+msgid "Looking at what undoing it means now…"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:222
+#, python-brace-format
+msgid "It could not be worked out: {error}"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:222 zypp_desk/pages/operations.py:229
+#: zypp_desk/pages/operations.py:255
+msgid "Undo"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:229
+msgid "There is nothing to undo: it is already as before."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:230
+#, python-brace-format
+msgid ""
+"It cannot be undone: no repository has the earlier versions any more "
+"({names})."
+msgstr ""
+
+#: zypp_desk/pages/operations.py:236
+#, python-brace-format
+msgid "Install again {n} package it removed"
+msgid_plural "Install again {n} packages it removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/operations.py:237
+msgid "the version the repositories have now"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:240
+#, python-brace-format
+msgid "Remove {n} package it installed"
+msgid_plural "Remove {n} packages it installed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/operations.py:244
+#, python-brace-format
+msgid "Put back the earlier version of {n} package"
+msgid_plural "Put back the earlier versions of {n} packages"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/operations.py:249
+#, python-brace-format
+msgid ""
+"{n} change cannot be undone: no repository has its earlier version any more "
+"({names})."
+msgid_plural ""
+"{n} changes cannot be undone: no repository has their earlier versions any "
+"more ({names})."
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/operations.py:253
+#, python-brace-format
+msgid "Undo the change of {when}?"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:255
+msgid "Put the undo in the queue"
+msgstr ""
+
+#: zypp_desk/pages/operations.py:257
+msgid ""
+"it goes to the queue, and the whole queue is simulated at once: you see "
+"everything that would change, and nothing changes until you apply it."
+msgstr ""
+
 #: zypp_desk/pages/packages.py:19
 msgid "Source packages"
 msgstr ""
@@ -10604,7 +10794,7 @@ msgstr ""
 msgid "Suggested"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:457
+#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:459
 #: zypp_desk/pages/updates.py:885
 msgid "Mark all"
 msgstr ""
@@ -10646,12 +10836,12 @@ msgstr ""
 msgid "Nothing was found."
 msgstr ""
 
-#: zypp_desk/pages/packages.py:339
+#: zypp_desk/pages/packages.py:341
 #, python-brace-format
 msgid "Still needed by {names}"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:341
+#: zypp_desk/pages/packages.py:343
 #, python-brace-format
 msgid ""
 "No repository has {name} any more, but these installed packages still need "
@@ -10659,63 +10849,63 @@ msgid ""
 "needed after the next update of the system."
 msgstr ""
 
-#: zypp_desk/pages/packages.py:350
+#: zypp_desk/pages/packages.py:352
 #, python-brace-format
 msgid "{n} is still needed by other packages: it cannot be ticked"
 msgid_plural "{n} are still needed by other packages: they cannot be ticked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:463 zypp_desk/txqueue.py:1069
+#: zypp_desk/pages/packages.py:465 zypp_desk/txqueue.py:1069
 #, python-brace-format
 msgid "{n} to install"
 msgid_plural "{n} to install"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:465
+#: zypp_desk/pages/packages.py:467
 #, python-brace-format
 msgid "{n} you have"
 msgid_plural "{n} you have"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:485
+#: zypp_desk/pages/packages.py:487
 #, python-brace-format
 msgid "Remove the ticked one"
 msgid_plural "Remove the {n} ticked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:486
+#: zypp_desk/pages/packages.py:488
 #, python-brace-format
 msgid "Lock the ticked one"
 msgid_plural "Lock the {n} ticked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:487
+#: zypp_desk/pages/packages.py:489
 #, python-brace-format
 msgid "Install the one not installed"
 msgid_plural "Install the {n} not installed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:488
+#: zypp_desk/pages/packages.py:490
 #, python-brace-format
 msgid "Remove the one installed"
 msgid_plural "Remove the {n} installed"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:489
+#: zypp_desk/pages/packages.py:491
 #, python-brace-format
 msgid "Lock the one not locked"
 msgid_plural "Lock the {n} not locked"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:500
+#: zypp_desk/pages/packages.py:502
 #, python-brace-format
 msgid ""
 "Puts the removal of {names} in the queue ({command}). Simulate shows what "
@@ -10726,7 +10916,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/packages.py:505
+#: zypp_desk/pages/packages.py:507
 #, python-brace-format
 msgid ""
 "Puts a lock on {names} in the queue ({command}): then zypper does not "
@@ -16994,126 +17184,132 @@ msgstr ""
 msgid "Fewer steps; if the connection fails halfway, the update stops halfway"
 msgstr ""
 
-#: zypp_desk/runner.py:197
+#: zypp_desk/runner.py:224
 #, python-brace-format
 msgid "Not run (stopped): {cmd}"
 msgstr ""
 
-#: zypp_desk/runner.py:200
+#: zypp_desk/runner.py:227
 #, python-brace-format
 msgid "Skipped (the previous step failed): {cmd}"
 msgstr ""
 
-#: zypp_desk/runner.py:228
+#: zypp_desk/runner.py:257
 msgid ""
 "The helper that runs zypper as root is not installed. Run install.sh first."
 msgstr ""
 
-#: zypp_desk/runner.py:258
+#: zypp_desk/runner.py:287
 #, python-brace-format
 msgid "Could not start {prog}."
 msgstr ""
 
-#: zypp_desk/runner.py:285
+#: zypp_desk/runner.py:314
 msgid ""
 "Authentication was cancelled or refused: nothing was changed by this step."
 msgstr ""
 
-#: zypp_desk/runner.py:292
+#: zypp_desk/runner.py:321
+msgid ""
+"Stopped as you asked: what was already done stays done, and nothing more was "
+"done. “Undo…” can put it back."
+msgstr ""
+
+#: zypp_desk/runner.py:325
 #, python-brace-format
 msgid "Exit code {code}: {meaning}"
 msgstr ""
 
-#: zypp_desk/runner.py:295
+#: zypp_desk/runner.py:328
 #, python-brace-format
 msgid "The command ended with exit code {code}."
 msgstr ""
 
-#: zypp_desk/runner.py:313
+#: zypp_desk/runner.py:346
 msgid ""
 "a repository could not be refreshed: it does not answer, or what it sent "
 "could not be read or checked"
 msgstr ""
 
-#: zypp_desk/runner.py:316
+#: zypp_desk/runner.py:349
 msgid "the repositories could not be changed: zypper's message above says why"
 msgstr ""
 
-#: zypp_desk/runner.py:318
+#: zypp_desk/runner.py:351
 msgid "the locks could not be changed: zypper's message above says why"
 msgstr ""
 
-#: zypp_desk/runner.py:320
+#: zypp_desk/runner.py:353
 msgid "a package that was asked for was not found"
 msgstr ""
 
-#: zypp_desk/runner.py:322
+#: zypp_desk/runner.py:355
 msgid "unexpected error"
 msgstr ""
 
-#: zypp_desk/runner.py:323
+#: zypp_desk/runner.py:356
 msgid "wrong syntax"
 msgstr ""
 
-#: zypp_desk/runner.py:324
+#: zypp_desk/runner.py:357
 msgid "invalid arguments"
 msgstr ""
 
-#: zypp_desk/runner.py:325
+#: zypp_desk/runner.py:358
 msgid "problem reported by libzypp (dependencies, signatures…)"
 msgstr ""
 
-#: zypp_desk/runner.py:326
+#: zypp_desk/runner.py:359
 msgid "root privileges are required"
 msgstr ""
 
-#: zypp_desk/runner.py:327
+#: zypp_desk/runner.py:360
 msgid "no repositories are defined"
 msgstr ""
 
-#: zypp_desk/runner.py:328
+#: zypp_desk/runner.py:361
 msgid ""
 "another program is using zypper (perhaps Zypp Desk's own refresh in the "
 "background, or zypper in a terminal): try again in a moment"
 msgstr ""
 
-#: zypp_desk/runner.py:330
+#: zypp_desk/runner.py:363
 msgid "commit error: some packages could not be installed or removed"
 msgstr ""
 
-#: zypp_desk/runner.py:331
+#: zypp_desk/runner.py:364
 msgid "updates are available"
 msgstr ""
 
-#: zypp_desk/runner.py:332
+#: zypp_desk/runner.py:365
 msgid "security updates are available"
 msgstr ""
 
-#: zypp_desk/runner.py:333
+#: zypp_desk/runner.py:366
 msgid "the computer must be restarted"
 msgstr ""
 
-#: zypp_desk/runner.py:334
+#: zypp_desk/runner.py:367
 msgid "zypper itself was updated: run the command again"
 msgstr ""
 
-#: zypp_desk/runner.py:335
+#: zypp_desk/runner.py:368
 msgid "nothing matched"
 msgstr ""
 
-#: zypp_desk/runner.py:336
+#: zypp_desk/runner.py:369
 msgid "interrupted"
 msgstr ""
 
-#: zypp_desk/runner.py:337
+#: zypp_desk/runner.py:370
 msgid "some repositories could not be refreshed"
 msgstr ""
 
-#: zypp_desk/runner.py:338
+#: zypp_desk/runner.py:371
 msgid "an RPM scriptlet failed"
 msgstr ""
 
-#: zypp_desk/runner.py:340
+#: zypp_desk/runner.py:373
 msgid "see 'man zypper', EXIT CODES"
 msgstr ""
 

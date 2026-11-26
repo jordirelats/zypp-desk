@@ -60,6 +60,13 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.7" date="2026-11-26">
+      <description>
+        <p>"Stop now" while anything runs (zypper finishes the package it is on and does no more), and "Undo…" for
+          every change that touched packages: it puts back what was removed and removes what was installed,
+          through the queue and its simulation.</p>
+      </description>
+    </release>
     <release version="0.5.6" date="2026-11-26">
       <description>
         <p>Removing packages can no longer take away more than you chose: Apply simulates the whole queue first,

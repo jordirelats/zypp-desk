@@ -389,7 +389,8 @@ class LockCard(QWidget):
             self.b_main.setText(_("Take the unlock out of the queue"))
             self.b_main.setToolTip(_("It stays locked: the unlock comes out of the queue, now."))
         else:
-            self.b_main.setText(_("Put the unlock in the queue"))
+            self.b_main.setText(ngettext("Put the unlock in the queue", "Put the {n} unlocks in the queue",
+                                         1).format(n=1))
             self.b_main.setToolTip(_("It is unlocked when you apply the queue. Until then, nothing changes.") + "\n"
                                    + lock_command("unlock", lk))
         set_primary(self.b_main, False)  # it only changes the queue: never the green button

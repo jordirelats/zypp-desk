@@ -787,7 +787,11 @@ class HistoryPage(Page):
         f.setToolTip(_("Shows only the changes that touch a package, a repository or a word"))
         f.setText(self._filter_text)
         f.textChanged.connect(self._set_filter)
-        return [f, self.b_load]
+        from .operations import OperationsDialog
+        ops = button(_("Zypp Desk changes…"), "edit-undo", lambda: OperationsDialog.open(self.ctx, self))
+        ops.setToolTip(_("Every change made with Zypp Desk that installed, removed or updated packages, with what "
+                         "it did and “Undo…”"))
+        return [f, ops, self.b_load]
 
     @staticmethod
     def _load_tip():
