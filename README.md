@@ -6,13 +6,22 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: 0.4, early development.** Searching, package details, the change queue with
-> simulation and solutions to dependency problems, routines (written or built step by step), your
+> **Status: 0.5, early development.** Searching, package details, the change queue with
+> simulation and solutions to dependency problems (grouped by cause when there are many), questions
+> in plain words with the exact commands underneath, routines (written or built step by step), big
+> upgrades that ask whether it is worth waiting, upgrades in parts when the disk is nearly full, your
 > applications by origin, discovering programs by theme, Flatpak apps, firmware updates, programs
-> downloaded from the web, repositories with a health check and priorities, signing keys,
+> downloaded from the web, bridge packages for RPMs made for Fedora, repositories with a health check
+> and priorities (and the ones Fedora packages leave where zypper does not look), signing keys,
 > `zypp.conf`, a tray icon that tells you about updates, searching the openSUSE Build Service,
 > Fedora COPR and Flathub, locks, services, languages, the history with snapper snapshots and
 > maintenance work, and warnings are explained. Expect rough edges.
+
+![The home page](docs/screenshots/home.png)
+
+| Updates, with your routine and the package card | Packages |
+| --- | --- |
+| ![Updates](docs/screenshots/updates.png) | ![Packages](docs/screenshots/packages.png) |
 
 ## Ideas behind it
 

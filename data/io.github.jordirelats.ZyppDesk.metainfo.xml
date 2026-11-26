@@ -23,6 +23,20 @@
       <li>Warnings explained in plain words, with how serious they are</li>
     </ul>
   </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The home page: updates, Flatpak apps, programs from the web and repositories at a glance</caption>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/home.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Updates: your routine, what there is to update and the package card</caption>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/updates.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Packages: search with every zypper option</caption>
+      <image>https://raw.githubusercontent.com/jordirelats/zypp-desk/main/docs/screenshots/packages.png</image>
+    </screenshot>
+  </screenshots>
   <launchable type="desktop-id">io.github.jordirelats.ZyppDesk.desktop</launchable>
   <url type="homepage">https://github.com/jordirelats/zypp-desk</url>
   <url type="bugtracker">https://github.com/jordirelats/zypp-desk/issues</url>
