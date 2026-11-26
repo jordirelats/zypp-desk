@@ -29,6 +29,8 @@ Thu Nov 26 13:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.g
   * A lock on a package the queue removes runs after the removal, and
     locks keep their comment
   * Languages asked for are shown again (newer zypper says "Requested")
+  * Packages: after Apply, a list such as Orphaned is shown again as it
+    is now (a removed package no longer stays in it, ticked)
   * Recommends squashfs and python3-solv
 
 -------------------------------------------------------------------

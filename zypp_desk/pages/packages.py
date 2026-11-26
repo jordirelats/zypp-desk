@@ -29,6 +29,9 @@ class PackagesPage(Page):
         super().__init__(ctx, parent)
         self.results = []
         self.search_id = 0
+        self._last_special = None  # the list shown last (orphaned, unneeded…), None for a search by name
+        self._searched_once = False
+        self._reselect = None  # after looking again: the package that was selected stays selected
         self.locked_names = set()
         self.updates = {}
         self.desktop = {}
@@ -177,6 +180,17 @@ class PackagesPage(Page):
         run_async(backend.repos, on_done=self._repos_loaded)
         run_async(backend.locks, on_done=self._locks_loaded)
         run_async(backend.list_updates, on_done=self._updates_loaded)
+        self.search_again()
+
+    def search_again(self):
+        """After a change (Apply, the routine…): the same search or list again, so that a package just removed or
+        installed shows as it is now, and nothing stays ticked. The selected package stays selected."""
+        if not self._searched_once:
+            return
+        cur = self.tree.currentItem()
+        d = cur.data(0, Qt.ItemDataRole.UserRole) if cur is not None else None
+        self._reselect = d["name"] if d else None
+        self.search(special=self._last_special)
 
     def _updates_loaded(self, updates, err):
         if err:
@@ -213,6 +227,8 @@ class PackagesPage(Page):
             return
         self.search_id += 1
         sid = self.search_id
+        self._last_special = special
+        self._searched_once = True
         opts = {k: c.isChecked() for k, c in self.chips.items()}
         self.info.setText(_("Searching…"))
         self.tree.clear()
@@ -271,8 +287,13 @@ class PackagesPage(Page):
         # keep the order of the search (the exact name first); clicking a header sorts as usual
         self.tree.header().setSortIndicator(-1, Qt.SortOrder.AscendingOrder)
         self.tree.setSortingEnabled(True)
+        again, self._reselect = self._reselect, None
         if n:
-            self.tree.setCurrentItem(self.tree.topLevelItem(0))
+            first = self.tree.topLevelItem(0)
+            if again:
+                first = next((self.tree.topLevelItem(i) for i in range(n)
+                              if self.tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)["name"] == again), first)
+            self.tree.setCurrentItem(first)
         else:
             self.details.clear(_("Nothing was found."))
         names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]

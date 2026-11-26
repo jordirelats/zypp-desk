@@ -1046,9 +1046,7 @@ class MainWindow(QMainWindow):
             if not p.loaded or key == "history":
                 continue
             if self._wrap[key] is current:
-                p.reload()
-                if key == "packages" and p.results:
-                    p.search()
+                p.reload()  # Packages also looks again for what it showed (a search or a list)
             else:
                 p.loaded = False
 
