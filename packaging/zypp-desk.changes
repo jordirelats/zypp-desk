@@ -24,6 +24,9 @@ Thu Nov 26 20:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.g
     list of bridges that says when one is no longer needed
   * Repositories that programs leave in /etc/yum.repos.d, which zypper
     ignores, can be added to zypper with their key
+  * The tray icon that tells about updates starts at login from the
+    package itself (/etc/xdg/autostart), without opening the window
+    first; it can be turned off per user in Settings
   * The version is shown in the window title
 
 -------------------------------------------------------------------

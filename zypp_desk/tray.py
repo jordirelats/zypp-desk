@@ -200,7 +200,25 @@ def autostart_text():
             "X-KDE-autostart-phase=2\n")
 
 
+def system_autostart_path():
+    """The entry the package installs for everyone (/etc/xdg/autostart), or None (install.sh, the source tree)."""
+    for d in (os.environ.get("XDG_CONFIG_DIRS") or "/etc/xdg").split(":"):
+        if d:
+            p = Path(d) / "autostart" / AUTOSTART_NAME
+            if p.is_file():
+                return p
+    return None
+
+
 def write_autostart():
+    """Start the tray at login. With the package's entry for everyone, it is enough to take away a user entry
+    that switched it off (the user entry, same name, wins over the system one)."""
+    if system_autostart_path():
+        try:
+            autostart_path().unlink()
+        except FileNotFoundError:
+            pass
+        return
     p = autostart_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".tmp")
@@ -210,6 +228,16 @@ def write_autostart():
 
 
 def remove_autostart():
+    """Do not start the tray at login. With the package's entry for everyone, a user entry with Hidden=true
+    switches it off for this user only (Desktop Application Autostart Specification)."""
+    if system_autostart_path():
+        p = autostart_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(".tmp")
+        tmp.write_text(autostart_text() + "Hidden=true\n", encoding="utf-8")
+        tmp.chmod(0o644)
+        tmp.replace(p)
+        return
     try:
         autostart_path().unlink()
     except FileNotFoundError:
@@ -220,8 +248,14 @@ def autostart_enabled():
     """True if the tray starts at login: the file is there and not switched off (Hidden, or GNOME's own key)."""
     try:
         text = autostart_path().read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+    except OSError:  # no entry of this user: the package's one for everyone, if there is one
+        sysp = system_autostart_path()
+        if sysp is None:
+            return False
+        try:
+            text = sysp.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False
     return not re.search(r"^\s*(Hidden\s*=\s*true|X-GNOME-Autostart-enabled\s*=\s*false)\s*$", text, re.M | re.I)
 
 

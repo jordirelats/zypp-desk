@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Zypp Desk
+Comment=Tells you when there are updates
+Comment[ca]=T'avisa quan hi ha actualitzacions
+Comment[de]=Gibt dir Bescheid, wenn es Aktualisierungen gibt
+Comment[fr]=Vous avertit quand il y a des mises à jour
+TryExec=@EXEC@
+Exec=@EXEC@ --tray
+Icon=io.github.jordirelats.ZyppDesk
+Terminal=false
+StartupNotify=false
+NoDisplay=true
+X-KDE-autostart-phase=2

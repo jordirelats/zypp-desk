@@ -94,6 +94,10 @@ touch %{buildroot}%{_sysconfdir}/%{name}/download-ahead
 # menu entry, icon and AppStream metadata
 install -d %{buildroot}%{_datadir}/applications
 sed 's|@EXEC@|%{name}|' data/%{app_id}.desktop.in > %{buildroot}%{_datadir}/applications/%{app_id}.desktop
+# the tray icon that tells about updates starts at login for everyone (turned off per user in Settings, which
+# writes a Hidden=true entry in ~/.config/autostart, the standard way to switch off a system autostart entry)
+install -d %{buildroot}%{_sysconfdir}/xdg/autostart
+sed 's|@EXEC@|%{name}|' data/%{app_id}.tray.desktop.in > %{buildroot}%{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 install -D -m 0644 data/icons/%{app_id}.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
 install -D -m 0644 data/%{app_id}.metainfo.xml %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
 
@@ -124,6 +128,7 @@ fi
 
 %check
 desktop-file-validate %{buildroot}%{_datadir}/applications/%{app_id}.desktop
+desktop-file-validate %{buildroot}%{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 appstreamcli validate --no-net %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
 python3 -m py_compile helper/%{name}-helper $(find zypp_desk -name '*.py')
 sh -n helper/%{name}-refresh
@@ -144,6 +149,7 @@ find . -name '__pycache__' -prune -exec rm -rf {} +
 %ghost %{_sysconfdir}/%{name}/download-ahead
 %{_datadir}/polkit-1/actions/%{app_id}.policy
 %{_datadir}/applications/%{app_id}.desktop
+%config(noreplace) %{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
 %{_datadir}/metainfo/%{app_id}.metainfo.xml
 
