@@ -8,7 +8,7 @@ To add a rule: a regular expression, a severity, a title, what it means and what
 
 import re
 
-from .i18n import _
+from .i18n import _, ngettext
 
 NONE, INFO, WARN, SERIOUS, UNKNOWN = "none", "info", "warn", "serious", "unknown"
 SEVERITY_ORDER = [SERIOUS, WARN, UNKNOWN, INFO, NONE]
@@ -26,6 +26,50 @@ def severity_label(sev):
 
 def severity_color(sev):
     return {NONE: "#7f8c8d", INFO: "#1d99f3", WARN: "#f67400", SERIOUS: "#da4453", UNKNOWN: "#9b59b6"}[sev]
+
+
+# A file that a mirror does not have (yet): libzypp's "File '…' not found on medium '…'" in English, Catalan,
+# German and French, and curl's 404.
+_MISSING_RX = (r"(File '.+' not found on medium|El fitxer .+ no s'ha trobat al mitjà|Datei .+ auf Medium .+ nicht "
+               r"gefunden|Fichier .+ introuvable sur le medium|HTTP response:?\s*404|returned error:?\s*404|"
+               r"\b404 Not Found\b)")
+_MISSING = re.compile(_MISSING_RX, re.I)
+# the lines just before it that only say the same ("Problem retrieving the package file…", "Download (curl)
+# error for '…':") are counted with it, not as "A repository did not answer"
+_MISSING_LEAD = re.compile(r"(Problem retrieving the package file|Problema obtenint el fitxer de paquet|"
+                           r"Download \(curl\) error for|Error de baixada \(curl\))", re.I)
+
+
+def _missing_title():
+    return _("A file was not found on the server")
+
+
+def _mirrors_settling():
+    """(True, hours since the new Tumbleweed) when the mirrors may still be copying it; (False, None) otherwise or
+    when it cannot be told. Reads a few small files in zypper's cache: cheap, never raises."""
+    try:
+        from . import repostate
+        t = repostate.tumbleweed_published()
+        h = repostate.hours_since(t)
+        if h is not None and h < repostate.MIRROR_SETTLE_HOURS:
+            return True, h
+    except Exception:
+        pass
+    return False, None
+
+
+def _missing_settling(d, hours):
+    """The explanation of a missing file when a new Tumbleweed came out a few hours ago."""
+    if hours < 1:
+        minutes = max(1, int(round(hours * 60)))
+        ago = ngettext("{n} minute ago", "{n} minutes ago", minutes).format(n=minutes)
+    else:
+        n = int(hours)
+        ago = ngettext("{n} hour ago", "{n} hours ago", n).format(n=n)
+    d.update(title=_("The mirrors are still copying the new Tumbleweed"),
+             what=_("A new Tumbleweed version came out {ago} and the mirrors (the servers that share it out) are "
+                    "still copying it, so some files are not there yet.").format(ago=ago),
+             todo=_("Try again in an hour."))
 
 
 def _rules():
@@ -85,6 +129,12 @@ def _rules():
          _("Only one program at a time can use zypper. It may be Zypp Desk's own refresh in the background "
            "(a timer refreshes the repositories every six hours), or zypper in a terminal."),
          _("Wait a moment and try again. At the bottom left, Zypp Desk says which program is using it.")),
+        (_MISSING_RX, WARN, _missing_title(),
+         _("The server of a repository (one of its mirrors) does not have a file that the repository's list on "
+           "your computer names. Usually that mirror is still copying a new version, or your list is older than "
+           "the server's."),
+         _("Refresh the repositories and try again. If it keeps happening with the same repository, its address "
+           "may have changed (Repositories → ✎ Address…).")),
         (r"(Problem retrieving|Problema obtenint els fitxers|Download \(curl\) error|Error en baixar|could not be refreshed|"
          r"no s'ha pogut refrescar|No s'han pogut refrescar|Repository .* is invalid|Timeout exceeded|"
          r"Could not resolve host)", WARN,
@@ -158,7 +208,9 @@ def explain(text):
     rules = [(re.compile(rx, re.I), sev, title, what, todo) for rx, sev, title, what, todo in _rules()]
     found, unknown = {}, {}
     last = None
-    for line in text.splitlines():
+    lines = text.splitlines()
+    missing_at = {i for i, line in enumerate(lines) if _MISSING.search(line)}
+    for i, line in enumerate(lines):
         s = line.strip()
         if s.startswith("⋯"):
             # the terminal folded repeated lines: "⋯ the same line 24 more times"
@@ -169,6 +221,10 @@ def explain(text):
         last = None
         if not s or s.startswith(("#", "$")):
             continue
+        if _MISSING_LEAD.search(s) and ({i + 1, i + 2} & missing_at):
+            continue  # it only announces the missing file of the next lines
+        if i in missing_at and i - 1 in missing_at:
+            continue  # curl's "Error message: … returned error: 404" after "Error code: HTTP response: 404"
         for rx, sev, title, what, todo in rules:
             if rx.search(s):
                 d = found.setdefault(title, dict(severity=sev, title=title, what=what, todo=todo, count=0, example=s))
@@ -185,6 +241,14 @@ def explain(text):
                     count=0, example=s))
                 d["count"] += 1
                 last = d
+    missing = found.get(_missing_title())
+    # a missing file of Tumbleweed itself (its address is on the line, or on the one or two before it) a few
+    # hours after a new version: the mirrors are still copying it
+    if missing is not None and any("tumbleweed" in lines[j].lower() for i in missing_at
+                                   for j in range(max(0, i - 2), i + 1)):
+        settling, hours = _mirrors_settling()
+        if settling:
+            _missing_settling(missing, hours)
     items = list(found.values()) + list(unknown.values())[:8]
     items.sort(key=lambda d: SEVERITY_ORDER.index(d["severity"]))
     return items

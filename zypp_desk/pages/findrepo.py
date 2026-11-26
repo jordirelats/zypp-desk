@@ -517,7 +517,8 @@ class FindRepoDialog(QDialog):
         box.deleteLater()
         if answer != QMessageBox.StandardButton.Yes:
             return
-        self.ctx.queue.add(Action("key-import", fpr, path=k["path"], name=k.get("name") or project))
+        link = {"for_repo": alias} if alias else {}  # the queue review: the repository needs this key
+        self.ctx.queue.add(Action("key-import", fpr, path=k["path"], name=k.get("name") or project, **link))
         self._queued(self.notice.text() + " " + _("Its signing key too."))
 
     def flathub_install(self):

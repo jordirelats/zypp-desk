@@ -2,23 +2,34 @@
 """Choose one of the solutions zypper offers for a dependency problem, said in plain words.
 
 The problems come from simulation.problem_items(): each one has a plain explanation, zypper's own text and its
-solutions, with the queue actions that carry each one out."""
+solutions, with the queue actions that carry each one out. Many problems are first shown grouped by cause
+(problemgroups), with what is usually done: wait a day or two, or leave them as they are and update the rest."""
+
+import datetime
+import time
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QButtonGroup, QDialog, QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton,
-                               QRadioButton, QSizePolicy, QStyle, QToolButton, QVBoxLayout, QWidget)
+                               QRadioButton, QScrollArea, QSizePolicy, QStyle, QToolButton, QVBoxLayout, QWidget)
 
+from .. import problemgroups
 from ..i18n import _, ngettext
+from ..question import label as qlabel
 from ..runner import Step
 from ..style import BLUE, GREEN
+from ..tasks import run_async
 from ..txqueue import PKG_KINDS, SOLVABLE_KINDS, Action, TxQueue, pkg_ident
 from ..ui import button, heading, hline, icon, mono, muted
+
+ADVICE = "#2980b9"  # "Recommended: wait a day or two", as in the questions (question.reasons)
 
 CSS = f"""
 QFrame#solution {{ border: 1px solid rgba(127, 140, 141, 0.40); border-radius: 10px; background: palette(base); }}
 QFrame#solution[on="true"] {{ border: 1px solid {GREEN}; background: rgba(39, 174, 96, 0.08); }}
 QLabel#explain {{ background: rgba(127, 140, 141, 0.13); border-radius: 8px; padding: 10px 12px; }}
 QFrame#cannot {{ border: 1px dashed rgba(127, 140, 141, 0.45); border-radius: 10px; }}
+QFrame#group {{ border: 1px solid rgba(127, 140, 141, 0.40); border-radius: 10px; background: palette(base); }}
 QLabel#pill {{ background: {GREEN}; color: white; border-radius: 8px; padding: 2px 9px; font-weight: 600; }}
 QToolButton#link {{ color: {BLUE}; border: none; padding: 2px 0px; }}
 QToolButton#link:hover {{ text-decoration: underline; }}
@@ -224,13 +235,173 @@ class SolutionCard(QFrame):
         super().mousePressEvent(ev)
 
 
+def reminder_time(now=None):
+    """Tomorrow at nine in the morning (local time), as a Unix time: when "Wait and try again tomorrow" reminds."""
+    today = datetime.datetime.fromtimestamp(now or time.time()).date()
+    return int(datetime.datetime.combine(today + datetime.timedelta(days=1), datetime.time(9, 0)).timestamp())
+
+
+def _find_settings(widget):
+    """The main window's settings, from a dialog's parents (None when there is none, as in tests)."""
+    w = widget
+    while w is not None:
+        s = getattr(w, "settings", None)
+        if isinstance(s, dict) and hasattr(s, "save"):
+            return s
+        w = w.parentWidget()
+    return None
+
+
+def remind_tomorrow(widget=None, now=None):
+    """Set settings["update_reminder_at"] to tomorrow morning and save it; the tray icon (tray.py) reminds then.
+    The tray is started if it is not running, or nobody would remind. Returns the time set."""
+    at = reminder_time(now)
+    settings = _find_settings(widget)
+    if settings is None:
+        from ..settings import Settings
+        settings = Settings()
+    settings["update_reminder_at"] = at
+    settings.save()
+    try:
+        from .. import tray
+        if not tray.tray_running():
+            tray.start_tray()
+    except Exception:  # no tray possible (no session bus…): the setting is saved all the same
+        pass
+    return at
+
+
+class _More(QLabel):
+    """'▸ Show them (38)' on a group: a click shows the names under it, a second one hides them. The same words
+    as question.py's, and the window grows or shrinks with it (on_toggle)."""
+
+    def __init__(self, n, target, on_toggle, parent=None):
+        self._closed, self._open = _("▸ Show them ({n})").format(n=n), _("▾ Hide them")
+        super().__init__(self._closed, parent)
+        self._target, self._on_toggle = target, on_toggle
+        self.setTextFormat(Qt.TextFormat.PlainText)
+        self.setStyleSheet(f"color: {BLUE};")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        self.setAccessibleName(self._closed)
+
+    def _toggle(self):
+        on = not self._target.isVisible()
+        self._target.setVisible(on)
+        self.setText(self._open if on else self._closed)
+        self._on_toggle()
+
+    def mouseReleaseEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self._toggle()
+        super().mouseReleaseEvent(ev)
+
+    def keyPressEvent(self, ev):
+        if ev.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._toggle()
+            return
+        super().keyPressEvent(ev)
+
+
+class GroupCard(QFrame):
+    """One cause: a coloured dot, what it is in bold, what it means, what is usually done, and the packages."""
+
+    def __init__(self, g, on_toggle, parent=None):
+        super().__init__(parent)
+        self.setObjectName("group")
+        h = QHBoxLayout(self)
+        h.setContentsMargins(12, 10, 14, 10)
+        h.setSpacing(10)
+        dot = QLabel("●", self)
+        dot.setStyleSheet(f"color: {g.get('color') or BLUE}; font-size: 13px;")
+        h.addWidget(dot, 0, Qt.AlignmentFlag.AlignTop)
+        v = QVBoxLayout()
+        v.setSpacing(2)
+        top = QHBoxLayout()
+        top.setSpacing(10)
+        top.addWidget(qlabel(g["title"], bold=True), 1)
+        more = [m for m in g.get("more") or [] if m]
+        names = None
+        if more:
+            shown = more if len(more) <= 400 else more[:400] + ["…"]
+            if g["kind"] == problemgroups.OTHER:  # whole sentences: wrapped, one paragraph each
+                names = qlabel("\n\n".join(shown), small=True, selectable=True)
+            else:
+                names = qlabel("\n".join(shown), small=True, selectable=True, font=mono())
+            names.setVisible(False)
+            top.addWidget(_More(len(more), names, on_toggle, self), 0, Qt.AlignmentFlag.AlignTop)
+        v.addLayout(top)
+        if g.get("detail"):
+            v.addWidget(qlabel(g["detail"], small=True, muted=True))
+        if g.get("advice"):
+            v.addWidget(qlabel(g["advice"], small=True, color=ADVICE))
+        if names is not None:
+            names.setContentsMargins(0, 4, 0, 0)
+            v.addWidget(names)
+        h.addLayout(v, 1)
+
+
+class ChoiceCard(QFrame):
+    """One answer to "What do you want to do?": a radio button, the answer in bold and what it means."""
+
+    def __init__(self, key, title, detail, group, parent=None):
+        super().__init__(parent)
+        self.setObjectName("solution")
+        self.key = key
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        h = QHBoxLayout(self)
+        h.setContentsMargins(12, 9, 14, 9)
+        h.setSpacing(10)
+        self.radio = QRadioButton(self)
+        self.radio.setAccessibleName(title)
+        group.addButton(self.radio)
+        h.addWidget(self.radio, 0, Qt.AlignmentFlag.AlignTop)
+        v = QVBoxLayout()
+        v.setSpacing(2)
+        self.title = qlabel(title, bold=True)
+        v.addWidget(self.title)
+        self.detail = qlabel(detail, small=True, muted=True)
+        v.addWidget(self.detail)
+        h.addLayout(v, 1)
+        self.radio.toggled.connect(self._toggled)
+
+    def set_text(self, title, detail):
+        self.title.setText(title)
+        self.radio.setAccessibleName(title)
+        self.detail.setText(detail)
+
+    def _toggled(self, on):
+        self.setProperty("on", on)
+        self.style().unpolish(self)
+        self.style().polish(self)
+
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton and self.radio.isEnabled():
+            self.radio.setChecked(True)
+            self.radio.setFocus(Qt.FocusReason.MouseFocusReason)
+            ev.accept()
+            return
+        super().mousePressEvent(ev)
+
+
 class ProblemDialog(QDialog):
-    """The problems a simulation found, one at a time, each with the solutions that can be chosen here.
+    """The problems a simulation found, each with the solutions that can be chosen here.
 
     items: simulation.problem_items(). After exec() returns Accepted, chosen() gives one solution per problem
     that has any (the dicts from items, with their 'actions'); solution_plan(dlg.chosen(), now) says what to do.
     now: True when what is chosen runs at once (the dup: there is no queue), False when installs and removals
-    go to the queue (locks and unlocks run at once in both cases). Each solution shows its exact commands."""
+    go to the queue (locks and unlocks run at once in both cases). Each solution shows its exact commands.
+
+    With many problems (problemgroups.MANY or more) the window opens on a summary: the problems grouped by cause
+    (problemgroups, looked up in a thread), and three answers:
+    - "Wait and try again tomorrow": sets settings["update_reminder_at"] (the tray icon reminds), changes nothing,
+      and exec() returns Rejected with wait_requested = True;
+    - "Update the rest and leave these as they are": exec() returns Accepted and chosen() gives, for every problem
+      that has one, the solution that leaves it as it is (a lock, the removal of a package that no longer exists,
+      or a queued install leaving the queue);
+    - "Look at them one by one": the problems one at a time, as with few problems.
+    With 2 or 3 problems it opens on the problems, and offers the summary when they have fewer causes than
+    problems. Enter never starts a change: the default button is Cancel."""
 
     def __init__(self, items, parent=None, apply_label=None, note=None, *, now=False):
         super().__init__(parent)
@@ -238,6 +409,12 @@ class ProblemDialog(QDialog):
         self.now = now
         self.queue = None if now else _find_queue(parent)
         self.apply_label = apply_label
+        self.wait_requested = False
+        self.analysis = None  # problemgroups.analyse(): dict(groups, keeps)
+        self._keep = None     # the solutions of "leave these as they are", once chosen
+        self._closed = False
+        self._touched = False  # the answer was chosen by hand: the analysis does not change it any more
+        self.mode = "pages"
         self.setWindowTitle(_("Choose a solution"))
         self.setStyleSheet(CSS)
         self.setMinimumWidth(660)
@@ -258,8 +435,12 @@ class ProblemDialog(QDialog):
         head.addWidget(pic, 0, Qt.AlignmentFlag.AlignTop)
         tl = QVBoxLayout()
         tl.setSpacing(1)
-        title = (_("The simulation found a problem") if n == 1 else
-                 ngettext("The simulation found {n} problem", "The simulation found {n} problems", n).format(n=n))
+        if n == 1:
+            title = _("The simulation found a problem")
+        elif now:
+            title = ngettext("The update has {n} problem", "The update has {n} problems", n).format(n=n)
+        else:
+            title = ngettext("The simulation found {n} problem", "The simulation found {n} problems", n).format(n=n)
         tl.addWidget(heading(title, 1.3, self))
         self.pos = muted("", self)
         self.pos.setTextFormat(Qt.TextFormat.PlainText)
@@ -283,12 +464,17 @@ class ProblemDialog(QDialog):
             head.addWidget(b, 0, Qt.AlignmentFlag.AlignTop)
         lay.addLayout(head)
 
-        # one page per problem; only the one shown counts for the height of the window
+        # the summary by cause (with 2 problems or more), then one page per problem; only what is shown counts
+        # for the height of the window
         self.current = 0
-        self.pages = [self._page(item) for item in self.items]
-        holder = QWidget(self)
+        holder = self._holder = QWidget(self)
         hl = QVBoxLayout(holder)
         hl.setContentsMargins(0, 0, 0, 0)
+        self.summary = self._build_summary(holder) if n > 1 else None
+        if self.summary is not None:
+            self.summary.hide()
+            hl.addWidget(self.summary)
+        self.pages = [self._page(item) for item in self.items]
         for page in self.pages:
             page.hide()
             hl.addWidget(page)
@@ -310,19 +496,136 @@ class ProblemDialog(QDialog):
         self.show_raw = _link(_("Show zypper's text"), self)
         self.show_raw.toggled.connect(self._raw_toggled)
         bottom.addWidget(self.show_raw)
+        self.to_summary = QToolButton(self)
+        self.to_summary.setObjectName("link")
+        self.to_summary.setText(_("◂ Grouped by cause"))
+        self.to_summary.setAutoRaise(True)
+        self.to_summary.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.to_summary.clicked.connect(lambda: self.set_mode("summary"))
+        self.to_summary.hide()
+        bottom.addWidget(self.to_summary)
         bottom.addStretch(1)
-        cancel = QPushButton(_("Cancel"), self)
-        cancel.clicked.connect(self.reject)
-        bottom.addWidget(cancel)
+        self.cancel = QPushButton(_("Cancel"), self)
+        self.cancel.clicked.connect(self.reject)
+        self.cancel.setDefault(True)  # Enter never starts a change
+        bottom.addWidget(self.cancel)
         self.apply = button(apply_label or _("Add to the queue and simulate again"), primary=True, parent=self)
-        self.apply.setDefault(True)
-        self.apply.clicked.connect(self.accept)
+        self.apply.setAutoDefault(False)
+        self.apply.clicked.connect(self._go)
         bottom.addWidget(self.apply)
         lay.addLayout(bottom)
 
-        self.resize(740, 10)
+        self.resize(760, 10)
         self.show_problem(0)
+        self.set_mode("summary" if n >= problemgroups.MANY else "pages")
+        if n > 1:
+            queued = set()
+            if self.queue is not None:
+                queued = {pkg_ident(a) for a in self.queue.of("install")}
+            run_async(problemgroups.analyse, self.items, queued, on_done=self._analysed)
+
+    # ------------------------------------------------------------------ the summary by cause
+    def _build_summary(self, parent):
+        w = QWidget(parent)
+        v = QVBoxLayout(w)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(10)
+        self.lead = qlabel(_("Looking at what causes them…"))
+        v.addWidget(self.lead)
+        self.cards = QWidget(w)
+        self.cards_lay = QVBoxLayout(self.cards)
+        self.cards_lay.setContentsMargins(0, 0, 0, 0)
+        self.cards_lay.setSpacing(8)
+        self.scroll = QScrollArea(w)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setWidget(self.cards)
+        self.scroll.setFixedHeight(0)
+        v.addWidget(self.scroll)
+        v.addWidget(heading(_("What do you want to do?"), 1.05, w))
+        self.choice = QButtonGroup(w)
+        self.choice.setExclusive(True)
+        n = len(self.items)
+        self.c_wait = ChoiceCard("wait", _("Wait and try again tomorrow"),
+                                 _("Zypp Desk will remind you tomorrow morning. Until then nothing changes."),
+                                 self.choice, w)
+        self.c_keep = ChoiceCard("keep", ngettext("Update the rest and leave this one as it is",
+                                                  "Update the rest and leave these {n} as they are", n).format(n=n),
+                                 _("Looking at what causes them…"), self.choice, w)
+        self.c_one = ChoiceCard("one", _("Look at them one by one"),
+                                _("For those who know zypper: each problem with the solutions zypper offers."),
+                                self.choice, w)
+        self.c_keep.radio.setEnabled(False)
+        for c in (self.c_wait, self.c_keep, self.c_one):
+            v.addWidget(c)
+        self.c_wait.radio.setChecked(True)  # the safe answer, until the causes are known
+        self.choice.buttonClicked.connect(self._choice_clicked)
+        self.choice.buttonToggled.connect(lambda *_a: self._update_apply())
+        return w
+
+    def _choice_clicked(self, *_a):
+        self._touched = True
+
+    def _choice_key(self):
+        for c in (self.c_wait, self.c_keep, self.c_one):
+            if c.radio.isChecked():
+                return c.key
+        return None
+
+    def _analysed(self, result, err):
+        if self._closed:
+            return
+        try:
+            if err is not None or not isinstance(result, dict):
+                result = problemgroups.fallback(self.items)
+            self.analysis = result
+            self._fill_summary()
+        except RuntimeError:  # the window is already gone
+            return
+
+    def _fill_summary(self):
+        groups, keeps = self.analysis["groups"], self.analysis["keeps"]
+        n, k = len(self.items), len(groups)
+        while self.cards_lay.count():
+            it = self.cards_lay.takeAt(0)
+            if it.widget() is not None:
+                it.widget().deleteLater()
+        for g in groups:
+            self.cards_lay.addWidget(GroupCard(g, self._fit, self.cards))
+        if all(g["kind"] == problemgroups.OTHER for g in groups):
+            lead = _("Zypp Desk found no common cause for them:")
+        elif k == 1 and n > 1:
+            lead = _("They all come from one cause:")
+        elif k < n:
+            lead = ngettext("There are many, but they come from only {k} cause:",
+                            "There are many, but they come from only {k} causes:", k).format(k=k)
+        else:
+            lead = _("These are their causes:")
+        self.lead.setText(lead)
+        can = [s for s in keeps if s]
+        detail = problemgroups.keep_text(groups, keeps)
+        locks = problemgroups.lock_count(keeps)
+        if locks:
+            detail += " " + ngettext("In all, {n} package is locked; you can unlock it later in Locks.",
+                                     "In all, {n} packages are locked; you can unlock them later in Locks.",
+                                     locks).format(n=locks)
+        if not can:
+            detail = _("Zypp Desk cannot leave these problems as they are: look at them one by one.")
+        self.c_keep.set_text(self.c_keep.title.text(), detail)
+        self.c_keep.radio.setEnabled(bool(can))
+        if not self._touched:  # what is usually done
+            waiting = any(g["kind"] in (problemgroups.BEHIND, problemgroups.THIRDPARTY) for g in groups)
+            if waiting:
+                self.c_wait.radio.setChecked(True)
+            elif can and len(can) == len(keeps):
+                self.c_keep.radio.setChecked(True)
+            else:
+                self.c_one.radio.setChecked(True)
+        if self.mode == "pages" and k < n:
+            self.to_summary.show()  # 2 or 3 problems with one cause: the summary is worth a look
         self._update_apply()
+        self._fit()
 
     # ------------------------------------------------------------------ one page per problem
     def _page(self, item):
@@ -391,6 +694,32 @@ class ProblemDialog(QDialog):
         return page
 
     # ------------------------------------------------------------------ state
+    def set_mode(self, mode):
+        """'summary' (the problems grouped by cause) or 'pages' (one problem at a time)."""
+        if mode == "summary" and self.summary is None:
+            mode = "pages"
+        self.mode = mode
+        n = len(self.items)
+        summary = mode == "summary"
+        self.summary is not None and self.summary.setVisible(summary)
+        for k, page in enumerate(self.pages):
+            page.setVisible(not summary and k == self.current)
+        for b in (self.prev, self.next):
+            b.setVisible(not summary and n > 1)
+        groups = (self.analysis or {}).get("groups")
+        self.to_summary.setVisible(not summary and self.summary is not None and (
+            n >= problemgroups.MANY or (groups is not None and len(groups) < n)))
+        if summary:
+            sources = list(dict.fromkeys(it.get("source") for it in self.items if it.get("source")))
+            self.pos.setText(" · ".join(sources))
+            self.pos.setVisible(bool(sources))
+            self.raw.setPlainText("\n\n".join(it.get("raw", "") for it in self.items))
+            self._update_apply()
+            self._fit()
+        else:
+            self.pos.setVisible(True)
+            self.show_problem(self.current)
+
     def show_problem(self, i):
         n = len(self.items)
         if not n:
@@ -400,6 +729,8 @@ class ProblemDialog(QDialog):
             return
         i = max(0, min(n - 1, i))
         self.current = i
+        if self.mode != "pages":
+            return
         for k, page in enumerate(self.pages):
             page.setVisible(k == i)
         text = _("{i} of {n}").format(i=i + 1, n=n)
@@ -409,6 +740,7 @@ class ProblemDialog(QDialog):
         self.prev.setEnabled(i > 0)
         self.next.setEnabled(i < n - 1)
         self.raw.setPlainText(self.items[i].get("raw", ""))
+        self._update_apply()
         self._fit()
 
     def _raw_toggled(self, on):
@@ -416,35 +748,105 @@ class ProblemDialog(QDialog):
         self._fit()
 
     def _fit(self):
-        """Grow or shrink to what is shown (the width stays)."""
+        """Grow or shrink to what is shown (the width stays); the list of causes scrolls when it is long."""
         def fit():
-            lay = self.layout()
-            lay.activate()
-            h = lay.totalHeightForWidth(self.width()) if lay.hasHeightForWidth() else lay.totalSizeHint().height()
-            self.resize(self.width(), max(h, lay.totalMinimumSize().height()))
+            try:
+                if self.mode == "summary" and self.summary is not None:
+                    cl = self.cards_lay
+                    cl.activate()
+                    width = self.scroll.viewport().width() or (self.width() - 44)
+                    want = cl.totalHeightForWidth(width) if cl.hasHeightForWidth() else cl.totalSizeHint().height()
+                    scr = (self.screen() or QGuiApplication.primaryScreen()).availableGeometry()
+                    self.scroll.setFixedHeight(max(0, min(want, int(scr.height() * 0.42))))
+                for w in (self.summary, self._holder):  # the nested layouts first, or the window uses old sizes
+                    if w is not None:
+                        w.layout().invalidate()
+                        w.layout().activate()
+                        w.updateGeometry()
+                lay = self.layout()
+                lay.activate()
+                h = (lay.totalHeightForWidth(self.width()) if lay.hasHeightForWidth()
+                     else lay.totalSizeHint().height())
+                self.resize(self.width(), max(h, lay.totalMinimumSize().height()))
+                if self.isVisible():  # it grew when the causes arrived: keep its bottom on the screen
+                    scr = (self.screen() or QGuiApplication.primaryScreen()).availableGeometry()
+                    geo = self.frameGeometry()
+                    if geo.bottom() > scr.bottom():
+                        self.move(geo.x(), max(scr.top(), scr.bottom() - geo.height()))
+            except RuntimeError:  # the window is already gone
+                pass
         fit()
         QTimer.singleShot(0, fit)
 
+    def _plan_label(self, chosen):
+        """What the apply button says for these solutions (when the caller gave no label)."""
+        steps, add, discard = solution_plan(chosen, self.now)
+        if steps and not (add or discard):
+            return _("Do it now and simulate again")
+        if steps:
+            return _("Go ahead and simulate again")  # some of it runs now, the rest changes the queue
+        if add and not discard:
+            return _("Add to the queue and simulate again")
+        return _("Change the queue and simulate again")  # something leaves the queue
+
+    def _keeps(self):
+        return [s for s in (self.analysis or {}).get("keeps") or [] if s]
+
     def _update_apply(self):
+        if self.mode == "summary":
+            key = self._choice_key()
+            if key == "wait":
+                self.apply.setText(_("Remind me tomorrow"))
+                self.apply.setEnabled(True)
+            elif key == "keep":
+                keeps = self._keeps()
+                self.apply.setEnabled(bool(keeps))
+                self.apply.setText(self.apply_label or (self._plan_label(keeps) if keeps else _("Go ahead")))
+            else:
+                self.apply.setText(_("Look at them one by one"))
+                self.apply.setEnabled(True)
+            return
         groups = [g for g in self.groups if g]
         self.apply.setEnabled(bool(groups) and all(g.checkedButton() is not None for g, _c in groups))
-        if self.apply_label or not self.chosen():
+        chosen = self._page_choices()
+        if self.apply_label or not chosen:
+            self.apply.setText(self.apply_label or _("Add to the queue and simulate again"))
             return
-        steps, add, discard = solution_plan(self.chosen(), self.now)
-        if steps and not (add or discard):
-            text = _("Do it now and simulate again")
-        elif steps:
-            text = _("Go ahead and simulate again")  # some of it runs now, the rest changes the queue
-        elif add and not discard:
-            text = _("Add to the queue and simulate again")
-        else:
-            text = _("Change the queue and simulate again")  # something leaves the queue
-        self.apply.setText(text)
+        self.apply.setText(self._plan_label(chosen))
 
-    def chosen(self):
-        """The chosen solution of every problem that has solutions, in the order of the problems."""
+    def _go(self):
+        """The primary button: what it does depends on the page and the answer."""
+        if self.mode == "summary":
+            key = self._choice_key()
+            if key == "wait":
+                remind_tomorrow(self)
+                self.wait_requested = True
+                self.reject()
+            elif key == "keep":
+                keeps = self._keeps()
+                if keeps:
+                    self._keep = keeps
+                    self.accept()
+            else:
+                self.set_mode("pages")
+            return
+        self._keep = None
+        self.accept()
+
+    def done(self, r):
+        self._closed = True
+        super().done(r)
+
+    def _page_choices(self):
         out = []
         for g in self.groups:
             if g and g[0].checkedButton() is not None:
                 out.append(g[1][g[0].checkedButton()])
         return out
+
+    def chosen(self):
+        """The chosen solution of every problem that has solutions, in the order of the problems; after "Update
+        the rest and leave these as they are", the solution that leaves each problem as it is."""
+        if self._keep is not None:
+            return list(self._keep)
+        return self._page_choices()

@@ -1,4 +1,32 @@
 -------------------------------------------------------------------
+Thu Nov 26 20:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.0:
+  * Every question that changes the system says what will be done in
+    plain words, what it means for you, and shows the exact commands
+    underneath as information; Enter never starts a change
+  * The queue review has a button per change, shows which change needs
+    which, and asks before taking out something others need; after a
+    failed step only what was really done leaves the queue
+  * A big upgrade asks whether it is worth waiting (size, how new the
+    Tumbleweed version is, battery) and can only download it or remind
+    you tomorrow from the tray icon
+  * Little disk space: the upgrade can run in parts that zypper
+    resolves and downloads completely before installing them, after
+    freeing the package cache and old kernels
+  * Many dependency problems are grouped by cause (a repository not yet
+    rebuilt for the new Tumbleweed, packages that no longer exist,
+    locks), with wait, leave them as they are, or one by one
+  * Failed downloads right after a new Tumbleweed explain that the
+    mirrors are still copying it
+  * RPMs made for Fedora whose requirements openSUSE has under other
+    names get a small bridge package, written without rpm-build, with a
+    list of bridges that says when one is no longer needed
+  * Repositories that programs leave in /etc/yum.repos.d, which zypper
+    ignores, can be added to zypper with their key
+  * The version is shown in the window title
+
+-------------------------------------------------------------------
 Thu Nov 26 08:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.4.1, fixes from a review (security, zypper, code,

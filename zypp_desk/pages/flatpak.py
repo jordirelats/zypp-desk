@@ -9,12 +9,12 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, 
                                QLineEdit, QSplitter, QTabWidget, QTextBrowser, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout, QWidget)
 
-from .. import flatpak
+from .. import flatpak, question
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..tasks import run_async
 from ..txqueue import Action, installation_label
-from ..ui import Page, ask, button, error_box, muted, tool
+from ..ui import Page, button, error_box, muted, tool
 
 FLATHUB = ("flathub", "https://dl.flathub.org/repo/flathub.flatpakrepo")
 ORANGE = "#f67400"
@@ -386,8 +386,14 @@ class FlatpakPage(Page):
 
     def remove_unused(self):
         st = Step("flatpak", ["uninstall", "--unused", "--noninteractive", "-y"])
-        if ask(self, _("Remove unused runtimes"), _("Uninstall the runtimes and extensions that no installed app "
-                                                    "uses any more?") + "\n\n" + st.display(), default_no=True):
+        if question.confirm(
+                self, _("Remove the unused runtimes?"), _("Yes, remove them"), window_title=_("Remove unused runtimes"),
+                icon_name="flatpak-discover",
+                items=[("flatpak-discover", _("Uninstall the runtimes and extensions that no app uses any more"),
+                        _("A runtime is the shared base Flatpak apps run on, such as org.kde.Platform."))],
+                means=_("your apps keep working: only what none of them uses goes. If an app needs one again, "
+                        "Flatpak downloads it."),
+                commands_=[st.display()]):
             self.ctx.run([st], _("Remove unused runtimes"), on_done=self._changed)
 
     def add_remote(self):
@@ -424,18 +430,26 @@ class FlatpakPage(Page):
             error_box(self, _("Remove a Flatpak remote"), str(err))
             return
         args = ["remote-delete", f"--{r['installation']}"]
+        name, inst = r["name"], r["installation"]
+        items = [("flatpak-discover", _("Remove the remote «{name}»").format(name=name),
+                  _("A remote is a place Flatpak apps come from, like Flathub. This one is {installation}.").format(
+                      installation=installation_label(inst)))]
+        warning = None
         if refs:
-            apps = sorted({x["name"] or x["application"] for x in refs if x["kind"] == "app"})
-            others = sum(1 for x in refs if x["kind"] != "app")
-            what = ", ".join(apps[:12]) or ""
-            if others:
-                what = (what + ", " if what else "") + ngettext("{n} runtime", "{n} runtimes", others).format(n=others)
-            text = (_("These come from {name}: {list}.").format(name=r["name"], list=what) + "\n\n"
-                    + _("flatpak removes the remote only with --force. They stay installed, but they will get no "
-                        "more updates. Remove it anyway?"))
+            # flatpak removes a remote that apps or runtimes come from only with --force
             args.append("--force")
+            apps = sorted({x["name"] or x["application"] for x in refs if x["kind"] == "app"})
+            runtimes = sorted({x["application"] for x in refs if x["kind"] != "app"})
+            n = len(apps) + len(runtimes)
+            items.append(("dialog-warning", ngettext("{n} app or runtime comes from it",
+                                                     "{n} apps and runtimes come from it", n).format(n=n),
+                          _("They stay installed, but get no more updates."), apps + runtimes))
+            means = _("nothing is uninstalled, but what came from it is not updated any more.")
+            warning = _("What came from it gets no more updates, not even for security problems.")
         else:
-            text = _("Remove the Flatpak remote {name}? Nothing installed comes from it.").format(name=r["name"])
-        st = Step("flatpak", [*args, "--", r["name"]])
-        if ask(self, _("Remove a Flatpak remote"), text + "\n\n" + st.display(), default_no=True):
+            means = _("nothing installed comes from it, so nothing else changes.")
+        st = Step("flatpak", [*args, "--", name])
+        if question.confirm(self, _("Remove the Flatpak remote «{name}»?").format(name=name), _("Yes, remove it"),
+                            window_title=_("Remove a Flatpak remote"), icon_name="flatpak-discover", items=items,
+                            means=means, warning=warning, commands_=[st.display()], password=inst != "user"):
             self.ctx.run([st], _("Remove a Flatpak remote"), on_done=self._changed)

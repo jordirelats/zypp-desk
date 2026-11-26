@@ -3,6 +3,9 @@
 
 Each repository (and each Flatpak remote) is also checked in the background: does its address still
 answer? The list can be shown as a table or as cards.
+
+A program made for Fedora can leave its repository in /etc/yum.repos.d, where zypper never looks (yumrepos.py):
+a banner on top says so, and adds it to zypper through the queue, with its signing key when rpm does not have it.
 """
 
 import threading
@@ -16,13 +19,14 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog,
                                QMenu, QMessageBox, QScrollArea, QSpinBox, QStackedWidget, QTabWidget,
                                QToolButton, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, flatpak, repocheck, repoprio
+from .. import backend, flatpak, repocheck, repoprio, yumrepos
 from ..i18n import _, ngettext
+from ..question import ask_change, confirm
 from ..runner import Step
 from ..style import GREEN, RED, dot
 from ..tasks import emit_safely, run_async
 from ..txqueue import Action, TxQueue
-from ..ui import Chip, Page, ask, button, error_box, icon, info_box, muted, plain, tool
+from ..ui import Chip, Page, button, error_box, icon, info_box, muted, plain, tool
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
 FCOL_NAME, FCOL_HEALTH, FCOL_ON, FCOL_INST, FCOL_URL = range(5)
@@ -376,6 +380,15 @@ class ReposPage(Page):
         self._stale = False
         self._cards_stale = True
         self._fcards_stale = True
+        # repositories left for Fedora (yumrepos.scan), the banners shown and the ones whose key is being read
+        self.yum_entries = []
+        self._yum_shown = None
+        self._yum_busy = set()
+        self.yum_box = QWidget(self)
+        self.yum_lay = QVBoxLayout(self.yum_box)
+        self.yum_lay.setContentsMargins(0, 0, 0, 0)
+        self.yum_lay.setSpacing(8)
+        self.yum_box.hide()
 
         # ---- top row: filter, "only failing", view switch
         self.filter = QLineEdit(self)
@@ -472,6 +485,7 @@ class ReposPage(Page):
         self.tabs.addTab(fpage, icon("flatpak-discover", "application-vnd.flatpak.ref"), "Flatpak")
 
         lay = QVBoxLayout(self)
+        lay.addWidget(self.yum_box)
         lay.addWidget(self._online_banner())
         lay.addLayout(top)
         lay.addLayout(srow)
@@ -530,6 +544,7 @@ class ReposPage(Page):
             self.check_all()  # it fills the list too
         else:
             self._fill()
+        self._scan_yum()
 
     def _remotes_loaded(self, remotes, err):
         if err or remotes is None:
@@ -723,6 +738,7 @@ class ReposPage(Page):
 
     def _fill(self):
         self._update_priority_text()
+        self._show_yum()  # the queue may have changed: one waiting there needs no banner
         self._fill_pending = False
         self._filling = True
         col, order = self.tree.sortColumn(), self.tree.header().sortIndicatorOrder()
@@ -1117,6 +1133,100 @@ class ReposPage(Page):
         h.addWidget(button(_("Search online…"), "edit-find", self.search_online, primary=True))
         return box
 
+    # ------------------------------------------------------------ repositories left for Fedora
+    def _scan_yum(self):
+        run_async(yumrepos.scan, list(self.repos), yumrepos.YUM_DIR, on_done=self._yum_scanned)
+
+    def _yum_scanned(self, entries, err):
+        self.yum_entries = [] if err else (entries or [])  # an extra: when it cannot be read, no banner
+        self._yum_shown = None
+        self._show_yum()
+
+    def _yum_used_aliases(self):
+        return [r["alias"] for r in self.repos] + [a.target for a in self.ctx.queue.of("repo-add")]
+
+    def _yum_missing(self):
+        queued = [a.opts.get("url") or "" for a in self.ctx.queue.of("repo-add")]
+        return yumrepos.missing(self.yum_entries, self.ctx.settings.get("yum_dismissed", []), queued)
+
+    def _show_yum(self):
+        """One banner for each repository for Fedora that zypper does not have, that is not waiting in the queue
+        and that was not put aside with “Not now”. Rebuilt only when that list changes."""
+        want = self._yum_missing()
+        state = [(e["id"], e["id"] in self._yum_busy) for e in want]
+        if state == self._yum_shown:
+            return
+        self._yum_shown = state
+        from .repotools import YumBanner, commands_of, yum_action
+        while self.yum_lay.count():
+            w = self.yum_lay.takeAt(0).widget()
+            if w is not None:  # it may be the banner whose button is being clicked: deleted afterwards
+                w.hide()
+                w.deleteLater()
+        used = self._yum_used_aliases()
+        for e in want:
+            banner = YumBanner(e, "\n".join(commands_of([yum_action(e, used)])), e["id"] in self._yum_busy,
+                               self.yum_box)
+            banner.add.connect(self._yum_add)
+            banner.dismiss.connect(self._yum_dismiss)
+            self.yum_lay.addWidget(banner)
+        self.yum_box.setVisible(bool(want))
+
+    def _yum_dismiss(self, entry):
+        """“Not now”: this section of this file gets no banner again."""
+        dismissed = list(self.ctx.settings.get("yum_dismissed", []))
+        if entry["id"] not in dismissed:
+            dismissed.append(entry["id"])
+        self.ctx.settings["yum_dismissed"] = dismissed
+        self.ctx.settings.save()
+        self._show_yum()
+
+    def _yum_add(self, entry):
+        """“Add it to zypper”: read its signing keys first (from the file the package installed, or from its https
+        address), in a thread; then ask, or put it straight in the queue when there is nothing to ask."""
+        if entry["id"] in self._yum_busy:
+            return
+        self._yum_busy.add(entry["id"])
+        self._show_yum()
+        queued = [a.target for a in self.ctx.queue.of("key-import")]
+        run_async(yumrepos.prepare_keys, entry, queued,
+                  on_done=lambda res, err, e=entry: self._yum_keys_ready(e, res, err))
+
+    def _yum_keys_ready(self, entry, prep, err):
+        self._yum_busy.discard(entry["id"])
+        try:
+            if err:
+                prep = {"import": [], "have": [], "problems": [(" ".join(k["url"] for k in entry["gpgkeys"]),
+                                                                str(err))]}
+            if any(a.kind == "repo-add" and yumrepos.norm_url(a.opts.get("url") or "") ==
+                   yumrepos.norm_url(entry["url"]) for a in self.ctx.queue.actions):
+                return  # it went to the queue meanwhile
+            from .. import keys as keyring
+            from .repotools import yum_action, yum_question
+            action = yum_action(entry, self._yum_used_aliases())
+            kw = yum_question(entry, prep, action, lambda fpr: str(keyring.key_dir() / f"{fpr}.asc"))
+            if kw is None:
+                self.ctx.queue.add(action)
+                return
+            title, yes = kw.pop("title"), kw.pop("yes")
+            if not confirm(self, title, yes, **kw):
+                return
+            imports = []
+            try:
+                for k in prep["import"]:
+                    path = keyring.save_for_import(k["data"], k["fpr"])
+                    imports.append(Action("key-import", k["fpr"], path=path, for_repo=action.target,
+                                          name=k["name"] or k["email"] or k["fpr"][-8:]))
+            except (OSError, ValueError) as e:
+                error_box(self, title, str(e))
+                return
+            with self.ctx.queue.batch():
+                for a in imports:
+                    self.ctx.queue.add(a)
+                self.ctx.queue.add(action)
+        finally:
+            self._show_yum()
+
     def search_online(self):
         """Look for a repository on OBS, Fedora COPR or Flathub (the dialog lives in findrepo.py)."""
         try:
@@ -1128,8 +1238,39 @@ class ReposPage(Page):
 
     def remove_repo(self):
         r = self._selected()
-        if r and ask(self, _("Remove"), _("Queue the removal of the repository {name}?").format(name=r["name"])):
-            self.ctx.queue.add(Action("repo-remove", r["alias"]))
+        if not r:
+            info_box(self, _("Remove"), _("Choose a repository first."))
+            return
+        from .repotools import commands_of
+        remove = Action("repo-remove", r["alias"])
+        buttons = [("no", _("Not yet"), False)]
+        if r["enabled"]:
+            buttons.append(("disable", _("Disable it instead"), False))
+        buttons.append(("yes", _("Queue the removal"), True))
+        warning = None
+        if r["service"]:
+            warning = _("It belongs to the service {service}: the next time the service is refreshed, it adds the "
+                        "repository again. Disable it instead.").format(service=r["service"])
+        answer = ask_change(
+            self, _("Remove the repository «{name}»?").format(name=r["name"]),
+            icon_name="list-remove|edit-delete",
+            items=[("folder-cloud|repository|folder-download",
+                    _("Remove the repository «{name}»").format(name=r["name"]), r["url"])],
+            means=" ".join([
+                _("zypper will no longer look there for programs or updates. What you installed from it stays "
+                  "installed, but it gets no more updates from there."),
+                *([_("Disabling it instead keeps it in the list, to turn it on again later.")] if r["enabled"] else []),
+                _("Nothing changes until you apply the queue.")]),
+            warning=warning,
+            commands_=[(_("Queue the removal"), commands_of([remove])),
+                       (_("Disable it instead"), commands_of([Action("repo-modify", r["alias"], enabled=False)]))]
+            if r["enabled"] else commands_of([remove]),
+            password=False,  # it only goes to the queue
+            buttons=buttons)
+        if answer == "yes":
+            self.ctx.queue.add(remove)
+        elif answer == "disable":
+            self._queue_change(r, "enabled", False)
 
     def refresh_selected(self):
         r = self._selected()
@@ -1138,10 +1279,20 @@ class ReposPage(Page):
                          _("Refresh {name}").format(name=r["name"]))
 
     def clean_cache(self):
-        if ask(self, _("Clean the cache"), _("Delete the downloaded packages and the cached metadata of every "
-                                             "repository? They will be downloaded again when needed."),
-               default_no=True):
-            self.ctx.run([Step("zypper", ["clean", "--all"])], _("Clean the cache"))
+        step = Step("zypper", ["clean", "--all"])
+        if confirm(
+                self, _("Clean the cache of every repository?"), _("Clean the cache"),
+                icon_name="edit-clear",
+                items=[("package-x-generic|application-x-rpm", _("Delete the downloaded packages"),
+                        _("The packages zypper keeps: those of repositories set to keep them, and those downloaded "
+                          "ahead for the next update.")),
+                       ("view-refresh", _("Delete the lists of packages of every repository"),
+                        _("zypper downloads them again the next time it refreshes."))],
+                means=_("It frees disk space and changes nothing that is installed. The next refresh and the next "
+                        "update take a little longer, because they download all this again."),
+                commands_=[step.display()],
+                password=step.root):  # it runs now, as root
+            self.ctx.run([step], _("Clean the cache"))
 
     def import_key(self):
         from .keys import open_import_dialog

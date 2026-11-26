@@ -23,6 +23,11 @@ DEFAULTS = {
     "notify_firmware": True,
     "tray_autostart": True,
     "tray_autostart_done": False,
+    # "Remind me tomorrow" before a big upgrade or one with many problems: a Unix time, 0 = none. The tray
+    # icon (tray.py) notifies once it is past, then sets it back to 0.
+    "update_reminder_at": 0,
+    # repositories for Fedora (/etc/yum.repos.d) whose banner was answered "Not now": "<file>#<section>"
+    "yum_dismissed": [],
 }
 
 

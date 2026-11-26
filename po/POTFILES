@@ -4,10 +4,13 @@ zypp_desk/app.py
 zypp_desk/appicons.py
 zypp_desk/apps.py
 zypp_desk/backend.py
+zypp_desk/bridge.py
 zypp_desk/cleandeps.py
+zypp_desk/diskspace.py
 zypp_desk/explain.py
 zypp_desk/firmware.py
 zypp_desk/flatpak.py
+zypp_desk/heaps.py
 zypp_desk/i18n.py
 zypp_desk/keys.py
 zypp_desk/localrpm.py
@@ -15,6 +18,7 @@ zypp_desk/mainwindow.py
 zypp_desk/online.py
 zypp_desk/pages/__init__.py
 zypp_desk/pages/apps.py
+zypp_desk/pages/bridges.py
 zypp_desk/pages/findrepo.py
 zypp_desk/pages/flatpak.py
 zypp_desk/pages/history.py
@@ -33,9 +37,13 @@ zypp_desk/pages/system.py
 zypp_desk/pages/updates.py
 zypp_desk/pages/websources.py
 zypp_desk/pages/zyppconf.py
+zypp_desk/problemgroups.py
+zypp_desk/question.py
 zypp_desk/repocheck.py
 zypp_desk/repoprio.py
+zypp_desk/repostate.py
 zypp_desk/routine.py
+zypp_desk/rpmwrite.py
 zypp_desk/runner.py
 zypp_desk/settings.py
 zypp_desk/simulation.py
@@ -47,4 +55,5 @@ zypp_desk/tray.py
 zypp_desk/txqueue.py
 zypp_desk/ui.py
 zypp_desk/websources.py
+zypp_desk/yumrepos.py
 zypp_desk/zyppconf.py

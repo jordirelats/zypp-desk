@@ -10,6 +10,10 @@ signature goes to the queue only after a clear question.
 
 When the file was built by the openSUSE Build Service, the window offers to add the project's repository (then
 the routine keeps the program up to date) and, when the key is missing, to import the project's key.
+
+A file made for Fedora may ask for things openSUSE has under other names (fontpackages-filesystem is filesystem
+here): bridge.analyse finds them, and adding the file to the queue offers to make a bridge package for it
+(pages/bridges.py), which goes to the queue with it.
 """
 
 import os
@@ -21,13 +25,14 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QFrame, QGridLayout, QHBoxLay
                                QListWidgetItem, QMessageBox, QPlainTextEdit, QScrollArea, QSplitter, QStyle,
                                QStyledItemDelegate, QVBoxLayout, QWidget)
 
-from .. import backend, localrpm
+from .. import backend, bridge, localrpm, websources
 from ..i18n import _, ngettext
 from ..runner import Step
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action, TxQueue
-from ..ui import ask, button, heading, hline, icon, info_box, mono, muted, plain
+from ..ui import ask, button, error_box, heading, hline, icon, info_box, mono, muted, plain
+from . import bridges as bridgeui
 from .websources import fmt_size, home_short, local_state
 
 GREY = "#7f8c8d"
@@ -162,6 +167,13 @@ def verdict(it):
     sig = info["signature"]
     if sig.startswith("nokey:"):
         return ORANGE, (_("key in the queue") if it.get("key_queued") else _("key missing")), False
+    if it.get("plan_busy"):
+        return GREY, _("looking at what it needs…"), False
+    plan = it.get("plan") or {}
+    if plan.get("unmapped"):
+        return ORANGE, _("openSUSE lacks something it needs"), True
+    if plan.get("needs_bridge"):
+        return ORANGE, _("needs a bridge package"), True
     if sig == "unsigned":
         return ORANGE, (_("older, not signed") if info["compare"] == "older" else _("not signed")), True
     if info["compare"] == "older":
@@ -227,7 +239,7 @@ class LocalRpmDialog(QDialog):
             if p and p not in seen:
                 seen.add(p)
                 self.items.append({"path": p, "info": None, "error": None, "obs": None, "obs_check": None,
-                                   "key_queued": False, "busy": False})
+                                   "key_queued": False, "busy": False, "plan": None, "plan_busy": False})
         self.multi = len(self.items) > 1
         # freed when it closes (the window opens it with exec() and keeps no reference); answers that arrive later
         # see _closed and do nothing
@@ -380,8 +392,20 @@ class LocalRpmDialog(QDialog):
             if obs:
                 keyid = res["keyid"] if res["signature"].startswith("nokey:") else ""
                 run_async(localrpm.check_obs, obs, keyid, on_done=lambda r, e, it=it: self._obs_checked(it, r, e))
+            if not res["refuse"] and res["compare"] != "same" and res["missing"]:
+                # something it asks for is not on this computer: the repositories, or another name (a bridge)
+                it["plan_busy"] = True
+                run_async(bridge.analyse, res, os.path.expanduser(self.folder or ""),
+                          on_done=lambda r, e, it=it: self._planned(it, r, e))
         self._redraw(it)
         self._read_next()
+
+    def _planned(self, it, res, err):
+        if self._closed:
+            return
+        it["plan_busy"] = False
+        it["plan"] = res if not err and res else {"error": str(err or "?")}
+        self._redraw(it)
 
     def _obs_checked(self, it, res, err):
         if self._closed:
@@ -470,14 +494,23 @@ class LocalRpmDialog(QDialog):
         info = it["info"]
         return Action("install", info["path"], package=info["name"], sha256=info["sha256"],
                       allow_unsigned=info["signature"] == "unsigned", oldpackage=info["compare"] == "older",
-                      copy_to=self._copy_to(it))
+                      copy_to=self._copy_to(it), keyid=info.get("keyid") or "")  # keyid: the review links the key
 
     def _command(self, it):
-        """The exact zypper command for this file alone (the queue joins it with the other installs)."""
+        """The exact zypper command for this file alone (the queue joins it with the other installs); with a
+        bridge, the bridge Zypp Desk writes first and the command that installs both."""
+        plan = it.get("plan") or {}
+        if plan.get("needs_bridge"):
+            return "\n".join(f"{i}. {c}" for i, c in enumerate(
+                bridgeui.commands_for(plan, self._action(it), self.ctx.settings), 1))
         q = TxQueue(self.ctx.settings)
         q.actions = [self._action(it)]
         args = q.package_args()
         return Step("zypper", ["-n", *args[0]]).display() if args else ""
+
+    def _bridge_folder(self):
+        """Where Apply moves a bridge: the folder of programs from the web (a local zypper repository)."""
+        return self.folder or self._page_folder() or "~/RPM"
 
     def _queueable(self):
         if self.multi:
@@ -487,7 +520,7 @@ class LocalRpmDialog(QDialog):
 
     def _update_buttons(self):
         ready = self._queueable()
-        reading = any(it["info"] is None and not it["error"] for it in self.items)
+        reading = any((it["info"] is None and not it["error"]) or it.get("plan_busy") for it in self.items)
         ok = bool(ready) and not (self.multi and reading)
         self.b_add.setEnabled(ok)
         self.b_sim.setEnabled(ok)
@@ -513,9 +546,28 @@ class LocalRpmDialog(QDialog):
         if unsigned or (self.multi and older):
             if not self._confirm(unsigned, older):
                 return
+        # a program made for Fedora that needs a bridge: the question of the bridge, one file after the other
+        bridged = [it for it in targets if (it.get("plan") or {}).get("needs_bridge")]
+        for it in bridged:
+            if not bridgeui.ask_bridge(self, it["plan"], it["info"], self._action(it), self.ctx.settings,
+                                       self._bridge_folder()):
+                return
+        built = {}
+        folder = os.path.expanduser(self._bridge_folder())
+        for it in bridged:  # written first: if one cannot be written, nothing goes to the queue
+            try:
+                built[id(it)] = bridge.build_bridge(it["plan"], str(websources.download_dir()), web_folder=folder)
+            except (OSError, ValueError) as e:
+                error_box(self, _("Bridge package"), _("The bridge package could not be written: {error}").format(
+                    error=e))
+                return
         with self.ctx.queue.batch():
             for it in targets:
-                self.ctx.queue.add(self._action(it))
+                if id(it) in built:
+                    for a in bridgeui.bridge_actions(it["plan"], self._action(it), folder, built[id(it)]):
+                        self.ctx.queue.add(a)
+                else:
+                    self.ctx.queue.add(self._action(it))
         if not self.copy_row.isHidden() and self.copy.isEnabled():
             self.ctx.settings["local_rpm_keep_copy"] = self.copy.isChecked()
             self.ctx.settings.save()
@@ -755,7 +807,7 @@ class LocalRpmDialog(QDialog):
                 lbl.setToolTip(info["signer_name"])
                 add(_("Signature"), lbl)
             if not info["refuse"]:
-                add(_("Needs"), *self._needs_labels(info))
+                add(_("Needs"), *self._needs_labels(it))
         v.addLayout(grid)
 
         # what stops it, or what to know before installing it
@@ -763,7 +815,8 @@ class LocalRpmDialog(QDialog):
             v.addWidget(note)
 
         if verdict(it)[2]:
-            v.addWidget(muted(_("Command that will run:")))
+            v.addWidget(muted(_("The commands it will use, in this order:") if (it.get("plan") or {}).get(
+                "needs_bridge") else _("Command that will run:")))
             v.addWidget(_CommandView(self._command(it)))
 
     def _installed_label(self, info):
@@ -777,7 +830,8 @@ class LocalRpmDialog(QDialog):
                 version=have))
         return _label(_("version {version}, newer than this file").format(version=have), color=ORANGE)
 
-    def _needs_labels(self, info):
+    def _needs_labels(self, it):
+        info = it["info"]
         out = []
         have = sorted(info["provided"], key=str.lower)
         if not have and not info["missing"]:
@@ -801,6 +855,12 @@ class LocalRpmDialog(QDialog):
                 h.addWidget(ok)
                 h.addStretch(1)
                 out.append(row)
+        plan = it.get("plan")
+        if it.get("plan_busy"):
+            out.append(muted(_("Looking in your repositories for what you do not have…")))
+            return out
+        if plan and not plan.get("error"):
+            return out + self._plan_labels(plan)
         miss = info["missing"]
         if miss:
             shown = ", ".join(miss[:MAX_MISSING]) + (" …" if len(miss) > MAX_MISSING else "")
@@ -813,12 +873,80 @@ class LocalRpmDialog(QDialog):
             out.append(lbl)
         return out
 
+    @staticmethod
+    def _short_list(items, most=MAX_MISSING):
+        return ", ".join(items[:most]) + (" …" if len(items) > most else "")
+
+    def _plan_labels(self, plan):
+        """The lines of "Needs" once bridge.analyse has looked: what the repositories have, what a bridge says
+        (or will say), and what openSUSE does not have."""
+        out = []
+        if plan["available"]:
+            lbl = _label(ngettext("{list}: your repositories have it; zypper installs it with the program.",
+                                  "{list}: your repositories have them; zypper installs them with the program.",
+                                  len(plan["available"])).format(list=self._short_list(plan["available"])),
+                         color=GREEN)
+            lbl.setToolTip("\n".join(plan["available"]))
+            out.append(lbl)
+        if plan["kept"]:
+            names = [m["text"] for m in plan["kept"]]
+            out.append(_label(_("{list}: your bridge {bridge} says openSUSE has it.").format(
+                list=self._short_list(names), bridge=plan["kept"][0].get("bridge") or plan["bridge_name"]),
+                color=GREEN))
+        if plan["mapped"]:
+            lines = ["{fedora} → {opensuse}".format(fedora=m["text"], opensuse=", ".join(
+                t["name"] for t in m["targets"])) for m in plan["mapped"]]
+            short = bridgeui.system_words(plan)[1]
+            out.append(_label((ngettext("{n} thing by its {system} name; openSUSE calls it:",
+                                        "{n} things by their {system} names; openSUSE calls them:",
+                                        len(lines)) if short else
+                               ngettext("{n} thing under another name; openSUSE calls it:",
+                                        "{n} things under other names; openSUSE calls them:", len(lines)))
+                              .format(n=len(lines), system=short) + "\n" + "\n".join(lines), color=ORANGE))
+        if plan["unmapped"]:
+            missing = [r for r, _w in plan["unmapped"]]
+            lbl = _label(ngettext("✗ openSUSE does not have: {list}", "✗ openSUSE does not have: {list}",
+                                  len(missing)).format(list=self._short_list(missing)), color=RED)
+            lbl.setToolTip("\n".join(f"{r}: {w}" for r, w in plan["unmapped"]))
+            out.append(lbl)
+        if not out:
+            out.append(_label(_("nothing that you do not have already")))
+        return out
+
+    def _plan_notes(self, it):
+        plan = it.get("plan") or {}
+        if plan.get("error") or not (plan.get("mapped") or plan.get("unmapped")):
+            return []
+        if plan["unmapped"]:
+            lines = "\n".join(f"• {r}: {w}" for r, w in plan["unmapped"])
+            return [_Note(RED, "dialog-error", _("openSUSE does not have everything it asks for"), lines + "\n\n" + _(
+                "zypper will not be able to install it as it is, and a bridge package cannot help: openSUSE has "
+                "these things under no name Zypp Desk knows. Look for a version of the program made for "
+                "openSUSE."))]
+        n = len(plan["mapped"])
+        short = bridgeui.system_words(plan)[1]
+        text = (ngettext("It asks for {n} thing by its {system} name, which openSUSE has under another name.",
+                         "It asks for {n} things by their {system} names, which openSUSE has under other names.", n)
+                if short else
+                ngettext("It asks for {n} thing under a name openSUSE does not use; openSUSE has it under another "
+                         "name.", "It asks for {n} things under names openSUSE does not use; openSUSE has them "
+                         "under other names.", n)).format(n=n, system=short)
+        if plan.get("bridge"):
+            text += " " + _("Your bridge {name} does not cover this version: adding it to the queue offers to make "
+                            "release {release} of it.").format(name=plan["bridge"]["name"], release=plan["release"])
+        else:
+            text += " " + _("Adding it to the queue offers to make a bridge package ({name}): a small empty package "
+                            "that tells zypper so.").format(name=plan["bridge_name"])
+        return [_Note(ORANGE, "dialog-information", bridgeui._title(plan), text)]
+
     def _notes(self, it):
         info, obs, chk = it["info"], it["obs"], it.get("obs_check")
         notes = []
         if info["refuse"]:
             notes.append(_Note(RED, "dialog-error", _("This file cannot be installed"), info["refuse"]))
             return notes
+        if info["compare"] != "same":
+            notes += self._plan_notes(it)
         # nothing to install (the same version): its signature does not matter
         sig = info["signature"] if info["compare"] != "same" else ""
         key8 = (info["keyid"] or sig[6:])[-8:].upper()
@@ -852,6 +980,9 @@ class LocalRpmDialog(QDialog):
                 else:
                     text += " " + _("Get the key from the official web site of whoever made it, check its fingerprint "
                                     "there and import it (Signing keys → Import a key…). Then press Check again.")
+                    if bridge.system_of(info)[0] == "fedora":
+                        text += " " + _("Fedora publishes its keys, with their fingerprints, at {url}.").format(
+                            url="https://fedoraproject.org/security/")
                 notes.append(_Note(ORANGE, "security-medium|dialog-warning",
                                    _("It is signed, but you do not have the key ({key})").format(key=key8), text,
                                    buttons + [again]))

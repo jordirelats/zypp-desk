@@ -39,6 +39,14 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
+    <release version="0.5.0" date="2026-11-26">
+      <description>
+        <p>Questions in plain words with the exact commands underneath, a clearer queue review, a big upgrade
+          that asks whether it is worth waiting, upgrades in parts when the disk is nearly full, dependency
+          problems grouped by cause, bridge packages for RPMs made for Fedora, and repositories for Fedora
+          that zypper did not see.</p>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-11-26">
       <description>
         <p>Fixes from a review from six points of view: safer solutions to dependency problems and dup window,

@@ -651,9 +651,10 @@ class ImportKeyDialog(QDialog):
 
     MODES = ("url", "file", "fpr")
 
-    def __init__(self, ctx, parent=None, url="", fingerprint="", hint=""):
+    def __init__(self, ctx, parent=None, url="", fingerprint="", hint="", for_repo=""):
         super().__init__(parent)
         self.ctx = ctx
+        self.for_repo = for_repo  # the alias of the repository that needs this key (the queue review shows it)
         self.data = None
         self.found = None
         self._round = 0
@@ -1021,7 +1022,9 @@ class ImportKeyDialog(QDialog):
         except (OSError, ValueError) as e:
             error_box(self, self.windowTitle(), str(e))
             return
-        self.ctx.queue.add(Action("key-import", k["fpr"], path=path, name=k["name"] or k["email"] or k["fpr"][-8:]))
+        link = {"for_repo": self.for_repo} if self.for_repo else {}
+        self.ctx.queue.add(Action("key-import", k["fpr"], path=path, name=k["name"] or k["email"] or k["fpr"][-8:],
+                                  **link))
         self.accept()
 
     def done(self, r):
@@ -1030,7 +1033,7 @@ class ImportKeyDialog(QDialog):
 
 
 def open_import_dialog(ctx, parent=None, **kw):
-    """Open the import dialog (url=, fingerprint=, hint=); True when a key was put in the queue."""
+    """Open the import dialog (url=, fingerprint=, hint=, for_repo=); True when a key was put in the queue."""
     d = ImportKeyDialog(ctx, parent, **kw)
     try:
         return d.exec() == QDialog.DialogCode.Accepted

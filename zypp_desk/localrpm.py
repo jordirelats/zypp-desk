@@ -126,6 +126,9 @@ def _op(flags):
             SENSE_GREATER | SENSE_EQUAL: ">="}.get(flags & (SENSE_LESS | SENSE_GREATER | SENSE_EQUAL), "")
 
 
+op_text = _op  # also used by bridge.py
+
+
 def _without_release(ed):
     epoch, sep, rest = ed.rpartition(":")
     return epoch + sep + rest.split("-")[0]
@@ -144,23 +147,39 @@ def _satisfies(pflags, pver, rflags, rver):
     return bool((c < 0 and rop & SENSE_LESS) or (c == 0 and rop & SENSE_EQUAL) or (c > 0 and rop & SENSE_GREATER))
 
 
+satisfies = _satisfies  # also used by bridge.py
+
+
 def requirements(head):
-    """What the package needs, without rpm's own features (rpmlib(…)), file paths and what it brings itself.
+    """What the package needs, without rpm's own features (rpmlib(…)) and what it brings itself.
 
     Returns (provided, missing): provided = {installed package: [capabilities]}; missing = [capability text]
-    that no installed package gives: zypper will look for them in the repositories.
+    that no installed package gives: zypper will look for them in the repositories. A file path counts as
+    missing when no installed package owns or provides it (a program made for Fedora may ask for /usr/sbin/…).
     """
     own = set(head["provides"])
-    reqs, seen = [], set()
+    reqs, seen, paths = [], set(), []
     for name, flags, ver in head["requires"]:
-        if not name or name.startswith("/") or name.startswith("rpmlib(") or flags & SENSE_RPMLIB or name in own:
+        if not name or name.startswith("rpmlib(") or flags & SENSE_RPMLIB or name in own:
+            continue
+        if name.startswith("/"):
+            if name not in paths:
+                paths.append(name)
             continue
         key = (name, flags & 0x0E, ver)
         if key not in seen:
             seen.add(key)
             reqs.append((name, flags, ver))
+    provided, missing = {}, []
+    for path in paths:  # one rpm call each: rpm prints one line per owner, and none says which path it was for
+        p = _rpm(["-q", "--whatprovides", "--qf", "%{NAME}\n", "--", path])
+        owners = sorted({x.strip() for x in p.stdout.splitlines() if x.strip()}) if p.returncode == 0 else []
+        if owners:
+            provided.setdefault(owners[0], []).append(path)
+        else:
+            missing.append(path)
     if not reqs:
-        return {}, []
+        return provided, missing
     names = sorted({n for n, _f, _v in reqs})
     p = _rpm(["-q", "--whatprovides", "--qf", "[%{=NAME}\t%{PROVIDENAME}\t%{PROVIDEFLAGS}\t%{PROVIDEVERSION}\n]",
               "--", *names])
@@ -173,7 +192,6 @@ def requirements(head):
             except ValueError:
                 pflags = 0
             offers.setdefault(f[1], []).append((f[0], pflags, f[3]))
-    provided, missing = {}, []
     for name, flags, ver in reqs:
         who = [pkg for pkg, pflags, pver in offers.get(name, []) if _satisfies(pflags, pver, flags, ver)]
         if who:
@@ -231,7 +249,8 @@ def read_rpm(path):
     built_for (the OBS repository it was built for, or ''), installed (editions), installed_evr (the newest),
     compare ('not-installed', 'newer', 'same', 'older'), signature ('verified', 'nokey:<id>', 'unsigned', 'bad'),
     keyid (upper case; the long id from the header when there is one), signer_name, digests_ok,
-    provided ({package: [capabilities]}), missing ([capabilities]).
+    provided ({package: [capabilities]}), missing ([capabilities]), requires ([(name, flags, version)]),
+    provides_list ([names]).
     """
     path = os.path.abspath(path)
     info = {"path": path, "file_name": os.path.basename(path), "file_size": 0, "sha256": "", "refuse": None,
@@ -239,7 +258,8 @@ def read_rpm(path):
             "description": "", "url": "", "vendor": "", "packager": "", "license": "", "distribution": "",
             "disturl": "", "size": 0, "buildtime": 0, "built_for": "", "installed": [], "installed_evr": None,
             "compare": "not-installed", "signature": "", "keyid": "", "signer_name": "", "digests_ok": None,
-            "provided": {}, "missing": [], "source": False, "refuse_kind": None}
+            "provided": {}, "missing": [], "requires": [], "provides_list": [], "source": False,
+            "refuse_kind": None}
     low = path.lower()
     if not os.path.isfile(path):
         exists = os.path.exists(path)
@@ -306,6 +326,8 @@ def read_rpm(path):
         c = vercmp(info["evr"], newest)
         info["compare"] = "newer" if c > 0 else "older" if c < 0 else "same"
     info["provided"], info["missing"] = requirements(head)
+    # what it asks for and what it brings, as rpm writes them: bridge.analyse reads them
+    info["requires"], info["provides_list"] = head["requires"], head["provides"]
 
     try:
         changed = _stamp(path) != before

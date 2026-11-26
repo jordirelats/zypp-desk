@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Web sources: programs installed from RPM files downloaded from the web, and their new versions."""
+"""Web sources: programs installed from RPM files downloaded from the web, and their new versions.
+
+Under the list, "Bridge packages" (pages/bridges.py): the packages Zypp Desk made so that programs made for
+Fedora could be installed, and whether each one is still needed. A new version of a program from the web is
+looked at before it goes to the queue: when it asks for things by their Fedora names, the question of the
+bridge comes first, and the bridge (new, or a new release of it) goes to the queue with the program.
+"""
 
 import html
 import json
@@ -16,12 +22,13 @@ from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog
                                QLineEdit, QMessageBox, QPushButton, QSplitter, QTextBrowser, QToolButton,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, websources
+from .. import backend, bridge, websources
 from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Page, ask, button, error_box, info_box, muted, plain, tool
+from .bridges import BridgesBox, ask_bridge, ask_unmapped, queue_bridge
 
 GREY = "#7f8c8d"
 SIG_TEXT = {
@@ -424,6 +431,8 @@ class WebSourcesPage(Page):
                               "downloads them, checks them and puts them in the queue.")))
         lay.addLayout(fbar)
         lay.addWidget(split, 1)
+        self.bridges = BridgesBox(ctx, self)  # hidden while there is no bridge
+        lay.addWidget(self.bridges)
         self._show_folder()
 
     def header_actions(self):
@@ -438,6 +447,7 @@ class WebSourcesPage(Page):
         self.check_all()
         self._load_installed()
         run_async(local_state, on_done=self._local_loaded)
+        self.bridges.load()
 
     def _load_installed(self):
         """rpm -q for the rows that are not checked (not followed, or made here), never on the GUI thread."""
@@ -458,7 +468,8 @@ class WebSourcesPage(Page):
     def _local_loaded(self, res, err):
         if err or not res:
             return
-        self.local = res["packages"]
+        # the bridge packages live in the same folder, but they are not programs: they have their own list
+        self.local = {k: v for k, v in res["packages"].items() if not k.startswith(bridge.PREFIX)}
         self.folders = res["folders"]
         self.aliases = res.get("aliases", set())
         self._show_folder()
@@ -865,14 +876,21 @@ class WebSourcesPage(Page):
         run_async(websources.download, s, f, on_done=lambda res, err: self._downloaded(s, f, res, err))
 
     def _downloaded(self, s, f, res, err):
+        pending = False
         try:
-            self._handle_download(s, f, res, err)
+            pending = self._handle_download(s, f, res, err)
         finally:
-            self.downloading = False
-            self._dl_current = None
-            self._next_download()
+            if not pending:  # else the look at what it needs ends it (_bridge_checked)
+                self._download_done()
+
+    def _download_done(self):
+        self.downloading = False
+        self._dl_current = None
+        self._next_download()
 
     def _handle_download(self, s, f, res, err):
+        """Check a finished download and, when it is accepted, look at what it needs (in a thread) before it
+        goes to the queue. True while that look runs: it ends the download itself."""
         view = self.ctx.terminal.view
         if err:
             view.note(_("Download failed: {error}").format(error=err), "error")
@@ -972,7 +990,50 @@ class WebSourcesPage(Page):
         path = res["path"]
         view.note(_("Ready to install: {path}. After installing, it moves to {folder}.").format(
             path=path, folder=s["folder"]), "ok")
-        self.ctx.queue.add(Action("install", path, package=s["package"], allow_unsigned=allow_unsigned,
-                                  sha256=res["file_sha256"], move_to=s["folder"]))
+        action = Action("install", path, package=s["package"], allow_unsigned=allow_unsigned,
+                        sha256=res["file_sha256"], move_to=s["folder"], signer=res.get("signer") or "")
+        # a program made for Fedora may ask for things by their Fedora names (a bridge package, new or a new
+        # release of it): look before it goes to the queue
+        view.note(_("Looking at what it needs…"), "info")
+        run_async(bridge.analyse_file, path, os.path.expanduser(s["folder"]),
+                  on_done=lambda plan, e: self._bridge_checked(s, action, plan, e))
+        return True
+
+    def _bridge_checked(self, s, action, plan, err):
+        try:
+            self._queue_download(s, action, plan, err)
+        finally:
+            self._download_done()
+
+    def _queue_download(self, s, action, plan, err):
+        view = self.ctx.terminal.view
+        path = action.target
+        if err or not plan:
+            # the look failed (rpm or zypper): the program goes to the queue as before, Simulate tells the rest
+            view.note(_("Could not look at what it needs: {error}").format(error=err or "?"), "error")
+        elif plan.get("needs_bridge") or plan.get("unmapped"):
+            info = plan.get("file") or {"name": s["package"]}
+            if plan.get("unmapped"):
+                if not ask_unmapped(self, plan, info):
+                    os.unlink(path)
+                    view.note(_("Not accepted: the downloaded file was deleted."), "info")
+                    return
+            elif not ask_bridge(self, plan, info, action, self.ctx.settings, s["folder"]):
+                os.unlink(path)
+                view.note(_("Not accepted: the downloaded file was deleted."), "info")
+                return
+            else:
+                try:
+                    written = queue_bridge(self.ctx, plan, action, os.path.expanduser(s["folder"]))
+                except (OSError, ValueError) as e:
+                    os.unlink(path)
+                    error_box(self, self.title, _("The bridge package could not be written: {error}").format(
+                        error=e))
+                    return
+                view.note(_("Bridge package written: {path}").format(path=written), "ok")
+                self.sources_changed.emit()
+                view.note(_("Added to the queue with its bridge. Simulate it, then apply it."), "info")
+                return
+        self.ctx.queue.add(action)
         self.sources_changed.emit()
         view.note(_("Added to the queue. Simulate it, then apply it."), "info")

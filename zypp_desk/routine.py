@@ -67,7 +67,9 @@ def parse(text):
     for st in steps:
         if st.program != "zypper":
             continue
-        if {"-l", "--auto-agree-with-licenses"} & set(st.args):
+        sub, rest = _sub_args(st)
+        if {"-l", "--auto-agree-with-licenses"} & set(st.args) or (sub in LICENSE_SUBCOMMANDS and any(
+                x.startswith("-") and not x.startswith("--") and "l" in x[1:] for x in rest)):  # also -dl
             agreed = True
         elif agreed and _subcommand(st.args) in LICENSE_SUBCOMMANDS:
             st.args.append("--auto-agree-with-licenses")
@@ -159,7 +161,7 @@ def describe(step):
     if sub in ("ref", "refresh"):
         return kind_title("refresh")
     if sub in ("dup", "dist-upgrade"):
-        if "-d" in a or "--download-only" in a or "--download=only" in a:
+        if is_download_only(step):
             return _("Download the updates")
         return kind_title("dup")
     if sub in ("up", "update"):
@@ -171,6 +173,92 @@ def describe(step):
     if sub == "purge-kernels":
         return kind_title("purge-kernels")
     return "zypper " + sub
+
+
+# ------------------------------------------------------------------ this time in parts (little disk space)
+_DOWNLOADING = {"dup", "dist-upgrade", "up", "update", "patch"}
+
+
+def _sub_args(step):
+    """(subcommand, the arguments after it) of a zypper step, or ("", [])."""
+    if step.program != "zypper":
+        return "", []
+    a = step.args
+    for i, x in enumerate(a):
+        if not x.startswith("-"):
+            return x, a[i + 1:]
+    return "", []
+
+
+def is_download_only(step):
+    """True for a step like 'zypper dup -d' (also -dl, --download-only, --download only): it downloads the
+    update and installs nothing."""
+    sub, rest = _sub_args(step)
+    if sub not in _DOWNLOADING:
+        return False
+    for i, x in enumerate(rest):
+        if x in ("--download-only", "--download=only") or (x == "--download" and rest[i + 1:i + 2] == ["only"]):
+            return True
+        if x.startswith("-") and not x.startswith("--") and "d" in x[1:]:
+            return True
+    return False
+
+
+def split_for_parts(steps):
+    """The routine cut around its system update, for a run in parts (little disk space): dict(pre, dup, post,
+    join). pre: the steps before the first one that downloads or updates (the refresh); dup: its last 'zypper
+    dup' that installs; post: the steps after that one; join: how the update joined pre ('always' for ';',
+    'success' for '&&'). The download-only steps and other updates between them are
+    left out: the update in parts does their work. None when the routine has no 'zypper dup' that installs.
+    The saved routine does not change."""
+    first = next((i for i, st in enumerate(steps) if _sub_args(st)[0] in _DOWNLOADING), None)
+    last = next((i for i in range(len(steps) - 1, -1, -1)
+                 if _sub_args(steps[i])[0] in ("dup", "dist-upgrade") and not is_download_only(steps[i])), None)
+    if first is None or last is None:
+        return None
+    return dict(pre=list(steps[:first]), dup=steps[last], post=list(steps[last + 1:]), join=steps[first].cond)
+
+
+def dup_arguments(step):
+    """(the dup's simulation arguments, licenses): a routine's dup step as 'dist-upgrade' with its own options,
+    without -n, -v, -l, -y and the download options (the simulation adds --xmlout -n … --dry-run)."""
+    glob, sub_rest, seen_sub = [], [], False
+    licenses = False
+    skip = False
+    for x in step.args:
+        if skip:
+            skip = False
+            continue
+        if not seen_sub:
+            if not x.startswith("-"):
+                seen_sub = True
+                continue
+            if x in ("-n", "--non-interactive", "-v", "--verbose", "-q", "--quiet") or (
+                    not x.startswith("--") and set(x[1:]) <= set("nvq")):
+                continue
+            glob.append(x)
+            continue
+        if x in ("-l", "--auto-agree-with-licenses"):
+            licenses = True
+        elif x in ("-y", "--no-confirm", "--download-only", "--download-in-advance") or x.startswith("--download="):
+            continue
+        elif x == "--download":
+            skip = True
+        elif x.startswith("-") and not x.startswith("--") and set(x[1:]) <= set("dly"):
+            licenses = licenses or "l" in x
+        else:
+            sub_rest.append(x)
+    return [*glob, "dist-upgrade", *sub_rest], licenses
+
+
+def steps_text(steps):
+    """Steps written back as one line, the way a routine is written ('a ; b && c')."""
+    parts = []
+    for i, st in enumerate(steps):
+        if i:
+            parts.append("&&" if st.cond == "success" else ";")
+        parts.append(st.display())
+    return " ".join(parts)
 
 
 # ------------------------------------------------------------------ items (the graphical editor)

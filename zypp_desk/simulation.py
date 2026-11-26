@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QLabel, QPlain
 
 from .i18n import _, ngettext
 from .pages.problems import ProblemDialog
+from .problemgroups import MANY as MANY_PROBLEMS
 from .txqueue import Action
 from .ui import mono
 
@@ -725,6 +726,10 @@ class SimulationDialog(QDialog):
         self.chosen = []
         self.problem_label, self.problem_note, self.now = problem_label, problem_note, now
         solvable = [it for it in result.get("problem_items", []) if any(s["possible"] for s in it["solutions"])]
+        if len(result.get("problem_items", [])) >= MANY_PROBLEMS:
+            # many problems: the problem window groups them by cause and offers to wait, or to leave them as they
+            # are, even when zypper gave no solution that can be chosen here
+            solvable = solvable or list(result["problem_items"])
         self.setWindowTitle(_("Simulation"))
         self.resize(900, 640)
         lay = QVBoxLayout(self)
@@ -831,7 +836,10 @@ class SimulationDialog(QDialog):
                             note=self.problem_note, now=self.now)
         accepted = dlg.exec() == QDialog.DialogCode.Accepted
         chosen = dlg.chosen() if accepted else []
+        wait = getattr(dlg, "wait_requested", False)
         dlg.deleteLater()  # it has a parent: without this it would live as long as the window
         if accepted:
             self.chosen = chosen
             self.done(self.RESOLVE)
+        elif wait:  # "Wait and try again tomorrow": nothing changes, the reminder is set
+            self.reject()

@@ -1,16 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Repositories: the priority stepper of the cards, "Suggest an order…" and "Change the address…"."""
+"""Repositories: the priority stepper of the cards, "Suggest an order…", "Change the address…", and the banner of a
+repository left for Fedora (yumrepos.py) with its question."""
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QRadioButton, QScrollArea, QToolButton, QVBoxLayout, QWidget)
 
-from .. import repocheck, repoprio
+from .. import repocheck, repoprio, yumrepos
 from ..i18n import _, ngettext
-from ..style import GREEN, ORANGE, RED
+from ..question import label as plain_label
+from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
-from ..txqueue import Action
-from ..ui import button, error_box, heading, mono, muted, plain
+from ..txqueue import Action, TxQueue
+from ..ui import button, error_box, heading, icon, mono, muted, plain
 
 HOW_IT_WORKS = lambda: _(  # noqa: E731
     "Every repository has a priority, a number from 1 to 200. When a package is in more than one repository, "
@@ -500,3 +502,139 @@ class ChangeUrlDialog(QDialog):
         if not self.repo_file:
             self.repo_file = repoprio.new_address_file(self.repo, self.url())
         return self._make_action(self.url(), self.repo_file)
+
+
+# ------------------------------------------------------------------ a repository left for Fedora
+
+def yum_who(entry):
+    """What to call a repository for Fedora: the program that left it (ChatGPT), or its own name."""
+    return entry.get("program") or entry.get("name") or entry.get("section") or "?"
+
+
+def yum_action(entry, used):
+    """The repo-add for the queue: an alias from the section, free among used; the name the file gives it; the
+    address with $basearch replaced; refreshed automatically; the signature checks the file asks for; and the
+    priority of its kind (100 for a company's program)."""
+    alias = yumrepos.alias_for(entry["section"], used)
+    prio = repoprio.proposal({"alias": alias, "url": entry["url"], "name": entry["name"], "type": "rpm-md"})
+    return Action("repo-add", alias, url=entry["url"], name=entry["name"] or alias, priority=prio, autorefresh=True,
+                  gpg=entry["gpg"])
+
+
+def commands_of(actions):
+    """The exact commands of these actions, in the order the queue runs them."""
+    q = TxQueue({})
+    q.actions = list(actions)
+    return [st.display() for st in q.steps()]
+
+
+class YumBanner(QFrame):
+    """A repository for Fedora that zypper does not see: who left it, where it is, why it matters, the command that
+    adds it (small), and “Not now” / “Add it to zypper”. Every text is plain: names come from files."""
+
+    add = Signal(object)
+    dismiss = Signal(object)
+
+    def __init__(self, entry, command, busy=False, parent=None):
+        super().__init__(parent)
+        self.entry = entry
+        self.setObjectName("yumbanner")
+        self.setStyleSheet(f"QFrame#yumbanner {{ background: palette(base); border: 1px solid {BLUE}; "
+                           "border-radius: 10px; }")
+        h = QHBoxLayout(self)
+        h.setContentsMargins(14, 10, 12, 10)
+        h.setSpacing(14)
+        pic = QLabel(self)
+        pic.setPixmap(icon("folder-cloud", "repository", "folder-download").pixmap(36, 36))
+        pic.setFixedSize(36, 36)
+        h.addWidget(pic, 0, Qt.AlignmentFlag.AlignVCenter)
+        v = QVBoxLayout()
+        v.setSpacing(2)
+        who = yum_who(entry)
+        if entry.get("package"):
+            title = _("The program «{program}» left a repository for Fedora").format(program=who)
+            text = _("It is in {path}, where zypper doesn't look: unless it is added to zypper, {program} will never "
+                     "update.").format(path=entry["file"], program=who)
+        else:
+            title = _("There is a repository for Fedora that zypper does not see: «{name}»").format(name=who)
+            text = _("It is in {path}, where zypper doesn't look: unless it is added to zypper, what it brings will "
+                     "never update.").format(path=entry["file"])
+        t = plain_label(title, bold=True)
+        t.setToolTip("\n".join(x for x in (entry.get("name"), entry.get("url"),
+                                           _("Package: {name}").format(name=entry["package"])
+                                           if entry.get("package") else "") if x))
+        v.addWidget(t)
+        v.addWidget(plain_label(text, muted=True))
+        from .localrpm import _CommandView  # the exact command, wrapped anywhere (addresses have no spaces)
+        self.cmd = _CommandView(command, self)
+        v.addWidget(self.cmd)
+        h.addLayout(v, 1)
+        self.b_later = button(_("Not now"), None, lambda: self.dismiss.emit(self.entry))
+        self.b_later.setToolTip(_("Do not show it again. Nothing is changed."))
+        self.b_add = button(_("Add it to zypper"), None, lambda: self.add.emit(self.entry), primary=True)
+        for b in (self.b_later, self.b_add):
+            b.setAutoDefault(False)
+            h.addWidget(b, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.set_busy(busy)
+
+    def set_busy(self, busy):
+        self.b_add.setEnabled(not busy)
+        self.b_later.setEnabled(not busy)
+        self.b_add.setText(_("Checking its key…") if busy else _("Add it to zypper"))
+
+
+def yum_question(entry, prep, action, key_path):
+    """The question before a repository for Fedora goes to the queue together with its signing keys: keyword
+    arguments for question.confirm (title and yes included). None when there is nothing to ask: no key to trust
+    and nothing to warn about (then the banner said it all).
+
+    prep: yumrepos.prepare_keys(); key_path(fpr): where the key will be kept for the helper (for the command)."""
+    from .. import keys as keyring
+    who = yum_who(entry)
+    warnings = []
+    if entry["gpg"] == "off":
+        warnings.append(_("The file says its packages are not signed: zypper will not be able to check that they "
+                          "come from {who}.").format(who=who))
+    elif not entry["gpgkeys"]:
+        warnings.append(_("The file names no signing key. The first time zypper reads the repository, it will ask "
+                          "whether to trust the key it finds there."))
+    for source, problem in prep["problems"]:
+        warnings.append(_("Its signing key could not be used ({source}): {problem} The first time zypper reads the "
+                          "repository, it will ask about the key.").format(source=source, problem=problem))
+    if not prep["import"] and not warnings:
+        return None
+    items = []
+    for k in prep["import"]:
+        if k.get("owner"):
+            where = _("It comes with the package {package}: {file}").format(package=k["owner"], file=k["path"])
+        elif k.get("path"):
+            where = _("From the file {file}").format(file=k["path"])
+        else:
+            where = _("Downloaded from {url}").format(url=k["source"])
+        items.append(("security-high|object-locked|dialog-password",
+                      _("Trust the signing key «{name}»").format(name=k["name"] or k["email"] or k["fpr"][-8:]),
+                      _("Fingerprint {fpr}").format(fpr=keyring.nice_fpr(k["fpr"])) + "\n" + where))
+    items.append(("folder-cloud|repository|folder-download",
+                  _("Add the repository «{name}»").format(name=entry["name"] or action.target),
+                  _("A new place to download {who} and its updates from: {url}").format(who=who, url=entry["url"])))
+    if prep["import"]:
+        note = _("A key lets rpm install as root anything signed with it.")
+        if all(k.get("owner") and k["owner"] == entry.get("package") for k in prep["import"]):
+            note += " " + _("This one came with {who}, which you already installed.").format(who=who)
+        warnings.insert(0, note)
+    imports = [Action("key-import", k["fpr"], path=key_path(k["fpr"]), for_repo=action.target,
+                      name=k["name"] or k["email"] or k["fpr"][-8:]) for k in prep["import"]]
+    n = len(imports) + 1
+    return {
+        "title": _("Add the repository of {who} to zypper?").format(who=who),
+        "yes": _("Add to the queue"),
+        "icon_name": "folder-cloud|repository|folder-download",
+        "lead": ngettext("Zypp Desk will put this in the queue:", "Zypp Desk will put this in the queue, in this "
+                         "order:", n),
+        "items": items,
+        "means": _("{who} will update with the rest of the system. Nothing changes now: it happens when you apply "
+                   "the queue.").format(who=who),
+        "warning": "\n\n".join(warnings),
+        "commands_": commands_of(imports + [action]),
+        "password": False,  # it only goes to the queue
+    }

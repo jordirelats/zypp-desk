@@ -353,6 +353,25 @@ def notification_text(result):
     return summary, "\n".join(lines)
 
 
+def reminder_due(settings, now=None):
+    """The time of the reminder when it is due (settings["update_reminder_at"] is set and past), else 0.
+
+    "Wait and try again tomorrow" (pages/problems.py) sets it when an upgrade has many problems that usually go
+    away by themselves, such as a repository that is a day or two late after a new Tumbleweed."""
+    try:
+        at = int(float(settings.get("update_reminder_at") or 0))
+    except (TypeError, ValueError, AttributeError):
+        return 0
+    return at if at > 0 and (now or time.time()) >= at else 0
+
+
+def reminder_text():
+    """(summary, body) of the reminder, in plain text."""
+    return (_("Time to try the update again"),
+            _("You asked Zypp Desk to remind you. Simulate the update again: the problems that fix themselves may "
+              "be gone by now."))
+
+
 def _state_path():
     base = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state")
     return base / "zypp-desk" / "tray.json"
@@ -933,6 +952,7 @@ class Tray(QObject):
         elif word == "reload":
             self._reload_settings()
             self._refresh_look()
+            self._check_reminder()
         elif word == "show":
             self._show_popup()
         elif word == "quit":
@@ -964,6 +984,7 @@ class Tray(QObject):
 
     def _on_tick(self):
         self._reload_settings()
+        self._check_reminder()
         if not self.checking and time.time() >= self.next_due():
             self.check_now()
 
@@ -1083,7 +1104,41 @@ class Tray(QObject):
             if not self.icon.isVisible():
                 return  # nowhere to say it: try again at the next check
             self.icon.showMessage(summary, body, self.base_icon, 20000)
-        save_state({"day": today, "count": c["total"], "time": time.time()})
+        state.update({"day": today, "count": c["total"], "time": time.time()})  # keeps "reminded"
+        save_state(state)
+
+    def _check_reminder(self):
+        """"Wait and try again tomorrow": once settings["update_reminder_at"] is past, say it (a click opens
+        Updates) and set it back to 0. The settings are read from disk each time: the window writes them, and it
+        may write the old time back later; the state file remembers which time was already told, so it is told
+        only once."""
+        try:
+            from .settings import Settings
+            at = reminder_due(Settings())
+        except Exception as e:
+            _log(f"cannot read the settings: {e}")
+            return
+        if not at:
+            return
+        if load_state().get("reminded") != at:
+            summary, body = reminder_text()
+            nid = self.notifier.send(summary, body, [("default", ""), ("updates", _("Open Updates"))],
+                                     notify_icon_name(), {"desktop-entry": APP_ID})
+            if nid is None:
+                if not self.icon.isVisible():
+                    return  # nowhere to say it yet: try again at the next tick
+                self.icon.showMessage(summary, body, self.base_icon, 30000)
+            state = load_state()
+            state["reminded"] = at
+            save_state(state)
+        try:
+            s = Settings()
+            if reminder_due(s) == at:  # a newer reminder set meanwhile stays
+                s["update_reminder_at"] = 0
+                s.save()
+            self.settings["update_reminder_at"] = s.get("update_reminder_at", 0)
+        except Exception as e:
+            _log(f"cannot save the settings: {e}")
 
     def _notification_action(self, key, token):
         if key == "routine":

@@ -5,6 +5,9 @@ It reads the rpm database as the user (one level: the packages this one requires
 else installed requires or recommends). --clean-deps only removes packages that were installed as dependencies
 (zypper lists them in /var/lib/zypp/AutoInstalled), never the ones you installed yourself, so only those count.
 zypper's simulation gives the exact list.
+
+Packages that leave together count as one: a program and its bridge package (bridge.py) do not keep each
+other's dependencies.
 """
 
 import os
@@ -37,10 +40,14 @@ def auto_installed(path=AUTO_INSTALLED):
         return set()
 
 
-def only_needed_by(name, auto=None):
-    """[(package, installed size)] of the packages that only `name` requires or recommends and that were
-    installed as dependencies (auto: those names; default: read AutoInstalled)."""
-    caps = _caps("-q", "--requires", name) + _caps("-q", "--recommends", name)
+def only_needed_by(name, auto=None, also=()):
+    """[(package, installed size)] of the packages that only `name` (and the packages in `also`, which leave
+    with it) requires or recommends and that were installed as dependencies (auto: those names; default: read
+    AutoInstalled)."""
+    leaving = {name, *also}
+    caps = []
+    for pkg in sorted(leaving):
+        caps += _caps("-q", "--requires", pkg) + _caps("-q", "--recommends", pkg)
     if not caps:
         return []
     auto = auto_installed() if auto is None else auto
@@ -48,7 +55,7 @@ def only_needed_by(name, auto=None):
     for line in _rpm("-q", "--whatprovides", "--qf", "%{NAME}\\n", *caps):
         if " " not in line and line in auto:  # "no package provides …"; installed by you: zypper keeps it
             providers.add(line)
-    providers.discard(name)
+    providers -= leaving
     out = []
     for dep in sorted(providers):
         provides = _caps("-q", "--provides", dep)
@@ -57,7 +64,7 @@ def only_needed_by(name, auto=None):
         users = set()
         for flag in ("--whatrequires", "--whatrecommends"):
             users.update(x for x in _rpm("-q", flag, "--qf", "%{NAME}\\n", *provides) if " " not in x)
-        users -= {name, dep}
+        users -= leaving | {dep}
         if not users:
             out.append((dep, size_of(dep)))
     return out
