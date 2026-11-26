@@ -11,6 +11,7 @@ Two tabs:
 import html
 import os
 import re
+import shlex
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer
@@ -19,7 +20,7 @@ from PySide6.QtWidgets import (QButtonGroup, QFrame, QGridLayout, QHBoxLayout, Q
                                QListWidget, QListWidgetItem, QScrollArea, QSizePolicy, QStackedWidget, QStyle,
                                QStyledItemDelegate, QToolButton, QVBoxLayout, QWidget)
 
-from .. import apps, appicons
+from .. import apps, appicons, webapps
 from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
@@ -217,7 +218,9 @@ class AppDelegate(QStyledItemDelegate):
         p.setFont(option.font)
         p.setPen(option.palette.color(QPalette.ColorRole.PlaceholderText))
         fm = QFontMetrics(option.font)
-        summary = a.get("summary") or a["package"]
+        summary = a.get("summary") or (
+            (a.get("host") or _("Web app of {browser}").format(browser=a["origin_name"])) if a["kind"] == "webapp"
+            else a["package"])
         p.drawText(QRect(tx, r.top() + 9 + bfm.height(), tw, fm.height()), Qt.AlignmentFlag.AlignLeft,
                    fm.elidedText(summary, Qt.TextElideMode.ElideRight, tw))
         p.restore()
@@ -360,6 +363,7 @@ class AppsPage(Page):
     def __init__(self, ctx, parent=None):
         super().__init__(ctx, parent)
         self.installed = []
+        self.webapps = []  # the web apps (PWA) of the browsers (webapps.py)
         self.updates = {"rpm": {}, "flatpak": {}}
         self.catalogue = []
         self.rpm_names, self.flatpak_ids = set(), set()
@@ -425,7 +429,7 @@ class AppsPage(Page):
         self.filter_group = QButtonGroup(self)
         self.filter_group.setExclusive(True)
         self.chips = {}
-        for key in ("all", "repo", "flatpak", "web", "updates"):
+        for key in ("all", "repo", "flatpak", "web", "webapp", "updates"):
             c = Chip("", key == "all", w)
             self.filter_group.addButton(c)
             c.toggled.connect(lambda on, k=key: on and self._fill_mine())
@@ -564,6 +568,7 @@ class AppsPage(Page):
             wait.setFlags(Qt.ItemFlag.NoItemFlags)
             self.mine_list.addItem(wait)
         run_async(apps.installed, on_done=self._installed_loaded)
+        run_async(webapps.scan, on_done=self._webapps_loaded)
         run_async(apps.updates, on_done=self._updates_loaded)
         run_async(apps.web_updates, on_done=self._web_updates_loaded)
         if self.catalogue:
@@ -582,6 +587,14 @@ class AppsPage(Page):
         self.mine_hint.hide()
         self._chip_texts()
         self._fill_mine()
+
+    def _webapps_loaded(self, res, err):
+        self.webapps = res or []
+        self._chip_texts()
+        self._fill_mine()
+
+    def _mine(self):
+        return self.installed + self.webapps
 
     def _updates_loaded(self, res, err):
         if res:
@@ -652,6 +665,15 @@ class AppsPage(Page):
             f = appicons.flatpak_icon_file(a["package"])
             if f:
                 ic = QIcon(f)
+        if ic.isNull() and a["kind"] == "webapp" and name:
+            # the browser writes the icon of each web app into the user's icon folder
+            base = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"),
+                                "icons", "hicolor")
+            for size in ("256x256", "128x128", "64x64", "48x48", "32x32"):
+                f = os.path.join(base, size, "apps", f"{name}.png")
+                if os.path.isfile(f):
+                    ic = QIcon(f)
+                    break
         if ic.isNull() and a["kind"] == "flatpak":
             # the icon the installed app exported (an app that left Flathub's catalogue has none there)
             for base in ("/var/lib/flatpak/exports/share/icons/hicolor",
@@ -673,6 +695,8 @@ class AppsPage(Page):
 
     def update_of(self, a):
         """The new version waiting for an installed program, or None."""
+        if a["kind"] == "webapp":
+            return None  # the browser updates its web apps by itself
         if a["kind"] == "flatpak":
             return self.updates["flatpak"].get(a["package"]) or None
         if a["origin"] == "web":
@@ -691,6 +715,8 @@ class AppsPage(Page):
         return a["package"] in (self.flatpak_ids if a["kind"] == "flatpak" else self.rpm_names)
 
     def origin_badge(self, a):
+        if a["kind"] == "webapp":
+            return (_("orphan"), ORANGE) if a["orphan"] else (a["origin_name"], a["color"])
         if a.get("catalogue"):
             return ("openSUSE", GREEN) if a["kind"] == "rpm" else (a["origin_name"], PURPLE)
         if a["origin"] == "flatpak":
@@ -717,6 +743,67 @@ class AppsPage(Page):
         text, color = self.origin_badge(a)
         out.append((text if len(text) <= 34 else text[:32] + "…", color, False))
         return out
+
+    # ------------------------------------------------------------ web apps of the browsers (webapps.py)
+    def _show_webapp(self, a):
+        rows = [(_("Browser"), html.escape(a["origin_name"] + (f" · {a['profile']}" if a["profile"] else "")))]
+        if a["host"]:
+            rows.append((_("Web"), html.escape(a["host"])))
+        if a["actions"]:
+            rows.append((_("In the menu"), html.escape(", ".join(a["actions"]))))
+        rows.append((_("Updates"), html.escape(_("done by the browser, by itself"))))
+        if a["orphan"]:
+            note = _("Its browser is no longer installed ({program}): the entry in the menu does not work any more "
+                     "and can be removed.").format(program=a["program"] or "?")
+        else:
+            note = _("Web apps are installed and updated by their browser. Zypp Desk shows them all together, from "
+                     "every browser, opens them and lets the browser remove them.")
+        self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "", rows, note)
+        btns = []
+        if a["orphan"]:
+            btns.append(button(_("Remove it from the menu…"), "edit-delete", lambda: self._remove_orphan(a)))
+        else:
+            btns.append(button(_("Open it"), "media-playback-start", lambda: self._start(webapps.open_command(a)),
+                               primary=True))
+            if a["manage"]:
+                btns.append(button(_("Remove it…"), "edit-delete", lambda: self._remove_webapp(a)))
+                btns.append(button(_("Manage them in {browser}").format(browser=a["origin_name"]),
+                                   "internet-web-browser", lambda: self._start(webapps.manage_command(a))))
+        self.mine_details.set_buttons(btns)
+
+    def _start(self, words):
+        from PySide6.QtCore import QProcess
+        if words:
+            QProcess.startDetached(words[0], words[1:])
+
+    def _remove_webapp(self, a):
+        from .. import question
+        if question.confirm(self, _("Remove {name}?").format(name=a["name"]),
+                            _("Open {browser}").format(browser=a["origin_name"]), icon_name="internet-web-browser",
+                            items=[("internet-web-browser", _("{browser} removes it").format(browser=a["origin_name"]),
+                                    _("Its page of apps ({page}) opens: there, right-click {name} and choose to "
+                                      "remove it.").format(page=a["manage"], name=a["name"]))],
+                            means=_("only the browser can remove a web app for good: if only the menu entry went, the "
+                                    "browser would write it again."),
+                            commands_=[" ".join(shlex.quote(w) for w in webapps.manage_command(a))],
+                            password=False, help_topic="programs"):
+            self._start(webapps.manage_command(a))
+
+    def _remove_orphan(self, a):
+        from PySide6.QtCore import QFile
+        from .. import question
+        files = webapps.leftovers(a)
+        if not question.confirm(self, _("Remove {name} from the menu?").format(name=a["name"]),
+                                _("Yes, move them to the trash"), icon_name="edit-delete",
+                                items=[("edit-delete", _("Move its menu entry and icons to the trash"),
+                                        ngettext("{n} file", "{n} files", len(files)).format(n=len(files)),
+                                        files)],
+                                means=_("its browser is gone, so the entry no longer opens anything. The trash keeps "
+                                        "the files until you empty it."), password=False, help_topic="programs"):
+            return
+        for f in files:
+            QFile.moveToTrash(f)
+        run_async(webapps.scan, on_done=self._webapps_loaded)
 
     # ------------------------------------------------------------ protected apps (protect.py)
     def is_protected(self, a):
@@ -771,15 +858,16 @@ class AppsPage(Page):
 
     # ------------------------------------------------------------ my applications
     def _origin_count(self, key):
+        mine = self._mine()
         if key == "all":
-            return len(self.installed)
+            return len(mine)
         if key == "updates":
-            return sum(1 for a in self.installed if self.update_of(a))
-        return sum(1 for a in self.installed if a["origin"] == key)
+            return sum(1 for a in mine if self.update_of(a))
+        return sum(1 for a in mine if a["origin"] == key)
 
     def _chip_texts(self):
         labels = {"all": _("All"), "repo": _("Repositories"), "flatpak": _("Flatpak"), "web": _("From the web"),
-                  "updates": _("With updates")}
+                  "webapp": _("Web apps"), "updates": _("With updates")}
         for key, c in self.chips.items():
             c.setText(f"{labels[key]}  {self._origin_count(key)}" if self.installed else labels[key])
 
@@ -789,7 +877,7 @@ class AppsPage(Page):
         cur = self.mine_list.currentItem()
         cur_id = cur.data(Qt.ItemDataRole.UserRole)["id"] if cur else None
         self.mine_list.clear()
-        for a in self.installed:
+        for a in self._mine():
             if key == "updates" and not self.update_of(a):
                 continue
             if key not in ("all", "updates") and a["origin"] != key:
@@ -809,6 +897,9 @@ class AppsPage(Page):
     def _show_installed(self, item):
         a = item.data(Qt.ItemDataRole.UserRole) if item else None
         if not a:
+            return
+        if a["kind"] == "webapp":
+            self._show_webapp(a)
             return
         new = self.update_of(a)
         state = self.queue_state(a)
@@ -837,7 +928,7 @@ class AppsPage(Page):
                      "published.")
         elif a["origin"] == "web":
             note = _("Web sources looks for new versions of this program.")
-        if self.is_protected(a):
+        if a["kind"] != "webapp" and self.is_protected(a):
             note = (note + "\n\n" if note else "") + _("Protected: Zypp Desk does not remove it until you stop "
                                                        "protecting it.")
         if state:

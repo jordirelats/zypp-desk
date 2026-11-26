@@ -20,7 +20,10 @@ from .pages.repos import ReposPage
 from .pages.home import HomePage
 from .pages.help import AboutPage, HelpPage
 from .pages.history import HistoryPage
-from .pages.system import LocalesPage, LocksPage, MaintenancePage, ServicesPage, SettingsPage
+from .pages.expert import ExpertPage
+from .pages.locales import LocalesPage
+from .pages.scripts import ScriptsPage
+from .pages.system import LocksPage, MaintenancePage, ServicesPage, SettingsPage
 from .pages.updates import UpdatesPage
 from .pages.websources import WebSourcesPage
 from .runner import Runner, helper_path, helper_version
@@ -35,8 +38,8 @@ from .ui import button, error_box, icon, info_box, mono, muted
 
 SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
-    (_("Sources"), ["repos", "keys", "services", "websources"]),
-    (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
+    (_("Sources"), ["repos", "keys", "services", "websources", "scripts"]),
+    (_("System"), ["locks", "locales", "history", "maintenance", "settings", "expert"]),
 ]
 # Help and About are small buttons under the list (and F1 opens Help): with them in the list, it did not fit a
 # window lower than ~850 px, and Help was hidden below the fold (visual review 0.5, #1)
@@ -449,8 +452,8 @@ class MainWindow(QMainWindow):
 
         # ------------------------------------------------ pages
         page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, KeysPage, ServicesPage,
-                        WebSourcesPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage, SettingsPage,
-                        HelpPage, AboutPage]
+                        WebSourcesPage, ScriptsPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage,
+                        SettingsPage, ExpertPage, HelpPage, AboutPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
         self.pages = {}
