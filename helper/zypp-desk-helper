@@ -26,7 +26,7 @@ import tempfile
 
 ZYPPER = "/usr/bin/zypper"
 # The window compares this with its own version and asks to reinstall the helper when they differ.
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 RPM = "/usr/bin/rpm"
 HISTORY = "/var/log/zypp/history"
 

@@ -16,18 +16,18 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from PySide6.QtCore import QFile, QLocale, Qt, Signal
-from PySide6.QtGui import QBrush, QColor
+from PySide6.QtCore import QFile, QLocale, QSize, Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QIcon
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
                                QLineEdit, QPushButton, QSplitter, QTextBrowser, QToolButton,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
-from .. import backend, bridge, question, websources
+from .. import appicons, backend, bridge, question, websources
 from ..i18n import _, ngettext, pgettext
 from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Page, ask, button, error_box, info_box, muted, tool
+from ..ui import Page, ask, button, error_box, icon, info_box, muted, tool
 from .bridges import RPM_ICON, BridgesBox, ask_bridge, ask_unmapped, queue_bridge
 
 GREY = "#7f8c8d"
@@ -401,6 +401,7 @@ class WebSourcesPage(Page):
         self.tree.setHeaderLabels([_("Program"), _("Status"), _("Installed"), _("Latest"),
                                    _("Where it is published")])
         self.tree.setRootIsDecorated(False)
+        self.tree.setIconSize(QSize(22, 22))
         self.tree.setAlternatingRowColors(True)
         self.tree.currentItemChanged.connect(lambda cur, _p: self._show(cur))
         self.details = QTextBrowser(self)
@@ -586,6 +587,7 @@ class WebSourcesPage(Page):
                 where = websources.origin_text(s)
                 origin = KIND_SHORT.get(s.get("type", "github"), "") + " · " + where.removeprefix("github.com/")
             it = QTreeWidgetItem(self.tree, [name, text, installed, f.get("version") or "", origin])
+            it.setIcon(0, self._program_icon(name))
             it.setData(0, Qt.ItemDataRole.UserRole, s)
             it.setData(0, Qt.ItemDataRole.UserRole + 1, name)
             it.setToolTip(1, (s or {}).get("note") or text)
@@ -597,6 +599,7 @@ class WebSourcesPage(Page):
                     it.setForeground(c, QBrush(QColor(GREY)))
             if name == cur_pkg:
                 self.tree.setCurrentItem(it)
+        self._load_icons([name for name, _s in rows])
         for c in range(4):
             self.tree.resizeColumnToContents(c)
         if self.tree.columnWidth(1) > 240:  # a long error stays in the tooltip
@@ -607,6 +610,31 @@ class WebSourcesPage(Page):
             empty.setFlags(Qt.ItemFlag.NoItemFlags)
         elif self.tree.currentItem() is None:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
+
+    # ------------------------------------------------ icons (Jordi, 26/11/2026: "falten icones als rpm web")
+    def _program_icon(self, name):
+        found = getattr(self, "_icons", {}).get(name)
+        if found:
+            ic = QIcon(found) if found.startswith("/") else QIcon.fromTheme(found)
+            if not ic.isNull():
+                return ic
+        return icon("application-x-rpm", "package-x-generic")
+
+    def _load_icons(self, names):
+        if not hasattr(self, "_icons"):
+            self._icons = {}
+        missing = sorted(set(names) - set(self._icons))
+        if missing:
+            run_async(appicons.desktop_icons, missing, on_done=self._icons_loaded)
+
+    def _icons_loaded(self, found, err):
+        if found:
+            self._icons.update(found)
+            for i in range(self.tree.topLevelItemCount()):
+                it = self.tree.topLevelItem(i)
+                name = it.data(0, Qt.ItemDataRole.UserRole + 1)
+                if name:
+                    it.setIcon(0, self._program_icon(name))
 
     def _current(self):
         it = self.tree.currentItem()

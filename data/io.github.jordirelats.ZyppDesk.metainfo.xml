@@ -60,6 +60,13 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.2" date="2026-11-26">
+      <description>
+        <p>Fixes a freeze of the whole computer when going through many rows of Updates, adds "Mark all" and
+          "Unmark all" to Updates, shows the icons of programs from the web, and makes "Refresh" in Repositories
+          refresh them all when none is selected.</p>
+      </description>
+    </release>
     <release version="0.5.1" date="2026-11-26">
       <description>
         <p>Fixes from a review from six points of view, and Help in English, Catalan, German and French (F1)

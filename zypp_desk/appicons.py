@@ -10,6 +10,7 @@ Everything here only reads files; loading the catalogue happens once, in a threa
 """
 
 import gzip
+import os
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -75,24 +76,75 @@ def _pick_icon(base, origin, comp):
     return ("theme", stock) if stock else None
 
 
+def _in_theme(name):
+    """The icon to use for this Icon= name: the name itself when an icon theme has it, the file when only
+    /usr/share/pixmaps has it, or None. Files only: this runs in a worker thread, where Qt's icon loader must
+    not be used."""
+    import glob
+    for pattern in (f"/usr/share/icons/*/*/apps/{name}.*", f"/usr/share/icons/*/apps/*/{name}.*",
+                    os.path.expanduser(f"~/.local/share/icons/*/*/apps/{name}.*")):
+        if glob.glob(pattern):
+            return name
+    found = sorted(glob.glob(f"/usr/share/pixmaps/{name}.*"))
+    return found[0] if found else None
+
+
+def _desktop_icon(path):
+    try:
+        for row in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
+            if row.startswith("Icon="):
+                return row[5:].strip()
+    except OSError:
+        pass
+    return None
+
+
 def desktop_icons(names):
-    """Icon= of the .desktop files shipped by these installed packages: name -> icon."""
+    """The icon of each of these installed packages: name -> an icon name of the theme or the path of a file.
+
+    First the Icon= of a .desktop file the package ships (in any …/applications folder: programs from the web often
+    use /usr/local/share), or one named after the package that its scripts wrote (rustdesk.desktop); when the icon
+    name is not in the theme, a file of the package with that name; and for a package with no .desktop file at
+    all, an icon file named after it (Weasis keeps /opt/weasis/lib/Weasis.png) — Jordi, 26/11/2026: "falten icones
+    als rpm web"."""
     if not names:
         return {}
     p = subprocess.run(["rpm", "-q", "--qf", "[%{=NAME}\t%{FILENAMES}\n]", *names], capture_output=True, text=True,
                        env=ENV_C)
-    out = {}
+    files = {}
     for line in p.stdout.splitlines():
         name, _, path = line.partition("\t")
-        if name in out or not path.startswith("/usr/share/applications/") or not path.endswith(".desktop"):
-            continue
-        try:
-            for row in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
-                if row.startswith("Icon="):
-                    out[name] = row[5:].strip()
-                    break
-        except OSError:
-            pass
+        if path:
+            files.setdefault(name, []).append(path)
+    out = {}
+    for name in names:
+        paths = files.get(name, [])
+        desktops = [f for f in paths if "/applications/" in f and f.endswith(".desktop")]
+        for extra in (f"/usr/share/applications/{name}.desktop", f"/usr/local/share/applications/{name}.desktop"):
+            if extra not in desktops and Path(extra).is_file():
+                desktops.append(extra)
+        images = [f for f in paths if f.lower().endswith((".svg", ".png", ".xpm")) and "/doc/" not in f]
+        found = None
+        for d in desktops:
+            ic = _desktop_icon(d)
+            if not ic:
+                continue
+            usable = ic if ic.startswith("/") else _in_theme(ic)
+            if usable:
+                found = usable
+                break
+            # a name the theme does not know: a file of the package with that name
+            match = [f for f in images if Path(f).stem.lower() == ic.lower()]
+            if match:
+                found = sorted(match, key=lambda f: (not f.endswith(".svg"), len(f)))[0]
+                break
+        if not found:
+            match = [f for f in images if Path(f).stem.lower() == name.lower()
+                     or Path(f).stem.lower().replace("-", "") == name.lower().replace("-", "")]
+            if match:
+                found = sorted(match, key=lambda f: (not f.endswith(".svg"), "/hicolor/" not in f, len(f)))[0]
+        if found:
+            out[name] = found
     return out
 
 

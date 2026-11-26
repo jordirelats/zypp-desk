@@ -10,6 +10,7 @@ import configparser
 import os
 import re
 import subprocess
+import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -26,8 +27,15 @@ class ZypperError(Exception):
     pass
 
 
+# At most this many zypper processes of the window at once. Each one loads every repository into memory
+# (hundreds of MB): unticking 95 rows of Updates one after the other started about 190 of them and the whole
+# computer froze (Jordi, 26/11/2026, 7.5 GB of RAM). The others wait their turn in their thread.
+ZYPPER_SLOTS = threading.BoundedSemaphore(2)
+
+
 def run_c(args, timeout=600, check=False):
-    p = subprocess.run(["zypper", *args], capture_output=True, text=True, env=ENV_C, timeout=timeout)
+    with ZYPPER_SLOTS:
+        p = subprocess.run(["zypper", *args], capture_output=True, text=True, env=ENV_C, timeout=timeout)
     if check and p.returncode not in OK_CODES:
         raise ZypperError((p.stderr or p.stdout).strip() or _("zypper exited with code {code}.").format(code=p.returncode))
     return p

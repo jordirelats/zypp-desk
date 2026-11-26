@@ -31,7 +31,7 @@ from ..runner import Step
 from ..simulation import CATEGORIES, disk_text, human_size, parse_dry_run, summary_lines
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
-from ..ui import Card, Page, RoomSplitter, button, heading, icon, mono, muted
+from ..ui import Card, Page, RoomSplitter, button, heading, icon, mono, muted, tool
 from .pkgdetails import PackageDetails, table
 
 FIRMWARE_COLOR = "#16a085"
@@ -799,6 +799,11 @@ class UpdatesPage(Page):
         self.up_count.hide()
         lh.addWidget(self.up_count)
         lh.addStretch(1)
+        # tick or untick every row at once (Jordi, 26/11/2026: to update only Zypp Desk he unticked 95 rows by hand)
+        self.mark_all_btn = tool(_("Mark all"), "edit-select-all", lambda: self.set_all_ticked(True))
+        self.unmark_all_btn = tool(_("Unmark all"), "edit-select-none", lambda: self.set_all_ticked(False))
+        lh.addWidget(self.mark_all_btn)
+        lh.addWidget(self.unmark_all_btn)
         again = button(_("Look again"), "view-refresh", lambda: self.load_updates())
         again.setToolTip(_("Since the last refresh of the repositories. On Tumbleweed your routine (zypper dup) "
                            "updates everything at once; here you can pick only some."))
@@ -811,7 +816,13 @@ class UpdatesPage(Page):
         self.up_list.setItemDelegate(UpdateDelegate(self))
         self.up_list.setMouseTracking(True)
         self.up_list.setStyleSheet("QListWidget { background: transparent; }")
-        self.up_list.currentItemChanged.connect(lambda cur, _p: self._show_row(cur))
+        # the card is filled only when the selection stops moving: every row asks zypper and rpm several things,
+        # and going through 95 rows (ticking them off) froze the whole computer (Jordi, 26/11/2026)
+        self._row_timer = QTimer(self)
+        self._row_timer.setSingleShot(True)
+        self._row_timer.setInterval(300)
+        self._row_timer.timeout.connect(lambda: self._show_row_now(self.up_list.currentItem()))
+        self.up_list.currentItemChanged.connect(lambda cur, _p: self._row_timer.start())
         self.up_list.itemDoubleClicked.connect(self._up_double)
         lc.lay.addWidget(self.up_list, 1)
         ub = QHBoxLayout()
@@ -1280,6 +1291,11 @@ class UpdatesPage(Page):
         return self.pkg_icon({"name": row["name"]})
 
     def _show_row(self, item):
+        """Show this row's card at once (when the program selects it, not the user moving through the list)."""
+        self._row_timer.stop()
+        self._show_row_now(item)
+
+    def _show_row_now(self, item):
         row = item.data(ROW_ROLE) if item else None
         if not row or row.get("header"):
             return
@@ -1375,6 +1391,20 @@ class UpdatesPage(Page):
         row = item.data(ROW_ROLE)
         if row and row.get("kind") == "web":
             self.ctx.go("websources")
+
+    def set_all_ticked(self, on):
+        """Tick (or untick) every row that can be ticked, in one go: one repaint, no card loaded per row."""
+        state = Qt.CheckState.Checked if on else Qt.CheckState.Unchecked
+        self.up_list.blockSignals(True)
+        try:
+            for i in range(self.up_list.count()):
+                it = self.up_list.item(i)
+                row = it.data(ROW_ROLE)
+                if row and not row.get("header") and not row.get("error"):
+                    it.setCheckState(state)
+        finally:
+            self.up_list.blockSignals(False)
+        self.up_list.viewport().update()
 
     def queue_ticked(self, simulate=False):
         n, web = 0, []

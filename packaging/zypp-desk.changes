@@ -1,4 +1,17 @@
 -------------------------------------------------------------------
+Thu Nov 26 10:10:02 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.2:
+  * Fix a freeze of the whole computer: going through the rows of
+    Updates (ticking them off one by one) started two zypper processes
+    per row; the package card now waits until the selection stops and
+    no more than two zypper queries of the window run at once
+  * Updates: "Mark all" and "Unmark all"
+  * Programs from the web show their icons (also for programs that keep
+    their icon outside the icon theme, like Weasis or AutoFirma)
+  * Repositories: "Refresh" with nothing selected refreshes them all
+
+-------------------------------------------------------------------
 Thu Nov 26 09:18:23 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.1, fixes from a review from six points of view and:
