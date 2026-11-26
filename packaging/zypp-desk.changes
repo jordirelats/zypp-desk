@@ -1,4 +1,37 @@
 -------------------------------------------------------------------
+Thu Nov 26 13:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.3:
+  * New Drivers page: each device with the driver it uses; proprietary
+    drivers when they work better (NVIDIA, some Broadcom Wi-Fi cards),
+    explained with what happens with Secure Boot; missing firmware;
+    and "Not needed for this computer": firmware, microcode, drivers
+    and virtual machine parts for hardware the computer does not have
+  * Health check at the top of Maintenance: firmware for hardware you
+    do not have, apps no longer maintained, packages from another
+    vendor, weak repositories, expired keys, packages no repository
+    has, apps installed twice, and what takes most room
+  * Move to another computer: save the repositories (with their keys),
+    the programs and the settings in a .zdesk file; opened on the other
+    computer, everything goes to the queue for review
+  * AppImages in Applications: open, add to the menu, look for a new
+    version (keeping the old one until the new one works), protect,
+    and move to the trash
+  * New sections: Languages (all the languages zypper knows), Locks
+    with icons, Own installers (programs installed with a .sh script),
+    and Expert (every zypper command, on a form or typed)
+  * Home proposes adding the computer's language to zypper when it is
+    missing, so programs get their translations
+  * Applications: web apps of Chromium-based browsers, and protecting
+    an app so that it is never removed by mistake
+  * Updates: "Refresh the repositories"; the routine editor proposes
+    routines made for the computer
+  * A lock on a package the queue removes runs after the removal, and
+    locks keep their comment
+  * Languages asked for are shown again (newer zypper says "Requested")
+  * Recommends squashfs and python3-solv
+
+-------------------------------------------------------------------
 Thu Nov 26 10:10:02 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.2:

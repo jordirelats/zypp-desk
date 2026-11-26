@@ -4,8 +4,8 @@
 zypper installs the translation packages (-lang, dictionaries, l10n) of the programs you have into the "requested"
 languages (/var/lib/zypp/RequestedLocales). The list on the left is 'zypper locales -a'; the card on the right
 tells what one language means for this computer ('zypper locales -p', asked only for the selected language, once the
-selection stops moving). Ticking and unticking only queue 'zypper addlocale' / 'removelocale' (mockup
-seccions-v1-A): nothing runs until the queue is applied.
+selection stops moving). Ticking and unticking only queue 'zypper addlocale' / 'removelocale':
+nothing runs until the queue is applied.
 """
 
 import gettext
@@ -63,7 +63,7 @@ def all_locales():
     for line in p.stdout.splitlines():
         cols = [c.strip() for c in line.split("|")]
         if len(cols) >= 3 and cols[0] and cols[0] != "Code" and not set(cols[0]) <= {"-", "+"}:
-            out.append(dict(code=cols[0], name=cols[1], requested=cols[2].lower().startswith("y")))
+            out.append(dict(code=cols[0], name=cols[1], requested=backend.locale_requested(cols[2])))
     return out
 
 
@@ -108,7 +108,7 @@ def programs_of(name, summary, code):
     """The packages a translation package is for, as far as its name and summary tell: 'gimp' for gimp-lang,
     'libreoffice' for libreoffice-l10n-es, 'man-pages' (or 'man') for man-pages-es. A translation package comes
     with a language only for the programs you have (its Supplements: '(gimp and namespace:language(es))'); reading
-    the Supplements of a thousand packages takes zypper 13 s, the names give the same count (ca and es, 26/11/2026)."""
+    the Supplements of a thousand packages takes zypper 13 s, the names give the same count (checked with ca and es)."""
     out = set()
     m = FOR_PACKAGE.match(summary)
     if m:
@@ -396,7 +396,7 @@ class LocalesPage(Page):
         self.filters = QButtonGroup(self)
         self.filters.setExclusive(True)
         self.b_have = self._filter_button(_("The ones you have"), "have", bar)
-        self.b_all = self._filter_button(_("All"), "all", bar)
+        self.b_all = self._filter_button(pgettext("languages", "All"), "all", bar)
         self.b_have.setChecked(True)
         bh.addWidget(self.b_have)
         bh.addWidget(self.b_all)
@@ -466,7 +466,7 @@ class LocalesPage(Page):
         split.addWidget(right)
         split.setStretchFactor(0, 11)
         split.setStretchFactor(1, 10)
-        split.setSizes([550, 500])  # as in the mockup: the card is almost as wide as the list
+        split.setSizes([550, 500])  # the card is almost as wide as the list
         lay.addWidget(split, 1)
 
         self._search_timer = QTimer(self)  # refilling 500 rows on every key is wasted work: wait for a pause
@@ -834,7 +834,7 @@ class LocalesPage(Page):
             return _("you don't have it; it is in the queue to be added")
         if kind == "locale-remove":
             return _("you have it; it is in the queue to be removed")
-        return _("you have it") if requested else _("you don't have it")
+        return pgettext("language", "you have it") if requested else _("you don't have it")
 
     def _package_rows(self, code, requested):
         codes = self._codes_for(code)

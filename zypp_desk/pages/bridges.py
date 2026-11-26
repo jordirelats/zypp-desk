@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Bridge packages in the window: the question before making one, and the list in Programs from the web.
 
-ask_bridge() is the question of the mockup idees-v1-J-fedora-pont: the program, what it asks for by its Fedora
+ask_bridge() is the question before making a bridge: the program, what it asks for by its Fedora
 names and what openSUSE calls each thing, the bridge Zypp Desk will make, and the commands. It only puts things in
-the queue, so it says so and asks for no password (visual review 0.5, #3); what else there is to know about the
-file (not signed, older than yours) goes in the same question, as a warning, instead of a question of its own
-(#7). queue_bridge() writes the bridge (bridge.build_bridge, as the normal user) and puts it in the queue next to
+the queue, so it says so and asks for no password; what else there is to know about the
+file (not signed, older than yours) goes in the same question, as a warning, instead of a question of its own.
+queue_bridge() writes the bridge (bridge.build_bridge, as the normal user) and puts it in the queue next to
 the program. The queue installs both (TxQueue.package_args); the bridge with --allow-unsigned-rpm: it is made
 here, nobody signs it.
 

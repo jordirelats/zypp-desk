@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Expert: every zypper command, on a form or typed as in a terminal (mockup seccions-v1-D-expert).
+"""Expert: every zypper command, on a form or typed as in a terminal.
 
-Jordi, 26/11/2026: "una secció expert on es puguin fer servir totes les comandes de zypper en mode gràfic o
-escriure-ho a la terminal". On the left, zypper's commands by group; on the right, a line to type a command, the
-form of the chosen command (its options as zypper's help gives them, in English) and the exact command it will use.
+For people who know zypper and want all of it without leaving the window. On the left, zypper's commands by
+group; on the right, a line to type a command, the form of the chosen command (its options as zypper's help
+gives them, in English) and the exact command it will use.
 
 The commands and their options come from zypper's own help (zyppcmds.py). The ones that only read run as the user,
 with the output in the terminal panel. The ones that change the system go through the root helper, after the
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel
                                QListWidgetItem, QScrollArea, QSizePolicy, QToolButton, QVBoxLayout, QWidget)
 
 from .. import backend, question, zyppcmds
-from ..i18n import _, ngettext
+from ..i18n import _, ngettext, user_lang
 from ..runner import Step
 from ..style import GREEN, ORANGE, RED
 from ..tasks import run_async
@@ -33,7 +33,7 @@ LIST_STYLE = ("QListWidget#expertcmds { background: transparent; border: none; o
               "QListWidget#expertcmds::item { padding: 4px 8px; margin: 1px 0px; border-radius: 7px; }"
               "QListWidget#expertcmds::item:hover { background: rgba(39, 174, 96, 0.10); }"
               "QListWidget#expertcmds::item:selected { background: rgba(39, 174, 96, 0.22); color: palette(text); }"
-              # a thin scroll bar, as the sidebar's (visual review 0.5, #1)
+              # a thin scroll bar, as the sidebar's
               "QListWidget#expertcmds QScrollBar:vertical { width: 8px; background: transparent; margin: 0; }"
               "QListWidget#expertcmds QScrollBar::handle:vertical { background: rgba(127, 140, 141, 0.45);"
               " border-radius: 4px; min-height: 30px; }"
@@ -62,7 +62,7 @@ QUEUE_CARRIES = {
     "modifyrepo": {"--name", "--enable", "--disable", "--refresh", "--no-refresh", "--priority", "--keep-packages",
                    "--no-keep-packages", "-r", "-R"},
 }
-# Shown first under "Options" when the command has them (the mockup seccions-v1-D-expert).
+# Shown first under "Options" when the command has them: the options people use most.
 PROMOTED = ("--no-recommends", "--oldpackage", "--download-only")
 OPPOSITES = [("--enable", "--disable"), ("--refresh", "--no-refresh"), ("--keep-packages", "--no-keep-packages"),
              ("--clean-deps", "--no-clean-deps")]
@@ -92,6 +92,13 @@ def arg_label(kind):
             "repositories": _("Repositories"), "services": _("Services"), "versions": _("Two versions"),
             "command": _("Command"), "patches": _("Patches"), "patterns": _("Patterns"), "products": _("Products"),
             }.get(kind, _("Arguments"))
+
+
+def in_sentence(label):
+    """A label inside a sentence: its first letter in lower case, except in German, where nouns keep theirs."""
+    if user_lang().split("_")[0].split(".")[0] == "de":
+        return label
+    return label[:1].lower() + label[1:]
 
 
 def means_text(cmd):
@@ -381,7 +388,7 @@ class ExpertPage(Page):
             f.setBold(True)
             f.setPointSizeF(f.pointSizeF() * 0.85)
             hdr.setFont(f)
-            hdr.setForeground(self.list.palette().brush(QPalette.ColorRole.Text))  # dark, as in the mockup
+            hdr.setForeground(self.list.palette().brush(QPalette.ColorRole.Text))  # the text colour, not greyed out
             self.list.addItem(hdr)
             for c in shown:
                 it = QListWidgetItem(c.title)
@@ -513,7 +520,7 @@ class ExpertPage(Page):
             v.addWidget(_plain(f"{ro.cli} — {ro.help}", muted=True, small=True))
 
         # the command's options, by zypper's sections: the first one open, the others folded. The ones people use
-        # most go first, as in the mockup (zypper lists --no-recommends among the solver options)
+        # most go first (zypper lists --no-recommends among the solver options)
         first = [o for f in PROMOTED if (o := cmd.option(f)) is not None and o is not ro]
         sections = [("Command options", list(first))] if first else []
         for o in cmd.options:
@@ -673,7 +680,7 @@ class ExpertPage(Page):
         elif missing:  # zypper would only say "too few arguments" (after the password, for a change)
             self.cmd_info.setStyleSheet(f"color: {ORANGE};")
             self.cmd_info.setText(_("Write first what it works on ({what}).").format(
-                what=arg_label(cmd.args_kind).lower()))
+                what=in_sentence(arg_label(cmd.args_kind))))
         else:
             self.cmd_info.setStyleSheet("color: palette(placeholder-text);")
             self.cmd_info.setText(self._command_note(cmd))
@@ -743,7 +750,7 @@ class ExpertPage(Page):
             if a in names and b in names:
                 return None, _("{a} and {b} go against each other.").format(a=a, b=b)
         if not args:
-            return None, _("Write first what it works on ({what}).").format(what=arg_label(cmd.args_kind).lower())
+            return None, _("Write first what it works on ({what}).").format(what=in_sentence(arg_label(cmd.args_kind)))
         k = cmd.queue_kind
         typ = names.get("--type") or "package"
         where = repo or names.get("--from") or names.get("--repo") or ""
@@ -899,6 +906,7 @@ class ExpertPage(Page):
         return question.confirm(
             self, _("Run “zypper {command}”?").format(command=cmd.name), _("Yes, run it"),
             window_title=_("Expert"), icon_name="utilities-terminal", items=items, means=means_text(cmd),
+            help_topic="expert",
             warning=warnings_for(cmd, used), commands_=[step.display()])
 
     def header_actions(self):

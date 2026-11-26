@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Protected applications (Jordi, 26/11/2026: QBZ is no longer maintained nor distributed, and he does not want it
-removed by mistake — "a aplicació posa que es pugui protegir app").
+"""Protected applications: an app that is no longer maintained nor distributed (no longer on Flathub, say) can
+be protected so that it is not removed by mistake.
 
 A protected app is never removed through Zypp Desk: the queue refuses its removal (TxQueue.add) until it is
 unprotected. For a Flatpak app, protecting it can also mask it in flatpak (`flatpak mask`: no updates and no
 automatic replacement), and its file can be saved with `flatpak build-bundle`, to install it again when the remote
-no longer has it. Kept in settings["protected_apps"] as "flatpak:<app id>" or "rpm:<package>".
+no longer has it. An AppImage is protected by its path: Zypp Desk does not move it to the trash. Kept in
+settings["protected_apps"] as "flatpak:<app id>", "appimage:<path>" or "rpm:<package>".
 """
 
 import os
@@ -16,7 +17,7 @@ FLATHUB_RUNTIMES = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 
 
 def key(kind, ident):
-    return f"{'flatpak' if kind == 'flatpak' else 'rpm'}:{ident}"
+    return f"{kind if kind in ('flatpak', 'appimage') else 'rpm'}:{ident}"
 
 
 def protected(settings):

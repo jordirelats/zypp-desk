@@ -18,4 +18,4 @@ Keywords[ca]=zypper;paquet;rpm;repositori;actualització;openSUSE;
 Keywords[de]=zypper;Paket;rpm;Paketquelle;Aktualisierung;openSUSE;
 Keywords[fr]=zypper;paquet;rpm;dépôt;mise à jour;openSUSE;
 StartupNotify=true
-MimeType=application/x-rpm;
+MimeType=application/x-rpm;application/x-zypp-desk-migration;

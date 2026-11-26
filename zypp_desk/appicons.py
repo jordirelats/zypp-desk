@@ -103,10 +103,10 @@ def desktop_icons(names):
     """The icon of each of these installed packages: name -> an icon name of the theme or the path of a file.
 
     First the Icon= of a .desktop file the package ships (in any …/applications folder: programs from the web often
-    use /usr/local/share), or one named after the package that its scripts wrote (rustdesk.desktop); when the icon
+    use /usr/local/share), or one named after the package that its scripts wrote (someapp.desktop); when the icon
     name is not in the theme, a file of the package with that name; and for a package with no .desktop file at
-    all, an icon file named after it (Weasis keeps /opt/weasis/lib/Weasis.png) — Jordi, 26/11/2026: "falten icones
-    als rpm web"."""
+    all, an icon file named after it (such as /opt/someapp/lib/SomeApp.png). Without these, many RPMs downloaded
+    from the web showed no icon."""
     if not names:
         return {}
     p = subprocess.run(["rpm", "-q", "--qf", "[%{=NAME}\t%{FILENAMES}\n]", *names], capture_output=True, text=True,

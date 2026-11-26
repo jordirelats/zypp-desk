@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Help and About (Jordi, 26/11/2026: "a place for credits and one for help, the help in Catalan and English").
+"""Help and About: a place for the help, in several languages, and one for the credits.
 
 The help is one HTML file per language in zypp_desk/help/ (en.html, ca.html): each topic starts with a comment
 '<!-- topic: id | Title -->'. The window shows the file of your language, or the English one. Links 'page:<key>'
@@ -69,7 +69,7 @@ class _Browser(QTextBrowser):
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.document().setDefaultStyleSheet(STYLE)
         self.document().setDocumentMargin(18)
-        # short lines, also in a wide window (Jordi does not want long lines; visual review 0.5, #11)
+        # short lines, also in a wide window: long lines are hard to read
         self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
         self._fit_width()
         self.anchorClicked.connect(self._open)

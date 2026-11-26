@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """When each repository last published something new, read from zypper's raw cache (readable by everyone).
 
-Two questions Jordi asked (26/11/2026): is a repository being updated right now, and is a repository behind
+Two questions answered here: is a repository being updated right now, and is a repository behind
 Tumbleweed? After a new Tumbleweed version comes out:
 - the mirrors take a few hours to copy it, and until then some packages give "File not found" (404);
 - repositories built on top of Tumbleweed (VideoLAN, Packman, OBS projects) rebuild a day or two later, and
@@ -11,8 +11,8 @@ Every repository's repodata/repomd.xml has a <revision> (a Unix time, set when i
 <timestamp> of each part. Nothing here runs zypper or needs root.
 
 Only the repositories that are rebuilt for each Tumbleweed version (rebuilt_for_tumbleweed: OBS projects built for
-Tumbleweed or Factory, Packman, VideoLAN) can be "behind" (zypper review 0.5, #5): a company's repository (Master
-PDF Editor, Brave, Insync…) publishes when the company releases something, so a problem it causes does not go
+Tumbleweed or Factory, Packman, VideoLAN) can be "behind": a company's repository (Brave, Google Chrome,
+Visual Studio Code…) publishes when the company releases something, so a problem it causes does not go
 away by waiting a day or two.
 """
 
@@ -72,7 +72,7 @@ _OBS_TW = re.compile(r"/repositories/.+(tumbleweed|factory)", re.I)
 
 def rebuilt_for_tumbleweed(repo):
     """True for a repository that is rebuilt for each new Tumbleweed version: an OBS project built for Tumbleweed
-    or Factory, Packman or VideoLAN. A company's repository (Brave, Master PDF Editor, MEGA…) is not, even when
+    or Factory, Packman or VideoLAN. A company's repository (Brave, Google Chrome…) is not, even when
     its address says openSUSE_Tumbleweed: it publishes when the company releases something."""
     url = (repo.get("url") or "").lower()
     alias = (repo.get("alias") or "").lower()

@@ -354,7 +354,7 @@ def _provide_version(flags, ver, target_ver):
     """The version the bridge gives a Fedora name: always the version of the openSUSE package it stands for
     (without its release), also when the program asks for no version. An unversioned provide would meet any
     versioned requirement of a later program ("nss >= 99"), and zypper would never pull the real package or
-    say it is too old (zypper review 0.5, #6). None when that version does not meet what the program asks for,
+    say it is too old. None when that version does not meet what the program asks for,
     or nobody knows it."""
     if not target_ver:
         return None
@@ -474,7 +474,7 @@ def analyse(info, folder=""):
                 pv = next((v for n, _f, v in b["provides"] if n == name), "")
                 if not pv and targets:
                     # a bridge made before 0.5.1 provides it without a version: its next release gives it the
-                    # version of the openSUSE package (#6); it meets this requirement, which asks for none
+                    # version of the openSUSE package; it meets this requirement, which asks for none
                     pv = _provide_version(0, "", capability_version(targets[0])) or ""
                 plan["kept"].append({"name": name, "flags": flags, "version": ver,
                                      "text": req_text(name, flags, ver),
@@ -562,7 +562,7 @@ def analyse(info, folder=""):
             if found[0].get("version"):
                 why = _("openSUSE has {package} {version}, which is not what it asks for.").format(
                     package=found[0]["name"], version=found[0]["version"])
-            else:  # the bridge must say a version (#6): without one it would meet any later requirement
+            else:  # the bridge must say a version: without one it would meet any later requirement
                 why = _("Zypp Desk cannot tell which version of {package} openSUSE has.").format(
                     package=found[0]["name"])
             plan["unmapped"].append((text, why))

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Room on the disk for an upgrade: how much there is, how much the upgrade needs, and what can be freed.
 
-Jordi (26/11/2026): when there is little disk space, split a general update into parts. On his laptop / has
-6.0 GiB free of 39 GiB. No widgets and nothing as root here: statvfs, the package cache (readable by
-everyone) and rpm as the user.
+When there is little disk space, a general update is split into parts: on a small root filesystem a big
+Tumbleweed update may not fit at once. No widgets and nothing as root here: statvfs, the package cache (readable
+by everyone) and rpm as the user.
 
 Where the space goes during 'zypper dup':
 - By default zypper downloads every package first (to /var/cache/zypp/packages) and only then installs them:
@@ -45,7 +45,7 @@ ZYPP_COMMIT_PLUGINS = "/usr/lib/zypp/plugins/commit"
 CACHE_WORTH = 20 * MiB
 # "Update it now anyway": a small update (it needs less than the margin itself, so a wrong guess cannot be big)
 # that fits but not with the margin may still run when at least this much stays free after it (a nearly full
-# disk must not block a small update for ever: code review 0.5, #2).
+# disk must not block a small update for ever).
 TIGHT_FLOOR = 300 * MiB
 # The routine has no simulation: below this much free space before it, it asks. A big Tumbleweed update (a
 # rebuild of everything) downloads 3 to 5 GiB; with snapshots the old files also stay.

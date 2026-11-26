@@ -9,7 +9,7 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.5.2
+Version:        0.5.3
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
@@ -30,10 +30,14 @@ Requires:       polkit
 Requires:       python3 >= 3.11
 Requires:       python3-pyside6
 Requires:       python3-rpm
+# the health check reads zypper's package index directly (else one slower zypper search)
+Recommends:     python3-solv
 Requires:       zypper
 Recommends:     flatpak
 Recommends:     fwupd
 Recommends:     xdg-utils
+# reads the name, version and icon inside an AppImage without running it (-cat, -max-depth)
+Recommends:     squashfs >= 4.6
 Suggests:       snapper
 Recommends:     kf6-breeze-icons
 %{?systemd_ordering}
@@ -103,6 +107,7 @@ install -d %{buildroot}%{_sysconfdir}/xdg/autostart
 sed 's|@EXEC@|%{name}|' data/%{app_id}.tray.desktop.in > %{buildroot}%{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 install -D -m 0644 data/icons/%{app_id}.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
 install -D -m 0644 data/%{app_id}.metainfo.xml %{buildroot}%{_datadir}/metainfo/%{app_id}.metainfo.xml
+install -D -m 0644 data/%{app_id}.mime.xml %{buildroot}%{_datadir}/mime/packages/%{app_id}.xml
 
 # translations
 for mo in locale/*/LC_MESSAGES/%{name}.mo; do
@@ -163,5 +168,6 @@ find . -name '__pycache__' -prune -exec rm -rf {} +
 %config(noreplace) %{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
 %{_datadir}/metainfo/%{app_id}.metainfo.xml
+%{_datadir}/mime/packages/%{app_id}.xml
 
 %changelog

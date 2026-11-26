@@ -47,10 +47,21 @@ trobaràs:</p>
 baixar les actualitzacions i després instal·lar-les. <b>Executa la rutina</b> els fa un darrere l'altre i
 t'ensenya cada pas. <b>Edita la rutina…</b> la canvia amb botons, o escrivint-la com en un terminal.</li>
 <li><b>Què hi ha per actualitzar</b>: paquets dels repositoris, aplicacions Flatpak, programes de la web i
-firmware, amb una casella per marcar cadascun. La fitxa de la dreta t'explica el paquet que tries.</li>
+firmware, amb una casella per marcar cadascun. <b>Marca-ho tot</b> i <b>Desmarca-ho tot</b>, a sota de la llista,
+els marquen o els desmarquen tots d'un cop. La fitxa de la dreta t'explica el paquet que tries.</li>
+<li>La llista ensenya el que sabia l'ordinador l'última vegada que es van refrescar els repositoris: <b>Torna a
+mirar</b> la torna a llegir. <b>Refresca els repositoris</b> primer pregunta a cada repositori què hi ha de nou
+(amb la contrasenya d'administrador) i després torna a mirar.</li>
 <li><b>Simula el dup…</b>: l'actualització completa de Tumbleweed (<code>zypper dup</code>) en una finestra
 pròpia, amb les seves opcions.</li>
 </ul>
+<h3>Rutines proposades</h3>
+<p>A l'editor de la rutina, <b>Rutines proposades…</b> t'ensenya unes quantes rutines ja fetes, cadascuna amb què
+fa, per què i la línia que seria en un terminal. La primera està feta per a aquest ordinador: a més d'actualitzar
+el sistema, actualitza les aplicacions Flatpak si en tens i el firmware si hi ha fwupd, treu els nuclis antics i
+els paquets baixats si queda poc espai al disc, i al final et diu quins programes cal reiniciar. Les altres són la
+de sempre (ho baixa tot i només ho instal·la si s'ha pogut baixar tot), una que només baixa i una de ràpida. La
+que triïs va a l'editor, on encara la pots canviar; no es desa res fins que no prems <b>Desa</b>.</p>
 <h3>Una actualització gran</h3>
 <p>Quan una actualització és gran, o fa menys d'un dia que ha sortit la versió nova de
 Tumbleweed, Zypp Desk et
@@ -84,9 +95,55 @@ t'ensenya quins paquets són, perquè vegis què marxa.</li>
 <a href="page:locks">Bloquejos</a>.</li>
 <li>A <a href="page:flatpak">Flatpak</a> hi ha les aplicacions Flatpak, les seves actualitzacions, els remots
 i els permisos. Van a la mateixa cua.</li>
+<li>Les <b>Aplicacions web</b>, a Aplicacions, són les webs que els navegadors han instal·lat com a aplicacions
+(Chrome, Chromium, Edge, Brave, Vivaldi, Opera, i Firefox amb l'extensió PWAsForFirefox). Les instal·la i les
+actualitza el navegador; Zypp Desk ensenya juntes les de tots els navegadors i les obre. Per treure'n una, Zypp
+Desk obre la pàgina d'aplicacions del mateix navegador, perquè només el navegador la pot treure del tot. Si el seu
+navegador ja no hi és, l'entrada del menú ja no funciona, i Zypp Desk la pot moure a la paperera.</li>
 </ul>
 <p>Si el programa no és als teus repositoris, <b>Cerca a Internet…</b> el busca a l'openSUSE Build Service, a
 Fedora COPR i a Flathub, i t'explica quant et pots refiar de cada lloc.</p>
+<h3>Protegir una aplicació</h3>
+<p><b>Protegeix-la</b>, a la fitxa d'una aplicació a Aplicacions, és per a un programa que no vols perdre mai per
+error: mentre està protegida, la cua no la deixa treure, des de cap pàgina. No canvia res més, i les
+actualitzacions continuen arribant. <b>Deixa de protegir-la</b> treu la marca.</p>
+<p>Una aplicació Flatpak pot desaparèixer del seu remot quan ningú no la manté ni la distribueix. <b>Desa'n una
+còpia…</b> desa l'aplicació instal·lada en un sol fitxer <code>.flatpak</code> (<code>flatpak build-bundle</code>),
+perquè la puguis tornar a instal·lar des d'aquest fitxer encara que el remot ja no la tingui. El que necessita per
+funcionar (el seu entorn d'execució) continua venint de Flathub.</p>
+<h3>AppImages</h3>
+<p>Una <b>AppImage</b> és un programa sencer en un sol fitxer: el baixes de la web de qui el fa i l'obres, sense
+instal·lar res. zypper no coneix les AppImages, i per això Zypp Desk les busca a les carpetes de sempre
+(<code>~/Applications</code>, <code>~/AppImages</code>, <code>~/bin</code>, <code>~/.local/bin</code>,
+<code>/opt</code> i la carpeta de baixades) i entre les entrades del menú, i el filtre <b>AppImage</b>
+d'<a href="page:apps">Aplicacions</a> te les ensenya. Són fitxers teus: no passen mai per la cua, i aquí res no
+necessita la contrasenya d'administrador.</p>
+<p>Zypp Desk en llegeix el nom, la versió i la icona de dins del fitxer, sense executar-lo. Per fer-ho necessita
+<code>unsquashfs</code>, del paquet <code>squashfs</code>; si no hi és, t'ensenya el nom del fitxer.</p>
+<ul>
+<li><b>Obre-la</b> engega el programa amb el teu usuari. Si el fitxer encara no és executable, Zypp Desk t'ho
+pregunta abans. Mai no executa una AppImage com a administrador: obre només AppImages de qui et refiïs.</li>
+<li><b>Afegeix-la al menú</b> li fa una entrada al menú amb el seu nom i la seva icona. <b>Treu-la del
+menú…</b> mou l'entrada i la icona a la paperera, i deixa el programa on és.</li>
+<li><b>Busca una versió nova</b> pregunta a GitHub quina és l'última, només quan el prems. La majoria d'AppImages
+no diuen on es publiquen: llavors Zypp Desk et demana l'adreça del projecte a GitHub, i <b>Canvia on s'ha de
+buscar…</b> la canvia més endavant. Si el fitxer diu un altre lloc, el botó l'obre al navegador.</li>
+<li><b>Obtén la versió nova…</b> la baixa al costat de la que tens (com a fitxer <code>.new</code>) i la
+comprova: amb el SHA-256 que publica GitHub, si n'hi ha, i que sigui de debò una AppImage. Després Zypp Desk et
+pregunta abans que ocupi el lloc de la vella, amb el mateix nom, perquè l'entrada del menú continuï
+funcionant.</li>
+<li>La versió vella es queda al costat com a fitxer <code>.old</code> fins que la nova s'ha obert una vegada des
+de Zypp Desk; llavors va a la paperera. Fins aquell moment, <b>Torna a la versió anterior…</b> torna a posar la
+vella.</li>
+<li><b>Protegeix-la</b> funciona com amb qualsevol altra aplicació, i <b>Treu-la…</b> mou a la paperera el
+fitxer, la versió vella, l'entrada del menú i les icones. La configuració i les dades que té a la teva carpeta es
+queden.</li>
+<li><b>Afegeix una AppImage…</b>, a dalt de la pàgina, agafa un fitxer que hagis baixat, el mou o el copia a
+<code>~/Applications</code>, el fa executable i el posa al menú.</li>
+</ul>
+<p>Una AppImage en una carpeta que només pot canviar l'administrador (a <code>/opt</code>, per exemple) es pot
+obrir, però no actualitzar ni treure des d'aquí. Una entrada del menú que obria un fitxer que ja no hi és surt com
+a òrfena: <b>Treu-la del menú…</b> la treu.</p>
 
 <!-- topic: web | Programes de la web i fitxers .rpm -->
 <h2>Programes de la web i fitxers .rpm</h2>
@@ -120,6 +177,206 @@ amo instal·li qualsevol cosa al teu ordinador.</p>
 <p>Els <a href="page:services">Serveis</a> són llistes de repositoris que manté algú altre (openSUSE manté les
 de Tumbleweed).</p>
 
+<!-- topic: system | Llengües i bloquejos -->
+<h2>Llengües i bloquejos</h2>
+<h3>Llengües</h3>
+<p>Molts programes porten les traduccions en paquets a part (els seus paquets <code>-lang</code>, els diccionaris
+i els correctors ortogràfics), i zypper només els instal·la per a les llengües que li han demanat. Si l'ordinador
+està en una llengua que no s'ha demanat mai a zypper, aquests paquets no arriben mai, i parts dels programes
+surten en anglès. Quan passa això, l'<a href="page:home">Inici</a> t'ho diu i et proposa afegir la llengua de
+l'ordinador amb un botó: va a la cua.</p>
+<p>A <a href="page:locales">Llengües</a> hi ha totes les llengües que coneix zypper. <b>Les que tens</b> ensenya
+les que s'han demanat a zypper, <b>Totes</b> les ensenya totes, i el cercador en troba una pel nom o pel codi.
+Marca una llengua per afegir-la, o desmarca-la per treure-la: el canvi va a la cua (<code>zypper addlocale</code>
+o <code>removelocale</code>), i no passa res fins que l'apliques. La fitxa de la dreta et diu què portaria: quants
+paquets de traduccions per als programes que tens, i quins diccionaris.</p>
+<ul>
+<li>Quan s'afegeix una llengua, zypper n'instal·la les traduccions dels programes que tens, i a partir de llavors
+les dels que instal·lis.</li>
+<li>Quan se'n treu una, les seves traduccions marxen; els programes es queden, en les altres llengües que
+tinguis.</li>
+<li>L'anglès sempre hi és, perquè els programes estan escrits en anglès. La llengua de l'ordinador, un cop
+afegida, no es pot desmarcar aquí.</li>
+<li>Aquesta pàgina no canvia la llengua de les finestres: això es tria a la configuració de l'escriptori.</li>
+</ul>
+<h3>Bloquejos</h3>
+<p>Cap ordre de zypper no instal·la, treu ni actualitza un paquet bloquejat fins que el desbloqueges. A
+<a href="page:locks">Bloquejos</a> hi ha la llista dels teus bloquejos, amb la icona de cada paquet. La fitxa de
+la dreta et diu quina versió tens, si n'hi ha una de més nova que espera, quines versions i quin repositori
+cobreix el bloqueig, i et deixa desbloquejar-lo. Bloquejar i desbloquejar van a la cua, com qualsevol altre
+canvi.</p>
+<ul>
+<li><b>Bloqueja un paquet…</b> busca paquets: en pots marcar uns quants i bloquejar-los d'un cop. Un nom amb
+comodins, com <code>vlc-*</code>, bloqueja tots els paquets amb un nom que hi encaixi, també els que vinguin més
+endavant.</li>
+<li><b>Treu els bloquejos inútils</b> treu els bloquejos que ja no encaixen amb cap paquet.</li>
+<li>Quan tries actualitzar la resta i deixar uns quants paquets com estan (mira «Quan alguna cosa va malament»),
+Zypp Desk els bloqueja. Aquests bloquejos surten marcats com a temporals, amb la data. Una franja a dalt t'avisa
+quan el seu repositori ha tornat a publicar, de manera que probablement ja els pots desbloquejar, i
+<b>Desbloqueja'ls</b> els desbloqueja tots d'un cop.</li>
+</ul>
+
+<!-- topic: move | Canviar d'ordinador -->
+<h2>Canviar d'ordinador</h2>
+<p>Quan canvies d'ordinador, Zypp Desk pot endur-se els teus programes en un sol fitxer. A l'ordinador vell, tria
+<b>Desa el programari d'aquest ordinador…</b>: és a <a href="page:settings">Configuració</a>, a la targeta
+<b>Canvia d'ordinador</b>, i a la part de baix de l'<a href="page:home">Inici</a>. Desa un fitxer acabat en
+<code>.zdesk</code> amb el que deixis marcat:</p>
+<ul>
+<li><b>Repositoris i claus</b>: els repositoris actius, amb la seva prioritat, i les claus de signatura que fan
+servir.</li>
+<li><b>Els paquets que vas triar</b>, no els que s'han instal·lat només perquè els necessitaven d'altres: aquests,
+zypper ja els torna a portar.</li>
+<li>Les <b>Aplicacions Flatpak</b>, amb els seus remots, i els <b>Programes de la web</b> que segueix Zypp
+Desk.</li>
+<li><b>Bloquejos, llengües, la rutina i els paràmetres de zypp.conf</b>, i les aplicacions que has protegit.</li>
+<li><b>Una llista del que cal fer a mà</b>: AppImages, aplicacions web, programes amb instal·lador propi i paquets
+instal·lats des d'un fitxer. No es poden instal·lar sols, i per això van en una llista.</li>
+</ul>
+<p>El fitxer no porta cap contrasenya ni cap document teu: només la llista dels teus programes i d'on vénen. Les
+claus que hi van són claus públiques, que pot baixar qualsevol. Algunes coses no hi van mai, expressament:</p>
+<ul>
+<li>els nuclis, el firmware, el microcodi, els controladors i el carregador d'arrencada: són del maquinari i de la
+instal·lació de cada ordinador, i el nou ja té els seus;</li>
+<li>un repositori amb un nom d'usuari, una contrasenya o un testimoni a l'adreça: va a la llista del que cal fer a
+mà, sense l'adreça;</li>
+<li>els bloquejos temporals (els que es posen quan actualitzes la resta i deixes uns quants paquets com estan), i
+els paquets d'una carpeta local que Programes de la web no segueix.</li>
+</ul>
+<h3>A l'altre ordinador</h3>
+<p>Copia el fitxer a l'altre ordinador i fes-hi doble clic: s'obre amb Zypp Desk. També pots triar
+<b>Importa'l d'un fitxer…</b>, als mateixos llocs. Zypp Desk compara el fitxer amb aquest ordinador i
+t'ensenya què faria: els repositoris que afegiria, amb les claus i les empremtes, els paquets i les aplicacions
+Flatpak que instal·laria, els bloquejos i les llengües que afegiria, i quantes coses ja hi són. <b>Tria…</b> et
+deixa desmarcar-ne algunes. Després, <b>Posa-ho a la cua</b> ho afegeix tot a la cua, on ho revises, ho simules
+i ho apliques com qualsevol altre canvi. Fins que no l'apliques, no canvia res.</p>
+<ul>
+<li>La rutina, les opcions de zypper (<code>zypp.conf</code>), les aplicacions protegides i els programes de la
+web només canvien si tu ho dius. Abans que res vagi a la cua, una pregunta t'ensenya cadascuna com és ara i com
+quedaria: marca les que vols canviar. <code>zypp.conf</code> va a la cua amb la resta; les altres canvien tan bon
+punt respons.</li>
+<li><b>A mà</b> fa la llista del que Zypp Desk no pot fer per tu, i diu com fer-ho: tornar a baixar una AppImage
+o un instal·lador de la web de qui el fa, tornar a instal·lar una aplicació web des del seu navegador, copiar una
+carpeta de programes, afegir un repositori que necessita contrasenya, instal·lar una aplicació Flatpak des de la
+còpia que en vas desar. <b>Copia la llista</b> la copia, per tenir-la a mà.</li>
+<li>Els paquets que no són als repositoris d'aquest ordinador, o que hi estan bloquejats, es queden fora, i la
+finestra diu quins són: un de sol aturaria tota la instal·lació.</li>
+<li>Algunes coses han d'esperar: els paquets d'un repositori que s'afegeix ara, i els bloquejos de paquets que
+s'instal·len ara. Quan hagis aplicat la cua, torna a obrir el fitxer, i Zypp Desk hi afegeix el que falta.</li>
+<li>Si el fitxer ve d'una altra versió d'openSUSE, o d'un ordinador amb un altre tipus de processador, la finestra
+t'avisa: alguns repositoris o programes potser no hi encaixen.</li>
+</ul>
+<p>Obre només un fitxer que hagis fet tu, o que vingui d'algú de qui et refiïs: els repositoris i les claus que
+porta deixen que zypper n'instal·li programes com a administrador. Zypp Desk comprova tot el que hi ha al fitxer, i
+deixa fora el que no passa, abans d'ensenyar-te res.</p>
+
+<!-- topic: health | Revisió de l'ordinador -->
+<h2>Revisió de l'ordinador</h2>
+<p>A dalt de <a href="page:maintenance">Manteniment</a>, Zypp Desk mira el programari d'aquest ordinador i et diu
+què val la pena mirar, primer el més important. Cada troballa té una frase que l'explica i, a
+<b>Detalls</b>, els noms. Mirar no canvia res: el botó de cada troballa obre la pàgina que toca, o et fa una pregunta i posa
+els canvis a la cua, que t'ensenya les ordres exactes. <b>Torna a comprovar</b> torna a mirar, per exemple
+després d'instal·lar o treure alguna cosa.</p>
+<p>Què pot trobar:</p>
+<ul>
+<li><b>Firmware per a maquinari que no tens.</b> openSUSE instal·la el firmware de tots els dispositius
+possibles, sovint gairebé un gigabyte. Cada paquet de firmware diu per a quins dispositius és, i per això Zypp Desk
+guarda el que fa servir aquest ordinador i et proposa treure la resta, a la
+<a href="page:drivers">pàgina dels controladors</a>.</li>
+<li><b>Aplicacions que ja no es mantenen.</b> Una aplicació Flatpak que els seus desenvolupadors han deixat ja no
+rep actualitzacions, i pot ser que Flathub la deixi d'oferir. Protegeix-la i desa'n una còpia a
+<a href="page:apps">Aplicacions</a>, perquè no la perdis.</li>
+<li><b>Paquets d'un altre proveïdor.</b> Venen d'un repositori que ja no tens, o que ja no els té, i zypper no els
+actualitza pel seu compte. Zypp Desk et proposa tornar-los a instal·lar del repositori que tens; si només hi ha
+versions més antigues, és millor deixar-los com estan.</li>
+<li><b>Repositoris amb comprovacions febles.</b> No se'n comprova res amb una signatura, o la llista de paquets
+arriba sense signar per http sense xifrar. Una signatura demostra que el que instal·les ve de qui diu.</li>
+<li><b>Claus caducades.</b> Una clau amb què signa un repositori ha caducat, o caducarà aviat. Normalment el
+projecte la renova, i zypper agafa la data nova quan refresca els repositoris; si en refrescar surt un error de
+clau, importa la clau nova a <a href="page:keys">Claus de signatura</a>. Les claus caducades que no fa servir cap
+repositori es poden treure d'allà.</li>
+<li><b>Paquets que no té cap repositori.</b> Ja no reben actualitzacions. La majoria són restes de programes que
+ha substituït una altra cosa: mira-te'ls abans de treure'ls.</li>
+<li><b>Aplicacions instal·lades dues vegades</b>, com a paquet i com a aplicació Flatpak. Ocupen el doble i surten
+dues vegades al menú: queda't la que facis servir.</li>
+<li><b>El que ocupa més espai</b>: els paquets més grans, les aplicacions Flatpak, els paquets baixats i els
+nuclis antics. Cada nom et porta al lloc on es pot treure.</li>
+</ul>
+<p>Les comprovacions que no troben res surten juntes en una línia verda. A sota de les troballes hi ha les tasques
+de manteniment de sempre (mira «Quan alguna cosa va malament»).</p>
+
+<!-- topic: drivers | Controladors -->
+<h2>Controladors</h2>
+<p>La <a href="page:drivers">pàgina dels controladors</a> ensenya les parts d'aquest ordinador (gràfics, Wi-Fi i
+Bluetooth, xarxa, so, càmeres web, impressores), cadascuna en una targeta amb el controlador que fa servir i si és
+lliure. La majoria de controladors són lliures i formen part del nucli: llavors la targeta diu en verd que tot va
+bé, i no cal fer res. Les altres marques diuen que:</p>
+<ul>
+<li>hi ha un controlador millor: un de privatiu funciona molt millor que el lliure, sobretot amb les targetes
+NVIDIA;</li>
+<li>falta firmware, o pot anar millor: el controlador pot fer servir un paquet que no està instal·lat (firmware,
+el microcodi del processador, la descodificació de vídeo a la targeta);</li>
+<li>no hi ha controlador: cap controlador no fa servir el dispositiu;</li>
+<li>és opcional: hi ha un controlador, però és antic, i el lliure continua funcionant;</li>
+<li>és bo de saber: una cosa que convé saber, sense res a fer.</li>
+</ul>
+<p>El botó d'una targeta només posa canvis a la cua, després d'una pregunta que diu què és cada paquet, d'on ve,
+si és privatiu i què passa amb el Secure Boot, amb les ordres exactes. No canvia res fins que no apliques la cua, i
+el controlador comença a funcionar després de reiniciar. Si connectes una base d'acoblament o un adaptador, la
+pàgina torna a mirar el maquinari quan hi tornes; <b>Torna a mirar</b> ho fa de seguida.</p>
+<h3>NVIDIA</h3>
+<p>Amb una targeta NVIDIA, Linux arrenca amb nouveau, un controlador lliure que va lent amb la majoria de
+targetes. Zypp Desk et proposa el controlador d'NVIDIA fet per a la teva targeta:</p>
+<ul>
+<li><b>Targetes recents</b> (GeForce GTX 16, RTX 20 i posteriors): la sèrie G07. La part del nucli és de codi
+obert, ve del repositori principal d'openSUSE i la signa openSUSE, i per això arrenca amb el Secure Boot activat
+sense haver d'inscriure res. La resta (biblioteques gràfiques, descodificació de vídeo, CUDA, configuració) és
+privativa i ve del repositori d'NVIDIA per a openSUSE. Si encara no el tens, Zypp Desk l'afegeix amb la clau de
+signatura d'NVIDIA, després de comprovar que és la que coneix.</li>
+<li><b>Targetes més antigues</b> (Maxwell, Pascal i Volta: les GeForce GTX 750, 900 i 10): la sèrie G06, tota del
+repositori d'NVIDIA. La part del nucli es compila al teu ordinador quan s'instal·la, cosa que porta el compilador i
+els fitxers de desenvolupament del nucli (uns quants centenars de MB), i se signa amb una clau feta al teu
+ordinador.</li>
+<li><b>Targetes molt antigues</b>: les sèries velles d'NVIDIA encara existeixen, però NVIDIA ja no les actualitza
+i només funcionen en una sessió X11. Surten com a opcionals; nouveau continua funcionant.</li>
+</ul>
+<p>Amb el Secure Boot activat, un controlador signat amb una clau feta al teu ordinador demana un pas a la propera
+arrencada: una pantalla blava (MokManager) et demana d'inscriure la clau. Tria <b>Enroll MOK</b>, després
+<b>Continue</b> i <b>Yes</b>, i escriu la contrasenya de root; allà el teclat és l'anglès dels Estats Units. Si
+te'l saltes, l'ordinador arrenca amb nouveau, i pots inscriure la clau en una altra arrencada.</p>
+<h3>Wi-Fi de Broadcom</h3>
+<p>Algunes targetes Wi-Fi de Broadcom no funcionen amb cap controlador lliure. Per a aquestes, Zypp Desk et
+proposa el controlador wl de Broadcom, del repositori no lliure d'openSUSE (repo-non-oss): la llicència de Broadcom
+no deixa que sigui programari lliure, però el signa openSUSE, i per això arrenca amb el Secure Boot activat. Si
+aquell repositori està desactivat, la cua l'activa primer. wl desactiva els controladors lliures de Broadcom, i
+per això Zypp Desk no el proposa si un altre dispositiu de l'ordinador en fa servir algun.</p>
+<h3>Firmware que falta</h3>
+<p>Molts dispositius necessiten firmware: un petit programa que el controlador carrega al dispositiu quan arrenca.
+Quan un dispositiu pot fer servir un paquet de firmware que no està instal·lat, la seva targeta t'ho diu i té un
+botó per instal·lar-lo dels teus repositoris. Si en arrencar un controlador ha demanat un firmware que no ha
+trobat, una targeta et diu quin paquet el té. Si no el té cap paquet, la targeta també t'ho diu: alguns
+controladors demanen primer un fitxer més nou i després en fan servir un de més antic, i si tot funciona, no
+passa res.</p>
+<h3>El que aquest ordinador no necessita</h3>
+<p>Al final de la pàgina, Zypp Desk fa la llista del que hi ha instal·lat per a maquinari que aquest ordinador no
+té, per grups: firmware per a dispositius que no tens, microcodi per a l'altra marca de processador, controladors
+de gràfics i de Wi-Fi per a altres targetes, eines per a màquines virtuals i controladors d'impressora. Només hi
+posa el que està segur que aquí no fa servir res: res que necessiti un dispositiu de l'ordinador, un controlador
+carregat o un altre paquet instal·lat, i res bloquejat ni protegit. Un requadre diu què es queda i per què: per
+exemple, el firmware que fan servir els teus dispositius i, per si de cas, el de dispositius que sovint es
+connecten més endavant (bases d'acoblament, adaptadors de xarxa USB, càmeres).</p>
+<ul>
+<li>Un grup surt marcat quan treure'l és segur. Els controladors d'impressora, i els de dispositius USB que potser
+ara simplement no estan connectats, surten desmarcats: guarda'ls si és possible que en facis servir algun.</li>
+<li>El botó per treure els paquets t'ensenya què marxa i les ordres exactes, i posa les desinstal·lacions a la
+cua. També els pots posar a la cua i simular-la de seguida.</li>
+<li>openSUSE instal·la tot el firmware a través d'un sol paquet, <code>kernel-firmware-all</code>, que el nucli
+recomana. Quan el treus, Zypp Desk també el bloqueja: si no, cada nucli nou el tornaria a instal·lar, i tot el
+firmware amb ell. El bloqueig és a <a href="page:locks">Bloquejos</a>, on el pots treure.</li>
+<li>Si un dia connectes un dispositiu que necessita un paquet que has tret, aquesta pàgina te l'ensenya a la
+targeta del dispositiu, amb un botó per tornar-lo a instal·lar.</li>
+</ul>
+
 <!-- topic: problems | Quan alguna cosa va malament -->
 <h2>Quan alguna cosa va malament</h2>
 <ul>
@@ -152,3 +409,48 @@ connexions per baixada…), el terminal i quin programa obre els fitxers <code>.
 de la web es canvia a Programes de la web (<b>Canvia la carpeta…</b>).</p>
 <p>Zypp Desk parla català, anglès, alemany i francès. Per traduir-lo a la teva llengua, mira
 <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>
+
+<!-- topic: expert | Instal·ladors propis i Expert -->
+<h2>Instal·ladors propis i Expert</h2>
+<h3>Programes amb instal·lador propi</h3>
+<p>Alguns programes no són paquets RPM ni aplicacions Flatpak: s'instal·len amb un instal·lador propi (un
+<code>.sh</code>, un <code>.run</code>, o un <code>.tgz</code> amb un script d'instal·lació a dins). zypper no els
+coneix, i per això ningú no els actualitza. <a href="page:scripts">Amb instal·lador propi</a> els busca a la teva
+carpeta, a <code>/opt</code> i a <code>/usr/local</code>, i entre les entrades del menú que no són de cap paquet,
+i et diu on és cadascun i quant espai ocupa. En aquesta pàgina no s'executa res com a administrador.</p>
+<ul>
+<li><b>Desinstal·la…</b> executa el desinstal·lador del mateix programa, si en té, amb el teu usuari, en una finestra de
+terminal on pots respondre el que et pregunti. Si no en té i és a la teva carpeta, Zypp Desk mou a la paperera la
+seva carpeta, les entrades del menú i les icones, i les pots recuperar d'allà.</li>
+<li>Un programa instal·lat per a tot l'ordinador (a <code>/opt</code> o a <code>/usr/local</code>) necessita la
+contrasenya d'administrador per treure'l. Zypp Desk no ho fa: t'explica per què i et dona les ordres per executar
+en un terminal.</li>
+<li><b>Instal·la des d'una carpeta…</b> executa l'instal·lador d'un programa que hagis baixat (un
+<code>.sh</code>, un <code>.run</code>, o un <code>.tgz</code> o un <code>.zip</code> amb un instal·lador a dins;
+un arxiu comprimit es desempaqueta en una carpeta pròpia de Zypp Desk). Zypp Desk et pregunta abans d'executar-lo,
+i l'executa amb el teu usuari, sense la contrasenya d'administrador, en una finestra de terminal. Quan acaba, Zypp Desk
+apunta què ha creat, perquè després pugui treure el programa encara que no tingui desinstal·lador. Aquests
+instal·ladors no els signa ningú: executa només els que hagis baixat de la web del mateix programa.</li>
+<li>Les entrades del menú d'un programa que ja no hi és surten com a restes que han quedat, i Zypp Desk les pot
+moure a la paperera.</li>
+</ul>
+<h3>Expert</h3>
+<p><a href="page:expert">Expert</a> és per a qui coneix zypper. Hi ha totes les ordres de zypper, amb les opcions
+que dona l'ajuda del mateix zypper (en anglès). A l'esquerra hi ha les ordres més habituals, per grups, i l'última
+fila de la llista les ensenya totes; a la dreta, el formulari de l'ordre triada i l'ordre exacta que farà servir.
+També pots escriure una línia com en un terminal, per exemple <code>zypper se vlc</code>; no cal
+<code>sudo</code>.</p>
+<ul>
+<li>Les ordres que només llegeixen (cerques, informació, les llistes de repositoris, de paquets o de
+bloquejos…) s'executen amb el teu usuari, sense contrasenya, i la sortida surt al terminal.</li>
+<li>Les ordres que canvien el sistema primer et pregunten, en paraules, i després demanen la contrasenya
+d'administrador. Sempre s'executen amb <code>-n</code>: aquí ningú no pot respondre a zypper, i per això agafa les
+respostes per defecte. Quan una ordre es pot simular, <b>Simula</b> ensenya què faria. Les instal·lacions, les
+desinstal·lacions, els bloquejos, les llengües i els canvis de repositoris també poden anar a la cua.</li>
+<li>Algunes línies es rebutgen abans que s'executi res, i el missatge diu per què: més d'una ordre alhora
+(<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), qualsevol cosa que no sigui zypper,
+les ordres que esperen que escriguis (<code>zypper shell</code>), les ordres que l'ajudant que executa zypper com
+a administrador no fa, i les opcions que envien zypper a una altra arrel o a una altra carpeta de configuració, de
+memòria cau o de repositoris, o que afegeixen repositoris o accepten claus pel seu compte (<code>--root</code>,
+<code>--plus-repo</code>, <code>--gpg-auto-import-keys</code>…).</li>
+</ul>

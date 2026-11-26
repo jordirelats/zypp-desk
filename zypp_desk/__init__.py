@@ -3,7 +3,7 @@
 
 APP_ID = "io.github.jordirelats.ZyppDesk"
 APP_NAME = "Zypp Desk"
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 
 # Where the privileged helper may be installed (packaged first, then a local install).
 HELPER_PATHS = (

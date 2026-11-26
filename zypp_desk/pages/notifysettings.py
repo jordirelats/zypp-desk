@@ -128,7 +128,7 @@ def ensure_tray(settings):
 
 
 class NotifyCard(Card):
-    """The settings of the tray icon and its notifications (mockup funcions-v1-01-safata, ③)."""
+    """The settings of the tray icon and its notifications."""
 
     def __init__(self, ctx, parent=None):
         super().__init__(_("Notifications"), parent)
@@ -280,7 +280,7 @@ class NotifyCard(Card):
 
     def _ask_ahead(self, on, step):
         """The question before switching the download ahead on or off (a change as root): what it does in words,
-        what it means, the commands; Enter is "Not yet" (visual review 0.5, #8)."""
+        what it means, the commands; Enter is "Not yet"."""
         if on:
             title = _("Download the updates ahead?")
             items = [("folder-download|download", _("Download the next upgrade ahead, without installing it"),

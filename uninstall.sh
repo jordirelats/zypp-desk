@@ -37,7 +37,11 @@ sudo sh -c 'if [ -e /etc/systemd/system/zypp-desk-refresh.timer ]; then
             true' sh "/usr/share/polkit-1/actions/$APP_ID.local.policy" "/usr/share/polkit-1/actions/$APP_ID.policy" \
   "$PACKAGE"
 rm -f "$HOME/.local/bin/zypp-desk" "$HOME/.local/share/applications/$APP_ID.desktop" \
-      "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg"
+      "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg" \
+      "$HOME/.local/share/mime/packages/$APP_ID.xml"
+if [ -d "$HOME/.local/share/mime" ] && command -v update-mime-database >/dev/null; then
+  update-mime-database "$HOME/.local/share/mime" || true
+fi
 # The tray icon at login: an entry that starts it from this folder goes (one that says just "zypp-desk" stays: it
 # is skipped while no zypp-desk is installed, and works again with the package).
 autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/$APP_ID.tray.desktop"

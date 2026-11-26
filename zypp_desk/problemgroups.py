@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The problems of an upgrade grouped by what causes them, in plain words, with what is usually done.
 
-Jordi (26/11/2026) did not know what to do with an upgrade that shows dozens of unmet dependencies. On
-Tumbleweed they nearly always come from a few causes:
+An upgrade that shows dozens of unmet dependencies leaves most people not knowing what to do. On Tumbleweed
+they nearly always come from a few causes:
 - right after a new Tumbleweed version, the repositories built on top of it (VideoLAN, Packman, OBS projects)
   are a day or two late: their packages do not fit until they are rebuilt, and the problems go away by
   themselves (repostate tells which repositories published before the current Tumbleweed);
@@ -22,7 +22,7 @@ is used when it has one that does the same.
 
 Keeping a package of another repository as it is can mean keeping some of Tumbleweed's own packages as they are
 too: VideoLAN's vlc-codecs needs 'vlc-noX = 3.0.21', exactly the version you have, and the update replaces
-vlc-noX. Locking only vlc-codecs then fails again at the next simulation (zypper review 0.5, #3). So the whole
+vlc-noX. Locking only vlc-codecs then fails again at the next simulation. So the whole
 set that needs each other at an exact version is locked in one go, and the text says which Tumbleweed packages
 are held back; a set that is too big is not kept at all. The locks made this way are remembered in the settings
 ("temp_locks": temp_lock_records, remember_temp_locks), so that the problem window and Locks can say when the
@@ -706,7 +706,7 @@ def _describe(g, items, facts, repos, st):
         g["title"] = ngettext("{n} package no longer exists in Tumbleweed",
                               "{n} packages no longer exist in Tumbleweed", n).format(n=n)
         if used:
-            # the verb goes with {names}, never with {users} (language review 0.5, #7)
+            # the verb goes with {names}, never with {users}
             g["detail"] = ngettext("{names}: no repository has it any more, but it is still used by {users}.",
                                    "{names}: no repository has them any more, but they are still used by {users}.",
                                    n).format(names=_who(names), users=_who(used))
@@ -810,7 +810,7 @@ def _cap(text):
 
 
 def keep_summary(groups, keeps):
-    """What "Update the rest and leave these as they are" does, said honestly (visual review 0.5, #6):
+    """What "Update the rest and leave these as they are" does, said honestly:
     dict(title (what really happens: "Update the rest: lock 12 packages and remove 2"), lines (one short line per
     cause), warning ('' or which problems will come back), locks, removes, discards (how many packages),
     holds (Tumbleweed packages held back with them))."""

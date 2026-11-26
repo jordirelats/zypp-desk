@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Web sources: packages installed from RPM files downloaded from a web site.
 
-zypper cannot know that RustDesk 1.5.3 exists if the RPM came from a folder. A web source says
+zypper cannot know that a new version of a program exists if its RPM came from a folder. A web source says
 where to look and which file to take:
 
 - "github": the latest release of a GitHub project; GitHub publishes the SHA-256 of each file.
-- "url": a fixed address that always gives the latest file (Zoom does this). The version is read
+- "url": a fixed address that always gives the latest file (some vendors offer one). The version is read
   from the address it redirects to, when it has one.
-- "page": a download page; the newest link that matches a pattern is taken (Iriun, AutoFirma).
+- "page": a download page; the newest link that matches a pattern is taken.
   A .zip with an RPM inside is opened.
 - "manual": not followed; only a note (packages made on this computer, pages that cannot be read).
 
@@ -124,7 +124,7 @@ def guess_link_pattern(package):
 def version_in_url(url):
     """The version written in a download address: in the file name, or else in a folder name.
 
-    'iriunwebcam-2.9.3.rpm' → 2.9.3; '…/prod/7.2.5.6661/zoom_openSUSE_x86_64.rpm' → 7.2.5.6661.
+    'someapp-2.9.3.rpm' → 2.9.3; '…/prod/7.2.5.6661/someapp_openSUSE_x86_64.rpm' → 7.2.5.6661.
     Architecture names (x86_64…) do not count. None when there is no version.
     """
     parts = [urllib.parse.unquote(p) for p in urllib.parse.urlsplit(url).path.split("/") if p]
@@ -412,7 +412,7 @@ def _download(source, found, folder, final, part, progress):
         raise ValueError(_("The file contains the package “{found}”, not “{expected}”. It was deleted.")
                          .format(found=head["name"] or "?", expected=source["package"]))
     if source.get("type", "github") != "github" or part.suffix != ".rpm":
-        # files like zoom_openSUSE_x86_64.rpm carry no version: name them as rpm does, to keep each version
+        # files like someapp_openSUSE_x86_64.rpm carry no version: name them as rpm does, to keep each version
         final = folder / _safe_name(f"{head['name']}-{head['version']}-{head['release']}.{head['arch']}.rpm")
     part.replace(final)
     inst = installed_version(source["package"])

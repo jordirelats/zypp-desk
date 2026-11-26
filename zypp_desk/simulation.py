@@ -29,7 +29,7 @@ CATEGORIES = [
 
 def human_size(n, precision=None):
     """A size in the user's own format (QLocale): one decimal under 10 of its unit, none from 10 on and none when
-    it is a whole number ('1,5 GiB', '31 GiB', '400 MiB', '2 GiB'; visual review 0.5, #18). precision: a fixed
+    it is a whole number ('1,5 GiB', '31 GiB', '400 MiB', '2 GiB'). precision: a fixed
     number of decimals instead, for two sizes that must not look the same."""
     try:
         n = float(n)

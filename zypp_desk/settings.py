@@ -34,10 +34,19 @@ DEFAULTS = {
     "temp_locks": [],
     # 2 once the tray's autostart entry was moved to the package's /etc/xdg/autostart one (tray.migrate_autostart)
     "autostart_scheme": 0,
-    # apps never removed through Zypp Desk until unprotected: "flatpak:<app id>" or "rpm:<package>" (protect.py)
+    # apps never removed through Zypp Desk until unprotected: "flatpak:<app id>", "appimage:<path>" or "rpm:<package>"
+    # (protect.py)
     "protected_apps": [],
     # repositories for Fedora (/etc/yum.repos.d) whose banner was answered "Not now": "<file>#<section>"
     "yum_dismissed": [],
+    # more folders where AppImages are looked for (appimages.py), besides the usual ones
+    "appimage_folders": [],
+    # where "Add an AppImage…" puts the file; empty: ~/Applications
+    "appimage_home": "",
+    # {AppImage path: "owner/repo"}: where its new versions are published, when the file does not say
+    "appimage_sources": {},
+    # the folder where "Move to another computer" last saved or opened a software list (.zdesk)
+    "migrate_folder": "",
 }
 
 
@@ -57,7 +66,7 @@ class Settings(dict):
     def save(self):
         p = _path()
         p.parent.mkdir(parents=True, exist_ok=True)
-        # a temp name of its own: the window and the tray may save at the same moment (code review 0.5, #7)
+        # a temp name of its own: the window and the tray may save at the same moment
         fd, tmp = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=p.parent)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:

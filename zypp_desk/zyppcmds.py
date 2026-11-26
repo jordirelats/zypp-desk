@@ -81,7 +81,7 @@ GROUPS = [
     ("maintenance", ["clean", "purge-kernels", "ps", "needs-rebooting", "licenses"]),
     ("other", ["versioncmp", "targetos", "system-architecture", "help", "shell", "subcommand"]),
 ]
-# Shown before "All commands" is opened (the mockup seccions-v1-D-expert).
+# Shown before "All commands" is opened: the commands most people use.
 COMMON = {"install", "remove", "verify", "source-install", "refresh", "list-updates", "update", "dist-upgrade",
           "search", "info", "repos", "addrepo", "modifyrepo", "addlock", "addlocale", "clean", "purge-kernels"}
 

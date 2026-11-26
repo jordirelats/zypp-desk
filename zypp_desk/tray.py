@@ -297,7 +297,7 @@ def plain_04_copy(text):
 
 
 def migrate_autostart(settings):
-    """Once, when the package's entry for everyone (/etc/xdg/autostart) is there (packaging review 0.5, #1):
+    """Once, when the package's entry for everyone (/etc/xdg/autostart) is there:
     - the tray was turned off in 0.4.x (tray_autostart False, or the user entry deleted after it was made):
       write the Hidden=true copy, so that the package's entry does not start it again;
     - a plain copy written by 0.4.x is deleted, so that the package's entry is the one used.
@@ -1150,7 +1150,7 @@ class Tray(QObject):
 
     def _restart_if_upgraded(self):
         """After a package upgrade (the rpm database changed and is quiet again), a tray of the old version
-        starts the new one and quits (packaging review 0.5, #8): it runs for days, and its late imports would
+        starts the new one and quits: it runs for days, and its late imports would
         load the new files into the old process. True when it is going."""
         new = installed_version()
         if not new or new == VERSION:

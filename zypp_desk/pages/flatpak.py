@@ -239,7 +239,7 @@ class FlatpakPage(Page):
             elif state == "flatpak-update" and r["application"] in self.updates:
                 text, color = _("Will be updated"), "#27ae60"
             elif r["application"] in self.updates:
-                # the theme's link colour: a fixed blue is hard to read on a dark background (visual review 0.5, #20)
+                # the theme's link colour: a fixed blue is hard to read on a dark background
                 text, color = _("Update available"), self.palette().color(QPalette.ColorRole.Link).name()
             elif r["application"] in self.eol:
                 text, color = _("no longer maintained"), ORANGE
@@ -440,7 +440,7 @@ class FlatpakPage(Page):
         warning = None
         if refs:
             # flatpak removes a remote that apps or runtimes come from only with --force. "No more updates" is
-            # said once, in the warning (visual review 0.5, #19)
+            # said once, in the warning
             args.append("--force")
             apps = sorted({x["name"] or x["application"] for x in refs if x["kind"] == "app"})
             runtimes = sorted({x["application"] for x in refs if x["kind"] != "app"})

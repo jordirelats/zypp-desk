@@ -60,6 +60,14 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.3" date="2026-11-26">
+      <description>
+        <p>A Drivers page with the driver of each device, proprietary drivers when they work better and what the
+          computer does not need for its hardware; a health check in Maintenance; moving the software to another
+          computer with one file; AppImages in Applications; new Languages, Locks, Own installers and Expert
+          sections; web apps and protected apps in Applications; and proposed routines.</p>
+      </description>
+    </release>
     <release version="0.5.2" date="2026-11-26">
       <description>
         <p>Fixes a freeze of the whole computer when going through many rows of Updates, adds "Mark all" and

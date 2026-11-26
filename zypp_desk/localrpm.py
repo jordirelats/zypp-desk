@@ -81,7 +81,7 @@ def _rpm(args):
 
 def _text(raw: bytes):
     """A header field as text. rpm gives the bytes as they are in the package; most are UTF-8, but older packages
-    (AutoFirma, Configurador FNMT) were written in Latin-1 / Windows-1252: 'Aplicación', not 'Aplicaci�n'."""
+    (some vendors' own RPMs) were written in Latin-1 / Windows-1252: 'Aplicación', not 'Aplicaci�n'."""
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:
@@ -257,9 +257,9 @@ def _others_may_write(st, is_dir=False):
 
 
 def others_can_write(path):
-    """'' when only you or root can change this file; otherwise why others can, in words (security review 0.5,
-    #1: this computer has a second account, and a file anybody can write can be changed between the check and
-    the moment root installs it)."""
+    """'' when only you or root can change this file; otherwise why others can, in words (on a computer
+    with more than one account, a file anybody can write can be changed between the check and the moment root
+    installs it)."""
     try:
         real = os.path.realpath(path)
         st = os.stat(real)
@@ -291,7 +291,7 @@ def private_copy(path):
     whatever happens to the original afterwards."""
     folder = websources.download_dir() / "opened"
     folder.mkdir(mode=0o700, exist_ok=True)
-    real = os.path.realpath(path)  # the folders on the way may be links (~/MEGA); the file itself may not change
+    real = os.path.realpath(path)  # folders on the way may be links (a synced folder); the file itself may not change
     fd = os.open(real, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     tmp = None
     try:
@@ -411,7 +411,7 @@ def read_rpm(path):
     if low.endswith(".src.rpm") or low.endswith(".nosrc.rpm"):
         info["source"] = True
     # a file that others can change is read from a private copy made first: what is checked here is then exactly
-    # what goes to the queue (security review 0.5, #1). The others are copied when they go to the queue.
+    # what goes to the queue. The others are copied when they go to the queue.
     info["exposed"] = others_can_write(path)
     try:
         if info["exposed"]:

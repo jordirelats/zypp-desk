@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Locks: every lock of /etc/zypp/locks with its package's icon on the left and a card for the chosen one on the
-right, like Packages (mockup seccions-v1-B-bloquejos.png; Jordi, 26/11/2026: "bloquejos haurien de sortir les
-icones i ser com les altres pàgines"). "Lock a package…" opens a search where several can be ticked and locked at
-once, and where a name with wildcards (vlc-*) can be locked as it is.
+right, like Packages and the other pages. "Lock a package…" opens a search where several can be ticked and
+locked at once, and where a name with wildcards (vlc-*) can be locked as it is.
 
-The window stays light (Jordi's computer froze when many zypper processes started at once): the list needs one
-zypper search for the summaries of every lock, and the card asks zypper about the chosen lock only, once the
-selection stops moving. Nothing changes the system here: locking and unlocking go to the queue.
+The window stays light: each zypper process loads every repository into memory (hundreds of MB), and many of
+them started at once can freeze the computer. So the list needs one zypper search for the summaries of every
+lock, and the card asks zypper about the chosen lock only, once the selection stops moving. Nothing changes the
+system here: locking and unlocking go to the queue.
 """
 
 import fnmatch

@@ -469,8 +469,8 @@ def item_error(item):
 
 
 # ------------------------------------------------------------------ proposed routines
-# (Jordi, 26/11/2026: "podem proposar rutines?"; mockup maquetes/rutines-v1-A-proposades.png). The first one is
-# made for this computer from what it has (machine_facts); the others are fixed.
+# A few ready routines to start from. The first one is made for this computer from what it has (machine_facts);
+# the others are fixed.
 LOW_SPACE = 10 * 1024 ** 3  # less free space than this on / : the proposal also cleans
 
 

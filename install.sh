@@ -49,6 +49,10 @@ sed -e "s|@EXEC@|\"$SRC/zypp-desk\"|" \
     -e "s|^Icon=.*|Icon=$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg|" \
     "$SRC/data/$APP_ID.desktop.in" > "$HOME/.local/share/applications/$APP_ID.desktop"
 command -v update-desktop-database >/dev/null && update-desktop-database "$HOME/.local/share/applications" || true
+# The .zdesk file type ("Move to another computer"), so the file opens with Zypp Desk
+mkdir -p "$HOME/.local/share/mime/packages"
+cp "$SRC/data/$APP_ID.mime.xml" "$HOME/.local/share/mime/packages/$APP_ID.xml"
+command -v update-mime-database >/dev/null && update-mime-database "$HOME/.local/share/mime" || true
 # A stale icon index (icon-theme.cache) hides new icons from the menu and the desktop: rebuild it.
 icons="$HOME/.local/share/icons/hicolor"
 if [ -e "$icons/icon-theme.cache" ] && command -v gtk-update-icon-cache >/dev/null; then

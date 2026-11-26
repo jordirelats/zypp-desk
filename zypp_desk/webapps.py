@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Web apps (PWA) that browsers install (mockup pwa-v1-A-aplicacions-web.png).
+"""Web apps (PWA) that browsers install.
 
 Chromium-based browsers (Chrome, Chromium, Edge, Brave, Vivaldi, Opera) put a .desktop file for each web app in
 the user's applications folder, named <browser>-<app id>-<profile>.desktop, whose Exec starts the browser with

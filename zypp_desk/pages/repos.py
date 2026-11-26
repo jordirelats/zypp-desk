@@ -523,7 +523,7 @@ class ReposPage(Page):
         menu.aboutToShow.connect(lambda: hidden.setEnabled(bool(self._yum_hidden())))
         more.setMenu(menu)
         # "Search online…" is the green banner's button, right under the header: a second one here only made the
-        # header wider than the window in German (visual review 0.5, #21)
+        # header wider than the window in German
         return [tool(_("Add…"), "list-add", self.add_repo),
                 tool(_("Remove"), "list-remove", self.remove_repo),
                 tool(_("Refresh"), "view-refresh", self.refresh_selected),
@@ -1185,7 +1185,7 @@ class ReposPage(Page):
                 if e["id"] in dismissed]
 
     def show_hidden_yum(self):
-        """More → “Show the hidden repositories for Fedora”: their banners come back (visual review 0.5, #10)."""
+        """More → “Show the hidden repositories for Fedora”: their banners come back."""
         self.ctx.settings["yum_dismissed"] = []
         self.ctx.settings.save()
         self._yum_shown = None
@@ -1296,7 +1296,7 @@ class ReposPage(Page):
 
     def refresh_selected(self):
         """The selected repository, or every one when none is selected: before, "Refresh" with nothing selected did
-        nothing at all, and the new version on the server never showed (Jordi, 26/11/2026: "no refresca")."""
+        nothing at all, and the new version on the server never showed."""
         r = self._selected()
         if not r:
             self.refresh_all()
@@ -1306,7 +1306,7 @@ class ReposPage(Page):
 
     def clean_cache(self):
         """More → “Clean the cache…”: the same question, sizes and command as Maintenance → Clean the cache (one
-        question for one command: visual review 0.5, #16)."""
+        question for one command)."""
         from .system import MaintenancePage, zypp_cache_sizes
         step = Step("zypper", ["-v", "-n", "clean", "--all"])
 

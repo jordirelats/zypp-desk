@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Marking several programs or packages and doing the same with all of them at once (Jordi, 26/11/2026: "falta
-marcar per instal·lació múltiple"; mockups multiple-v1-A-paquets.png and multiple-v1-B-aplicacions.png).
+"""Marking several programs or packages and doing the same with all of them at once (installing several in one
+go, for example).
 
 MarkBar is the band under a list that appears when something is ticked: how many, what they are, and buttons.
 paint_check draws the same box the Updates list uses, for lists that paint their own rows.

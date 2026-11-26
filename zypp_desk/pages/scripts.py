@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Own installers: the programs installed with their own installer (a .sh, a .run, a .tgz with install.pl), the
-page of the mockup seccions-v1-C1-installadors, and the question before running an installer (C2).
+page, and the question before running an installer.
 
 Each program is a card: where it is, how much room it takes, its menu entries and whether it brings its own
 uninstaller; "Open the folder" and "Uninstall…". Uninstall runs the program's own uninstaller in a terminal window,
@@ -197,6 +197,7 @@ def uninstall_question(p, argv, paths, places, size=None, terminal=True):
         buttons.append(("trash", _("Move it to the trash instead"), False))
     buttons.append(("run", _("Run its uninstaller"), True))
     return _("Uninstall {name}?").format(name=p["name"]), dict(
+        help_topic="expert",
         icon_name="edit-delete", items=[(program_qicon(p), p["name"], detail)], means=means, commands_=cmds,
         password=False, width=720, buttons=buttons)
 
@@ -213,6 +214,7 @@ def trash_question(p, paths, places, size=None):
                   "administrator password. Nothing is deleted for good: you can bring it all back from the trash. "
                   "Files you made with it and saved elsewhere are not touched.")
     return title, dict(
+        help_topic="expert",
         icon_name="user-trash-full|user-trash", items=trash_items(p, paths, places, size), means=means,
         commands_=trash_commands(paths, places), password=False, width=720,
         buttons=[("no", _("Not yet"), False), ("yes", _("Move to the trash"), True)])
@@ -237,6 +239,7 @@ def system_question(p, places):
         warning = _("rm deletes for good: what the administrator deletes does not go to the trash. Look at the "
                     "folder first.")
     return title, dict(
+        help_topic="expert",
         icon_name="dialog-password|object-locked", items=[(program_qicon(p), p["name"], _where(p, places))],
         means=means, warning=warning, commands_=cmds, commands_title=_("The commands to run in a terminal:"),
         password=False, width=700,
@@ -244,7 +247,7 @@ def system_question(p, places):
 
 
 def install_question(info, places, terminal=True):
-    """The question of mockup C2, before running an installer."""
+    """The question before running an installer."""
     parts = [_("In {folder}").format(folder=scripts.home_short(info["folder"], places.home)),
              human_size(info["size"])]
     if info["kind"] == "archive":
@@ -271,7 +274,7 @@ def install_question(info, places, terminal=True):
         cmds = [_("{command}   (in {folder}, as you)").format(
             command=cmd, folder=scripts.home_short(info["folder"], places.home))]
     return _("Run this installer?"), dict(
-        icon_name="application-x-shellscript", items=[item], means=means,
+        help_topic="expert", icon_name="application-x-shellscript", items=[item], means=means,
         warning=_("It is not signed: nobody confirms who made it. Run it only if you downloaded it from the "
                   "program's own website."),
         commands_=cmds, password=False, width=740,
@@ -662,7 +665,7 @@ class ScriptsPage(Page):
         self.open_installer(path)
 
     def open_installer(self, path):
-        """Look inside the chosen file, then ask (mockup C2)."""
+        """Look inside the chosen file, then ask (install_question)."""
         self.b_install.setEnabled(False)
         self._say(_("Looking inside {file}…").format(file=os.path.basename(path)), "info")
         run_async(scripts.inspect_installer, path, self.places,

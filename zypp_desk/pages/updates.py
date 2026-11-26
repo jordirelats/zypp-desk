@@ -2,8 +2,8 @@
 """Updates: your routine (run step by step), what there is to update with the package card next to it,
 and a simulation of 'zypper dup' with its options in its own window.
 
-Before a real 'zypper dup' the window asks with the numbers of a simulation (mockups preguntes-v3-D, -G and
-idees-v1-H): the usual question; "a big update: shall we do it now?" when it is big or Tumbleweed came out
+Before a real 'zypper dup' the window asks with the numbers of a simulation:
+the usual question; "a big update: shall we do it now?" when it is big or Tumbleweed came out
 today; and "update in parts?" when it does not fit on the disk with room to spare (diskspace.py). Before that
 question every part is simulated (heaps.review): what needs a decision goes to the full update at the end, and
 the parts are made again with their real sizes. The routine asks too, before it runs, when the disk is clearly
@@ -237,7 +237,7 @@ def change_items(res, short=False):
 def change_summary(res):
     """Every change of a simulation in one item ("2,143 updates · 37 new packages · 12 to remove"), with all the
     names under '▸ Show them': the question about the room on the disk puts its reason first, and the changes
-    must not push it below the fold (visual review 0.5, #5)."""
+    must not push it below the fold."""
     g = res.get("groups", {})
     up = g.get("to-upgrade", [])
     counts = []
@@ -300,7 +300,7 @@ def part_steps(plan, opts):
 
 
 def final_step(now):
-    """The full update after the parts: only if every part worked (zypper review 0.5, #2: a routine's ';' before
+    """The full update after the parts: only if every part worked (a routine's ';' before
     its dup must not run the whole download-at-once update after a part failed)."""
     st = _copy(now)
     st.cond = "success"
@@ -429,7 +429,7 @@ def dup_question(parent, res, steps, facts):
                                 "their whole size.")
         plan = facts.get("plan") or dict(parts=[], feasible=False, reason="none", need=0, short=0)
         feasible = plan["feasible"] and bool(steps.get("parts"))
-        # a small update on a nearly full disk: it fits, only not with the room to spare (code review 0.5, #2)
+        # a small update on a nearly full disk: it fits, only not with the room to spare
         tight = not feasible and bool(space.get("fits_tight")) and steps.get("now") is not None
         rows = [] if tight else [(ORANGE, _("There is not enough room to download it all at once"),
                                   _("If the disk fills up halfway, the system can be left half updated."))]
@@ -494,7 +494,7 @@ def dup_question(parent, res, steps, facts):
             buttons.append(("parts", _("Yes, in parts"), True))
             title = _("Update in parts?")
         else:
-            # nothing to say yes to (visual review 0.5, #4): what can be done is freeing space, or updating anyway
+            # nothing to say yes to: what can be done is freeing space, or updating anyway
             if space["snapshots"]:
                 buttons.append(("history", _("Open History"), False))
             if tight:
@@ -511,7 +511,7 @@ def dup_question(parent, res, steps, facts):
             "About {n} minute at {speed} Mbit/s.", "About {n} minutes at {speed} Mbit/s.", dl_min).format(
             n=dl_min, speed=ASSUMED_MBIT))]
         downloaded = download < diskspace.MiB
-        # always a plain way out that changes nothing (visual review 0.5, #4), and Enter takes it
+        # always a plain way out that changes nothing, and Enter takes it
         if downloaded:
             cmds = [steps["now"].display()]
             buttons = [("no", _("Not yet"), False), ("remind", _("Remind me tomorrow"), False),
@@ -711,7 +711,7 @@ class StepBox(QFrame):
         v = QVBoxLayout()
         v.setSpacing(1)
         # a part of an update in parts says which part it is, and its command leaves the names to the tooltip and
-        # the terminal (visual review 0.5, #12)
+        # the terminal
         title = QLabel(getattr(step, "band_title", None) or routine.describe(step), self)
         f = title.font()
         f.setBold(True)
@@ -799,7 +799,7 @@ class UpdatesPage(Page):
         self.up_count.hide()
         lh.addWidget(self.up_count)
         lh.addStretch(1)
-        # tick or untick every row at once (Jordi, 26/11/2026: to update only Zypp Desk he unticked 95 rows by hand)
+        # tick or untick every row at once: updating only one package meant unticking every other row by hand
         self.mark_all_btn = tool(_("Mark all"), "edit-select-all", lambda: self.set_all_ticked(True))
         self.unmark_all_btn = tool(_("Unmark all"), "edit-select-none", lambda: self.set_all_ticked(False))
         again = button(_("Look again"), "view-refresh", lambda: self.load_updates())
@@ -807,7 +807,7 @@ class UpdatesPage(Page):
                            "updates everything at once; here you can pick only some."))
         lh.addWidget(again)
         # "Look again" only reads what the computer already knows; this asks the repositories for what is new
-        # (Jordi, 26/11/2026: a new Zypp Desk on OBS did not show until the repositories were refreshed)
+        # (a version just published does not show until the repositories are refreshed)
         fresh = button(_("Refresh the repositories"), "download", self.refresh_and_look)
         fresh.setToolTip(_("Ask every repository for what is new (with the administrator password), then look "
                            "again."))
@@ -821,7 +821,7 @@ class UpdatesPage(Page):
         self.up_list.setMouseTracking(True)
         self.up_list.setStyleSheet("QListWidget { background: transparent; }")
         # the card is filled only when the selection stops moving: every row asks zypper and rpm several things,
-        # and going through 95 rows (ticking them off) froze the whole computer (Jordi, 26/11/2026)
+        # and going through 95 rows (ticking them off) froze the whole computer
         self._row_timer = QTimer(self)
         self._row_timer.setSingleShot(True)
         self._row_timer.setInterval(300)
@@ -897,8 +897,8 @@ class UpdatesPage(Page):
             self.strip.addWidget(box, 1)
 
     def _restore_band(self):
-        """After a run in parts (or its question), the band shows the saved routine again (code review 0.5,
-        #10): what this run did is in the terminal and in the line under the band."""
+        """After a run in parts (or its question), the band shows the saved routine again:
+        what this run did is in the terminal and in the line under the band."""
         if getattr(self, "_band_custom", False) and not getattr(self, "_running", False):
             self.show_routine()
 
@@ -921,7 +921,7 @@ class UpdatesPage(Page):
 
     def _flow_busy(self):
         """An update is on its way to its question: simulated, and now the free space is measured or the parts
-        are checked. Nothing else may start meanwhile (code review 0.5, #9): the question would be dropped."""
+        are checked. Nothing else may start meanwhile: the question would be dropped."""
         return bool(getattr(self, "_dup_asking", False) or getattr(self, "_routine_asking", False))
 
     def run_routine(self):
@@ -1043,7 +1043,7 @@ class UpdatesPage(Page):
         for line in summary_lines(res):
             self.ctx.terminal.view.note(line, "ok")
         if res["problems"]:
-            # the same window as in "Simulate the dup…" (zypper review 0.5, #12): choose, and the routine goes on
+            # the same window as in "Simulate the dup…": choose, and the routine goes on
             items = self._solvable(res)
             if items:
                 self._routine_say(_("zypper found a problem:") + "\n" + "\n".join(res["problems"][:3]))
@@ -1250,7 +1250,7 @@ class UpdatesPage(Page):
         self.up_count.setText(str(total))
         self.up_count.setVisible(total > 0)
         counts = {key: sum(1 for r in rows if not r.get("error")) for key, _l, rows in groups}
-        if not busy:  # the sidebar says it as in the approved mockup: "Updates (4)"
+        if not busy:  # the sidebar shows the count too: "Updates (4)"
             self.ctx.set_badge(self.key, str(total) if total else "")
         self.counted.emit(dict(counts, total=total, busy=busy, pending=sorted(self.up_pending),
                                errors=dict(self.up_errors),
@@ -1342,7 +1342,7 @@ class UpdatesPage(Page):
         run_async(backend.search, name, exact=True, on_done=lambda res, err, r=row: self._row_package(r, res, err))
 
     def _show_firmware(self, row):
-        """The approved firmware card: Information / What changes / All devices."""
+        """The firmware card: Information / What changes / All devices."""
         u = row["data"]
         self._detail_for = ("firmware", row["name"])
         esc = html.escape
@@ -1568,7 +1568,7 @@ class UpdatesPage(Page):
         if err:
             return
         self._repos = repos  # for the question before the dup: how old the Tumbleweed version is
-        # "Only from:" keeps what you chose across the reloads (code review 0.5, #15), while the repository is
+        # "Only from:" keeps what you chose across the reloads, while the repository is
         # still there and enabled
         chosen = self.o_from.currentData()
         self.o_from.blockSignals(True)
@@ -1848,7 +1848,7 @@ class UpdatesPage(Page):
             self._restore_band()
 
     def _parts_stopped(self, job, parts):
-        """Which part stopped, and that its downloads stay (zypper review 0.5, #9)."""
+        """Which part stopped, and that its downloads stay."""
         n = len(parts)
         i = next((k for k, st in enumerate(parts, 1) if st.state == "failed"), None)
         if i is None:
@@ -1873,7 +1873,7 @@ class UpdatesPage(Page):
         """Simulate every part of plan p that is not simulated yet, all in one run (dry runs: nothing changes, and
         the password given for the simulation of the dup is still remembered). Then heaps.review(): what needs
         a decision goes to the final dup, the plan is made again with the real sizes, and a part that does not
-        fit is cut in two; the new parts are simulated in turn. Only then the question (zypper review 0.5, #1)."""
+        fit is cut in two; the new parts are simulated in turn. Only then the question."""
         todo = [part for part in p["parts"] if heaps.part_key(part["names"]) not in sims]
         if not todo:
             self._parts_measured(job, res, facts, p, sims, {}, None)
@@ -1930,8 +1930,8 @@ class UpdatesPage(Page):
         self._ask(job, res, dict(facts, plan=out["plan"]))
 
     def _run_parts(self, job, plan):
-        """The parts (each one only if the one before worked), then the full update (zypper review 0.5, #2:
-        also only if they all worked), then the rest of the routine."""
+        """The parts (each one only if the one before worked), then the full update (also
+        only if they all worked), then the rest of the routine."""
         steps = part_steps(plan, job["opts"]) + [final_step(job["now"])]
         n = len(plan["parts"])
         self._run_job(job, steps, ngettext("zypper dup, in {n} part", "zypper dup, in {n} parts", n).format(n=n),
@@ -1940,7 +1940,7 @@ class UpdatesPage(Page):
     # ------------------------------------------------ the other answers
     def _remind_tomorrow(self, job):
         """"Remind me tomorrow": the tray icon reminds. It is started when it is not running, or nobody would
-        (code review 0.5, #3); update_reminder_reason tells it what to say."""
+        remind; update_reminder_reason tells it what to say."""
         when = tomorrow_morning()
         s = self.ctx.settings
         s["update_reminder_at"] = when

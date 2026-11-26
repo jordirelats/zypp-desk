@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Update in parts when the whole upgrade does not fit on the disk at once. No widgets, nothing as root.
 
-Jordi (26/11/2026): "when it downloads in parts we cannot depend on a download failing: it must look at the
-dependencies and update the selected packages normally". So each part is a normal, consistent zypper transaction
-that downloads everything it needs first and only then installs:
+Updating in parts must not depend on every download working (as '--download-as-needed' would), and it must
+respect the dependencies and update the selected packages normally. So each part is a normal, consistent zypper
+transaction that downloads everything it needs first and only then installs:
 
     zypper -n -v update --download-in-advance [-l] [--no-recommends] [--repo X] -- name1 name2 …
 
@@ -285,7 +285,7 @@ def plan(result, space, info=None, kept=None, snapshots=None, est=None, exclude=
                     part[k] += g[k]
                 todo.remove(g)
         if not part["groups"]:
-            # even alone, after what the parts before it keep (code review 0.5, #5: they count too)
+            # even alone, after what the parts before it keep (they count too)
             short = room.missing(todo[0]["download"], todo[0]["growth"])
             out.update(feasible=False, reason="group", short=int(short), need=int(out["free"] + short))
             return _finish(out)

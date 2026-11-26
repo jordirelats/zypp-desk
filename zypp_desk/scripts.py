@@ -2,8 +2,8 @@
 """Programs installed with their own installer (a .sh, a .run, a .tgz with install.pl…): find them, unpack and run
 an installer, note what it creates, and the ways to take them away again.
 
-Jordi, 26/11/2026: a section to keep an eye on programs that install with a .sh: install from a folder, and
-uninstall. The mockups are seccions-v1-C1 (the page) and seccions-v1-C2 (the question before an installer).
+A section to keep an eye on programs that install with a .sh: install from a folder, and uninstall. The page
+and the question before running an installer are in pages/scripts.py.
 Nothing here knows any program or folder of one computer: it works for any program and any home.
 
 No Qt here: plain Python, meant to run in a thread (tasks.run_async). Every folder it looks at comes from a Places,

@@ -647,7 +647,7 @@ QPushButton[segpos="last"] { border-top-right-radius: 7px; border-bottom-right-r
 class ImportKeyDialog(QDialog):
     """Get a key (from a web address, a file or its fingerprint), look at it, and put its import in the queue.
 
-    url / fingerprint: start fetching at once. hint: who publishes the key (for example "Zoom"), shown in the
+    url / fingerprint: start fetching at once. hint: who publishes the key (for example a company's name), shown in the
     label of the field where the fingerprint published by the vendor can be pasted to compare.
     """
 

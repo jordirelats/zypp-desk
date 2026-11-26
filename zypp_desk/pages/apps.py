@@ -3,7 +3,8 @@
 
 Two tabs:
 - My applications: every installed program (RPM and Flatpak) with its origin: a repository, Flatpak, or
-  a file downloaded from the web. Filters by origin, updates waiting, and the actions of each program.
+  a file downloaded from the web; the web apps of the browsers; and the AppImages (appimages.py). Filters by
+  origin, updates waiting, and the actions of each program.
 - Discover: the catalogues of the openSUSE repositories and of Flathub, by theme (the freedesktop
   categories), with installing through the queue.
 """
@@ -14,18 +15,18 @@ import re
 import shlex
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QPainter, QPalette
+from PySide6.QtCore import QEvent, QRect, QSize, QStandardPaths, Qt, QTimer, QUrl
+from PySide6.QtGui import QColor, QDesktopServices, QFont, QFontMetrics, QIcon, QPainter, QPalette
 from PySide6.QtWidgets import (QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                                QListWidget, QListWidgetItem, QScrollArea, QSizePolicy, QStackedWidget, QStyle,
                                QStyledItemDelegate, QToolButton, QVBoxLayout, QWidget)
 
-from .. import apps, appicons, webapps
+from .. import apps, appicons, appimages, webapps
 from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Chip, FlowLayout, Page, button, heading, icon, muted
+from ..ui import Chip, FlowLayout, Page, button, heading, icon, mono, muted, tool
 from .home import Tile
 from .markbar import MarkBar, check_rect, is_checked, paint_check
 
@@ -36,6 +37,7 @@ TEAL = "#16a085"
 PINK = "#e93a9a"
 SLATE = "#5d6d7e"
 YELLOW = "#f39c12"
+INDIGO = "#5c6bc0"  # the AppImage pill
 
 # freedesktop main categories: label, icon, colour
 CATEGORIES = {
@@ -131,6 +133,12 @@ def breakable(text):
     return html.escape(text).replace(".", ".&#8203;").replace("/", "/&#8203;")
 
 
+def host_of(url):
+    """'https://github.com/a/b/releases/…' → 'github.com'."""
+    from urllib.parse import urlsplit
+    return urlsplit(url or "").netloc
+
+
 def repo_label(name):
     """'repo-oss' → 'openSUSE · oss': openSUSE's own repositories by what people call them."""
     if name.startswith("repo-"):
@@ -168,7 +176,7 @@ class AppDelegate(QStyledItemDelegate):
             p.setBrush(QColor(39, 174, 96, 24))
             p.drawRoundedRect(r, 10, 10)
         shift = 0
-        if index.data(MARK_ROLE):  # Discover: mark several (mockup multiple-v1-B)
+        if index.data(MARK_ROLE):  # Discover: mark several
             paint_check(p, check_rect(r), is_checked(index.data(Qt.ItemDataRole.CheckStateRole)), option.palette)
             shift = 28
         self.page.app_icon(a).paint(p, QRect(r.left() + 10 + shift, r.top() + (r.height() - 38) // 2, 38, 38))
@@ -197,7 +205,7 @@ class AppDelegate(QStyledItemDelegate):
                          else c.lighter(130))
             p.drawText(br, Qt.AlignmentFlag.AlignCenter, text)
             x -= w + 6
-        version = a.get("version") or ""
+        version = (a.get("version") or "") if a["kind"] != "appimage" else ""  # an AppImage: its file and size
         if version:
             pfm = p.fontMetrics()
             vw = min(pfm.horizontalAdvance(version) + 6, 160)
@@ -215,12 +223,19 @@ class AppDelegate(QStyledItemDelegate):
         bfm = QFontMetrics(bold)
         p.drawText(QRect(tx, r.top() + 7, tw, bfm.height()), Qt.AlignmentFlag.AlignLeft,
                    bfm.elidedText(a["name"], Qt.TextElideMode.ElideRight, tw))
-        p.setFont(option.font)
+        line_font = option.font
+        if a["kind"] == "appimage":  # the file, as in a terminal: where it is is what tells AppImages apart
+            line_font = mono()
+            line_font.setPointSizeF(option.font.pointSizeF() * 0.92)
+        p.setFont(line_font)
         p.setPen(option.palette.color(QPalette.ColorRole.PlaceholderText))
-        fm = QFontMetrics(option.font)
-        summary = a.get("summary") or (
-            (a.get("host") or _("Web app of {browser}").format(browser=a["origin_name"])) if a["kind"] == "webapp"
-            else a["package"])
+        fm = QFontMetrics(line_font)
+        if a["kind"] == "appimage":
+            summary = self.page.appimage_line(a)
+        else:
+            summary = a.get("summary") or (
+                (a.get("host") or _("Web app of {browser}").format(browser=a["origin_name"])) if a["kind"] == "webapp"
+                else a["package"])
         p.drawText(QRect(tx, r.top() + 9 + bfm.height(), tw, fm.height()), Qt.AlignmentFlag.AlignLeft,
                    fm.elidedText(summary, Qt.TextElideMode.ElideRight, tw))
         p.restore()
@@ -245,7 +260,7 @@ class AppDelegate(QStyledItemDelegate):
 
 class ShortHeading(QLabel):
     """A heading that gives way with "…" when the row is narrow, instead of making the page wider than the
-    window (the title of a theme beside its source chips and filter: visual review 0.5, #21)."""
+    window (the title of a theme beside its source chips and filter)."""
 
     def __init__(self, scale, parent=None):
         super().__init__(parent)
@@ -310,8 +325,11 @@ class Details(QFrame):
         self.summary.setWordWrap(True)
         self.info = QLabel(self)
         self.info.setWordWrap(True)
-        self.info.setTextFormat(Qt.TextFormat.RichText)
+        self.info.setTextFormat(Qt.TextFormat.RichText)  # the rows: every value is escaped (html.escape, breakable)
         self.note = muted("", self)
+        # names and summaries come from files anyone can write (an AppImage, a .desktop file): never rich text
+        for lbl in (self.name, self.summary, self.note):
+            lbl.setTextFormat(Qt.TextFormat.PlainText)
         self.buttons = QVBoxLayout()
         self.buttons.setSpacing(6)
         lay.addWidget(self.icon)
@@ -364,6 +382,11 @@ class AppsPage(Page):
         super().__init__(ctx, parent)
         self.installed = []
         self.webapps = []  # the web apps (PWA) of the browsers (webapps.py)
+        self.appimages = []  # the AppImages and the menu entries of AppImages that are gone (appimages.py)
+        self._ai_found = {}  # path → what "Look for a new version" found (appimages.check)
+        self._ai_errors = {}  # path → why it could not look
+        self._ai_busy = {}  # path → "checking" or "downloading"
+        self._ai_select = None  # the path to select once the AppImages are read again
         self.updates = {"rpm": {}, "flatpak": {}}
         self.catalogue = []
         self.rpm_names, self.flatpak_ids = set(), set()
@@ -395,7 +418,7 @@ class AppsPage(Page):
         self.b_mine.setChecked(True)
         seg.addStretch(1)
         # the filter of My applications sits beside the switch, where there is room: on the row of the chips it
-        # made the page wider than a 1100 px window in Catalan and German (visual review 0.5, #21)
+        # made the page wider than a 1100 px window in Catalan and German
         self.mine_search = QLineEdit(self)
         self.mine_search.setPlaceholderText(_("Filter by name…"))
         self.mine_search.setClearButtonEnabled(True)
@@ -429,7 +452,7 @@ class AppsPage(Page):
         self.filter_group = QButtonGroup(self)
         self.filter_group.setExclusive(True)
         self.chips = {}
-        for key in ("all", "repo", "flatpak", "web", "webapp", "updates"):
+        for key in ("all", "repo", "flatpak", "web", "webapp", "appimage", "updates"):
             c = Chip("", key == "all", w)
             self.filter_group.addButton(c)
             c.toggled.connect(lambda on, k=key: on and self._fill_mine())
@@ -530,7 +553,7 @@ class AppsPage(Page):
         self.disc_list = app_list(self)
         self.disc_list.currentItemChanged.connect(lambda cur, _p: self._show_catalogue(cur))
         self.disc_details = Details(list_page)
-        # mark several programs and install them at once (mockup multiple-v1-B); the marks survive a new filter
+        # mark several programs and install them at once; the marks survive a new filter
         self.disc_marked = {}  # (kind, package) -> the catalogue entry
         self.disc_markbar = MarkBar(self._disc_mark_action, self._disc_unmark_all, list_page)
         self.disc_list.itemChanged.connect(self._disc_item_changed)
@@ -569,6 +592,7 @@ class AppsPage(Page):
             self.mine_list.addItem(wait)
         run_async(apps.installed, on_done=self._installed_loaded)
         run_async(webapps.scan, on_done=self._webapps_loaded)
+        self._scan_appimages()
         run_async(apps.updates, on_done=self._updates_loaded)
         run_async(apps.web_updates, on_done=self._web_updates_loaded)
         if self.catalogue:
@@ -594,7 +618,7 @@ class AppsPage(Page):
         self._fill_mine()
 
     def _mine(self):
-        return self.installed + self.webapps
+        return self.installed + self.webapps + self.appimages
 
     def _updates_loaded(self, res, err):
         if res:
@@ -697,6 +721,11 @@ class AppsPage(Page):
         """The new version waiting for an installed program, or None."""
         if a["kind"] == "webapp":
             return None  # the browser updates its web apps by itself
+        if a["kind"] == "appimage":  # known only after "Look for a new version": never asked by itself
+            f = self._ai_found.get(a["path"]) or {}
+            if f.get("newer") or (f.get("newer") is None and f and not f.get("same")):
+                return f.get("version") or f.get("asset")
+            return None
         if a["kind"] == "flatpak":
             return self.updates["flatpak"].get(a["package"]) or None
         if a["origin"] == "web":
@@ -707,6 +736,8 @@ class AppsPage(Page):
         return self.updates["rpm"].get(a["package"])
 
     def queue_state(self, a):
+        if a["kind"] == "appimage":
+            return None  # AppImages never go through the queue: they are the user's files
         if a["kind"] == "flatpak":
             return self.ctx.queue.flatpak_state(a["package"])
         return self.ctx.queue.state_of(a["package"])
@@ -717,6 +748,8 @@ class AppsPage(Page):
     def origin_badge(self, a):
         if a["kind"] == "webapp":
             return (_("orphan"), ORANGE) if a["orphan"] else (a["origin_name"], a["color"])
+        if a["kind"] == "appimage":
+            return (_("orphan"), ORANGE) if a["orphan"] else ("AppImage", INDIGO)
         if a.get("catalogue"):
             return ("openSUSE", GREEN) if a["kind"] == "rpm" else (a["origin_name"], PURPLE)
         if a["origin"] == "flatpak":
@@ -805,6 +838,484 @@ class AppsPage(Page):
             QFile.moveToTrash(f)
         run_async(webapps.scan, on_done=self._webapps_loaded)
 
+    # ------------------------------------------------------------ AppImages (appimages.py)
+    def header_actions(self):
+        return [tool(_("Add an AppImage…"), "list-add", self.add_appimage)]
+
+    def _scan_appimages(self, select=None):
+        if select:
+            self._ai_select = select
+        download = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or None
+        run_async(appimages.scan, self.ctx.settings.get(appimages.SETTING_FOLDERS) or [], download,
+                  on_done=self._appimages_loaded)
+
+    def _appimages_loaded(self, res, err):
+        if err:
+            return  # the other programs are still listed; an AppImage that cannot be read is simply not shown
+        self.appimages = res or []
+        paths = {a["path"] for a in self.appimages}
+        for d in (self._ai_found, self._ai_errors):
+            for p in [p for p in d if p not in paths]:
+                d.pop(p, None)
+        select, self._ai_select = self._ai_select, None
+        if select:
+            key = next((k for k, c in self.chips.items() if c.isChecked()), "all")
+            if key not in ("all", "appimage"):
+                self.chips["appimage"].setChecked(True)  # fills the list
+        self._chip_texts()
+        self._fill_mine()
+        if select:
+            for i in range(self.mine_list.count()):
+                a = self.mine_list.item(i).data(Qt.ItemDataRole.UserRole)
+                if a and a["kind"] == "appimage" and a["path"] == select:
+                    self.mine_list.setCurrentRow(i)
+                    self.mine_list.scrollToItem(self.mine_list.item(i))
+                    break
+
+    def appimage_line(self, a):
+        """The grey line of a row: '~/AppImages/app.AppImage · 138 MB · terminal tool'."""
+        from ..simulation import human_size
+        parts = [appimages.display_path(a["path"])]
+        if a["orphan"]:
+            parts.append(_("the file is gone"))
+        else:
+            parts.append(human_size(a["size"]))
+            if a["terminal"]:
+                parts.append(_("terminal tool"))
+        return " · ".join(parts)
+
+    def _ai_source(self, a):
+        """Where new versions come from: what the file says, else what the user said (settings)."""
+        src = a.get("source")
+        if src and src["kind"] != "unknown":
+            return src
+        said = (self.ctx.settings.get(appimages.SETTING_SOURCES) or {}).get(a["path"])
+        return appimages.github_source(said) if said else src
+
+    def _refresh_ai(self, path):
+        """Show again the card (and the row) of this AppImage if it is the one selected."""
+        self._chip_texts()
+        self.mine_list.viewport().update()
+        cur = self.mine_list.currentItem()
+        a = cur.data(Qt.ItemDataRole.UserRole) if cur else None
+        if a and a["kind"] == "appimage" and a["path"] == path and self.tabs.currentIndex() == 0:
+            self._show_appimage(a)
+
+    def _show_appimage(self, a):
+        from ..simulation import human_size
+        path = a["path"]
+        src = self._ai_source(a)
+        found = self._ai_found.get(path) or {}
+        busy = self._ai_busy.get(path)
+        new = self.update_of(a)
+        guarded = self.is_protected(a)
+        rows = [(_("File"), breakable(appimages.display_path(path)))]
+        if a["orphan"]:
+            rows.append((_("In the menu"), html.escape(_("yes, but the file is gone"))))
+        else:
+            rows += [(_("Size"), html.escape(human_size(a["size"]))),
+                     (_("Version"), html.escape(a["version"] or _("the file does not say"))),
+                     (_("In the menu"), html.escape(_("yes") if a["menu"] else _("no")))]
+            if not src:
+                where = _("the file does not say")
+            elif src["kind"] == "unknown":
+                where = _("the file says it in a way Zypp Desk does not know")
+            elif src.get("user"):
+                where = _("{place}, as you said").format(place=appimages.source_text(src))
+            else:
+                where = _("{place}, as the file says").format(place=appimages.source_text(src))
+            rows.append((_("New versions from"), breakable(where)))
+            if new:
+                rows.append((_("New version"), f"<b style='color:{GREEN}'>{html.escape(new)}</b>"))
+
+        notes = []
+        if a["orphan"]:
+            notes.append(_("The file this menu entry runs is gone: the entry no longer opens anything and can be "
+                           "removed."))
+        else:
+            notes.append(_("An AppImage is a whole program in one file. Zypp Desk puts it in the menu, looks for a "
+                           "new version and can protect it or remove it."))
+            if not a["read"]:
+                notes.append(_("Install unsquashfs (the package squashfs) to see its name, version and icon: Zypp "
+                               "Desk reads them without running the program.") if a["why"] == "notool" else
+                             _("Zypp Desk cannot read inside this kind of AppImage without running it, so it shows "
+                               "what the menu entry or the file name says."))
+            if not a["writable"]:
+                notes.append(_("It is in a folder only the administrator can change: Zypp Desk can open it, but not "
+                               "update it or remove it."))
+            if a["backup"]:
+                notes.append(_("The previous version is kept as {file} until the new one has opened once from "
+                               "here.").format(file=Path(a["backup"]).name))
+            if busy == "checking":
+                notes.append(_("Looking for a new version…"))
+            elif busy == "downloading":
+                notes.append(_("Downloading the new version…"))
+            elif path in self._ai_errors:
+                notes.append(_("Could not look for a new version: {error}").format(error=self._ai_errors[path]))
+            elif found.get("same"):
+                notes.append(_("You have the newest version: the SHA-256 GitHub publishes is the one of your file."))
+            elif found and found.get("newer") is False:
+                notes.append(_("You have the newest version ({version}).").format(
+                    version=found.get("version") or found.get("asset")))
+            elif found and found.get("newer") is None:
+                notes.append(_("The newest file on GitHub ({file}) is not the one you have, and its version cannot "
+                               "be compared.").format(file=found.get("asset")))
+            if guarded:
+                notes.append(_("Protected: Zypp Desk does not remove it until you stop protecting it."))
+        self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "AppImage", rows, "\n\n".join(notes))
+
+        btns = []
+        if a["orphan"]:
+            btns.append(button(_("Remove it from the menu…"), "edit-delete", lambda: self._ai_menu_remove(a)))
+            self.mine_details.set_buttons(btns)
+            return
+        get_new = bool(new) and a["writable"] and not busy
+        btns.append(button(_("Open it"), "media-playback-start", lambda: self._ai_open(a), primary=not get_new))
+        if get_new:
+            btns.append(button(_("Get the new version…"), "download", lambda: self._ai_get_new(a), primary=True))
+        look = button(_("Looking…") if busy == "checking" else _("Look for a new version"), "view-refresh",
+                      lambda: self._ai_look(a))
+        look.setEnabled(not busy)
+        btns.append(look)
+        if src and src.get("user"):
+            btns.append(button(_("Change where to look…"), "document-edit", lambda: self._ai_ask_source(a)))
+        if a["backup"] and a["writable"]:
+            btns.append(button(_("Back to the previous version…"), "edit-undo", lambda: self._ai_restore(a)))
+        if a["menu"]:
+            btns.append(button(_("Remove it from the menu…"), "list-remove", lambda: self._ai_menu_remove(a)))
+        else:
+            btns.append(button(_("Add it to the menu"), "list-add", lambda: self._ai_menu_add(a)))
+        btns.append(button(_("Stop protecting it") if guarded else _("Protect it"),
+                           "security-low" if guarded else "security-high", lambda: self.toggle_protect(a)))
+        rm = button(_("Remove it…"), "edit-delete", lambda: self._ai_remove(a))
+        if guarded:
+            rm.setEnabled(False)
+            rm.setToolTip(_("It is protected: stop protecting it first."))
+        elif not a["writable"]:
+            rm.setEnabled(False)
+            rm.setToolTip(_("Only the administrator can change the folder it is in."))
+        btns.append(rm)
+        self.mine_details.set_buttons(btns)
+
+    @staticmethod
+    def _trash(path):
+        """Move a file to the trash (never deleted for good). True when it went."""
+        from PySide6.QtCore import QFile
+        res = QFile.moveToTrash(path)
+        return bool(res[0] if isinstance(res, tuple) else res)
+
+    def _ai_open(self, a):
+        from PySide6.QtCore import QProcess
+        from .. import question
+        from ..ui import error_box
+        if os.geteuid() == 0:
+            error_box(self, _("Open {name}").format(name=a["name"]),
+                      _("Zypp Desk does not run AppImages as the administrator."))
+            return
+        if not os.access(a["path"], os.X_OK):
+            if not question.confirm(
+                    self, _("Let {name} run?").format(name=a["name"]), _("Yes, make it executable"),
+                    icon_name="system-run",
+                    items=[("system-run", _("Make the file executable"), appimages.display_path(a["path"]))],
+                    means=_("an AppImage is a program: it runs with your permissions, like any program you start. "
+                            "Open only AppImages from publishers you trust."), password=False, help_topic="programs"):
+                return
+            try:
+                appimages.make_executable(a["path"])
+            except OSError as e:
+                error_box(self, _("Open {name}").format(name=a["name"]), str(e))
+                return
+        words = appimages.open_command(a)
+        ok, pid = QProcess.startDetached(words[0], words[1:], a["folder"])
+        if not ok:
+            error_box(self, _("Open {name}").format(name=a["name"]), _("It could not be started."))
+            return
+        if a["backup"]:  # still running a few seconds later: the new version works, the old one can go
+            QTimer.singleShot(8000, self, lambda p=a["path"], b=a["backup"], pid=pid: self._ai_opened(p, b, pid))
+
+    def _ai_opened(self, path, backup, pid):
+        if appimages.process_alive(pid) and os.path.isfile(backup) and os.path.isfile(path):
+            self._trash(backup)
+            self._scan_appimages()
+
+    def _ai_ask_source(self, a):
+        """Ask where new versions are published (most AppImages do not say it themselves). Returns the source."""
+        from PySide6.QtWidgets import QInputDialog
+        from ..ui import error_box
+        said = (self.ctx.settings.get(appimages.SETTING_SOURCES) or {}).get(a["path"]) or ""
+        text, ok = QInputDialog.getText(
+            self, _("Where is {name} published?").format(name=a["name"]),
+            _("The file does not say where its new versions are. If they are published on GitHub, write the "
+              "address of the project, for example https://github.com/owner/project:"),
+            QLineEdit.EchoMode.Normal, f"https://github.com/{said}" if said else "https://github.com/")
+        if not ok:
+            return None
+        src = appimages.github_source(text)
+        if not src:
+            error_box(self, _("Where is {name} published?").format(name=a["name"]),
+                      _("That is not the address of a project on GitHub."))
+            return None
+        sources = dict(self.ctx.settings.get(appimages.SETTING_SOURCES) or {})
+        sources[a["path"]] = src["repo"]
+        self.ctx.settings[appimages.SETTING_SOURCES] = sources
+        self.ctx.settings.save()
+        self._ai_found.pop(a["path"], None)
+        self._ai_errors.pop(a["path"], None)
+        self._refresh_ai(a["path"])
+        return src
+
+    def _ai_look(self, a):
+        """Look for a new version: only when asked (GitHub answers 60 questions an hour without an account)."""
+        from ..ui import info_box
+        src = self._ai_source(a)
+        if not src or src["kind"] == "unknown":
+            src = self._ai_ask_source(a)
+            if not src:
+                return
+        if src["kind"] in ("zsync", "page"):
+            # no GitHub: the place where the publisher puts the files, in the browser
+            url = src["url"].rsplit("/", 1)[0] + "/" if src["kind"] == "zsync" else src["url"]
+            if not QDesktopServices.openUrl(QUrl(url)):
+                info_box(self, _("Look for a new version"), url)
+            return
+        path = a["path"]
+        self._ai_busy[path] = "checking"
+        self._ai_errors.pop(path, None)
+        self._refresh_ai(path)
+        run_async(appimages.check, a, src, on_done=lambda res, err, p=path: self._ai_checked(p, res, err))
+
+    def _ai_checked(self, path, res, err):
+        self._ai_busy.pop(path, None)
+        if err:
+            self._ai_errors[path] = str(err)
+            self._ai_found.pop(path, None)
+        else:
+            self._ai_found[path] = res
+        self._refresh_ai(path)
+
+    def _ai_get_new(self, a):
+        from .. import question
+        from ..simulation import human_size
+        f = self._ai_found.get(a["path"])
+        if not f:
+            return
+        new_name = Path(a["path"]).name + ".new"
+        size = human_size(f["size"]) if f.get("size") else ""
+        if not question.confirm(
+                self, _("Download {name} {version}?").format(name=a["name"], version=f.get("version") or ""),
+                _("Yes, download it"), icon_name="download",
+                items=[("download", _("Download {file}").format(file=f["asset"]),
+                        (_("{size}, from {place}") if size else _("From {place}")).format(
+                            size=size, place=host_of(f["url"]))),
+                       ("security-high", _("Check it"),
+                        _("The SHA-256 that GitHub publishes is compared with the file's.") if f.get("sha256") else
+                        _("GitHub publishes no SHA-256 for this file: Zypp Desk only checks that it is an "
+                          "AppImage."))],
+                means=_("nothing changes yet: the new file is saved beside the old one as {file}, and Zypp Desk "
+                        "asks before it takes the old one's place.").format(file=new_name),
+                password=False, help_topic="programs"):
+            return
+        path = a["path"]
+        self._ai_busy[path] = "downloading"
+        self._refresh_ai(path)
+        run_async(appimages.download_new, a, f, on_done=lambda res, err, app=a: self._ai_downloaded(app, res, err))
+
+    def _ai_downloaded(self, a, res, err):
+        from .. import question
+        from ..ui import error_box
+        path = a["path"]
+        self._ai_busy.pop(path, None)
+        if err:
+            self._refresh_ai(path)
+            error_box(self, _("Get the new version"), str(err))
+            return
+        old_name = Path(path).name + ".old"
+        key = question.ask_change(
+            self, _("Use {name} {version} now?").format(name=a["name"], version=res.get("version") or ""),
+            icon_name="system-software-update",
+            items=[("download", _("The new version is downloaded and checked"),
+                    _("SHA-256 checked with GitHub's") if res["sha256_checked"] else
+                    _("GitHub publishes no SHA-256 for it: it is an AppImage, nothing more could be checked")),
+                   ("system-software-update", _("It takes the place of the one you have"),
+                    _("Same name and folder: the menu entries keep working.")),
+                   ("document-save", _("The old one is kept as {file}").format(file=old_name),
+                    _("It goes to the trash once the new one has opened from here; until then you can go back."))],
+            means=_("the program changes only when it is opened again; if it is open now, close it first."),
+            buttons=[("no", _("Not now: throw it away"), False), ("yes", _("Yes, replace it"), True)],
+            password=False, help_topic="programs")
+        if key != "yes":
+            self._trash(res["path"])
+            self._refresh_ai(path)
+            return
+        backup = path + ".old"
+        if os.path.lexists(backup) and not self._trash(backup):
+            error_box(self, _("Get the new version"), _("{file} could not be moved to the trash.").format(
+                file=Path(backup).name))
+            return
+        try:
+            appimages.replace_with_new(path, res["path"])
+        except OSError as e:
+            error_box(self, _("Get the new version"), str(e))
+            return
+        self._ai_found.pop(path, None)
+        if a["menu_ours"]:  # the entry Zypp Desk wrote says the version: write it again
+            run_async(lambda: appimages.write_menu_entry(appimages.describe(path)),
+                      on_done=lambda _r, _e: self._scan_appimages(select=path))
+        else:
+            self._scan_appimages(select=path)
+
+    def _ai_restore(self, a):
+        from .. import question
+        from ..ui import error_box
+        if not question.confirm(
+                self, _("Back to the previous version of {name}?").format(name=a["name"]),
+                _("Yes, go back"), icon_name="edit-undo",
+                items=[("edit-delete", _("The new version goes to the trash"), appimages.display_path(a["path"])),
+                       ("edit-undo", _("The previous one takes its place"), Path(a["backup"]).name)],
+                means=_("the program is the one you had before the update. Close it first if it is open."),
+                password=False, help_topic="programs"):
+            return
+        if not self._trash(a["path"]):
+            error_box(self, _("Back to the previous version"), _("{file} could not be moved to the trash.").format(
+                file=Path(a["path"]).name))
+            return
+        try:
+            appimages.restore_backup(a["path"])
+        except OSError as e:
+            error_box(self, _("Back to the previous version"), str(e))
+        self._ai_found.pop(a["path"], None)
+        self._scan_appimages(select=a["path"])
+
+    def _ai_menu_add(self, a):
+        from ..ui import error_box
+
+        def done(_res, err):
+            if err:
+                error_box(self, _("Add it to the menu"), str(err))
+            self._scan_appimages(select=a["path"])
+        run_async(appimages.write_menu_entry, a, on_done=done)
+
+    def _ai_menu_remove(self, a):
+        from .. import question
+        files = appimages.menu_files(a)
+        if not files:
+            return
+        if not question.confirm(self, _("Remove {name} from the menu?").format(name=a["name"]),
+                                _("Yes, move them to the trash"), icon_name="edit-delete",
+                                items=[("edit-delete", _("Move its menu entry and icons to the trash"),
+                                        ngettext("{n} file", "{n} files", len(files)).format(n=len(files)),
+                                        [appimages.display_path(f) for f in files])],
+                                means=(_("its file is gone, so the entry no longer opens anything. The trash keeps "
+                                         "the files until you empty it.") if a["orphan"] else
+                                       _("the program stays where it is and still opens from Zypp Desk; only the "
+                                         "menu no longer shows it. The trash keeps the files until you empty it.")),
+                                password=False, help_topic="programs"):
+            return
+        for f in files:
+            self._trash(f)
+        self._scan_appimages(select=None if a["orphan"] else a["path"])
+
+    def _ai_remove(self, a):
+        from .. import question
+        from ..ui import error_box
+        if self.is_protected(a):
+            return
+        files = appimages.remove_files(a)
+        extra = [f for f in files if f != a["path"]]  # the old version, the menu entries, their icons
+        items = [("edit-delete", _("Move the program to the trash"), appimages.display_path(a["path"]))]
+        if extra:
+            items.append(("edit-delete", _("And its menu entry and icons"),
+                          ngettext("{n} file", "{n} files", len(extra)).format(n=len(extra)),
+                          [appimages.display_path(f) for f in extra]))
+        if not question.confirm(self, _("Remove {name}?").format(name=a["name"]), _("Yes, move it to the trash"),
+                                icon_name="edit-delete", items=items,
+                                means=_("the program goes away from this computer; its settings and data in your "
+                                        "home folder stay. The trash keeps the files until you empty it."),
+                                password=False, help_topic="programs"):
+            return
+        failed = [f for f in files if not self._trash(f)]
+        if failed:
+            error_box(self, _("Remove {name}").format(name=a["name"]),
+                      _("These files could not be moved to the trash:") + "\n" + "\n".join(failed))
+        sources = dict(self.ctx.settings.get(appimages.SETTING_SOURCES) or {})
+        if sources.pop(a["path"], None) is not None:
+            self.ctx.settings[appimages.SETTING_SOURCES] = sources
+            self.ctx.settings.save()
+        self._scan_appimages()
+
+    def add_appimage(self):
+        """The header's "Add an AppImage…": pick a file, check that it is one, put it in the AppImage folder (moved
+        or copied) and in the menu."""
+        from PySide6.QtWidgets import QFileDialog
+        from .. import protect, question
+        from ..ui import error_box, info_box
+        start = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or \
+            os.path.expanduser("~")
+        path, _f = QFileDialog.getOpenFileName(self, _("Add an AppImage"), start,
+                                               _("AppImages") + " (*.AppImage *.appimage);;" + _("Every file") + " (*)")
+        if not path:
+            return
+        if not appimages.appimage_type(path):
+            error_box(self, _("Add an AppImage"), _("{file} is not an AppImage.").format(file=Path(path).name))
+            return
+        real = os.path.realpath(path)
+        known = next((x for x in self.appimages if not x["orphan"] and os.path.realpath(x["path"]) == real), None)
+        if known and known["menu"]:
+            info_box(self, _("Add an AppImage"),
+                     _("{name} is already here and in the menu.").format(name=known["name"]))
+            self._scan_appimages(select=known["path"])
+            return
+        home = appimages.home_folder(self.ctx.settings)
+        download = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation) or None
+        kept = {os.path.realpath(f) for f, depth in
+                appimages.folders(self.ctx.settings.get(appimages.SETTING_FOLDERS) or [], download)} - \
+            {os.path.realpath(download or appimages.xdg_download_dir())}
+        name = Path(path).name
+        if os.path.realpath(os.path.dirname(path)) in kept | {os.path.realpath(home)}:
+            # already where AppImages are kept: only the menu
+            if not question.confirm(self, _("Add {file} to the menu?").format(file=name), _("Yes, add it"),
+                                    icon_name="list-add",
+                                    items=[("list-add", _("Put it in the menu"), appimages.display_path(path))],
+                                    means=_("Zypp Desk does not run it now; you open it when you want. An AppImage "
+                                            "runs with your permissions: add only AppImages from publishers you "
+                                            "trust."), password=False, help_topic="programs"):
+                return
+            folder, move = os.path.dirname(path), True
+        else:
+            target = os.path.join(home, name)
+            conflict = os.path.lexists(target)
+            if conflict and protect.is_protected(self.ctx.settings, "appimage", target):
+                error_box(self, _("Add an AppImage"), _("There is already a protected AppImage named {file} in "
+                                                         "{folder}.").format(file=name,
+                                                                             folder=appimages.display_path(home)))
+                return
+            key = question.ask_change(
+                self, _("Add {file}?").format(file=name), icon_name="list-add",
+                items=[("folder", _("Put it in {folder}").format(folder=appimages.display_path(home)),
+                        _("The folder for AppImages: Zypp Desk looks for them there.")),
+                       ("system-run", _("Make it executable"), _("So that it can be opened.")),
+                       ("application-menu|list-add", _("Put it in the menu"), _("With its own name and icon."))],
+                warning=(_("There is already a file named {file} in {folder}: it goes to the trash.").format(
+                    file=name, folder=appimages.display_path(home)) if conflict else None),
+                means=_("Zypp Desk does not run it now; you open it when you want. An AppImage runs with your "
+                        "permissions: add only AppImages from publishers you trust."),
+                buttons=[("no", _("Not yet"), False), ("copy", _("Copy it"), False), ("move", _("Move it"), True)],
+                password=False, help_topic="programs")
+            if key not in ("copy", "move"):
+                return
+            if conflict and not self._trash(target):
+                error_box(self, _("Add an AppImage"), _("{file} could not be moved to the trash.").format(file=name))
+                return
+            folder, move = home, key == "move"
+
+        def done(res, err):
+            if err:
+                error_box(self, _("Add an AppImage"), str(err))
+                self._scan_appimages()
+                return
+            self._scan_appimages(select=res["path"])
+        run_async(appimages.adopt, path, folder, move, on_done=done)
+
     # ------------------------------------------------------------ protected apps (protect.py)
     def is_protected(self, a):
         from .. import protect
@@ -867,7 +1378,7 @@ class AppsPage(Page):
 
     def _chip_texts(self):
         labels = {"all": _("All"), "repo": _("Repositories"), "flatpak": _("Flatpak"), "web": _("From the web"),
-                  "webapp": _("Web apps"), "updates": _("With updates")}
+                  "webapp": _("Web apps"), "appimage": "AppImage", "updates": _("With updates")}
         for key, c in self.chips.items():
             c.setText(f"{labels[key]}  {self._origin_count(key)}" if self.installed else labels[key])
 
@@ -900,6 +1411,9 @@ class AppsPage(Page):
             return
         if a["kind"] == "webapp":
             self._show_webapp(a)
+            return
+        if a["kind"] == "appimage":
+            self._show_appimage(a)
             return
         new = self.update_of(a)
         state = self.queue_state(a)

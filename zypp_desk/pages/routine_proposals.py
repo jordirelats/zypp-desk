@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Proposed routines (Jordi, 26/11/2026: "podem proposar rutines?"; mockup maquetes/rutines-v1-A-proposades.png).
+"""Proposed routines: ready-made starting points for the routine editor.
 
 A few ready routines, each with what it does, why, its steps and the line it makes in a terminal. The first one is
 made for this computer from what it has (routine.machine_facts: Flatpak apps, fwupd, free space). "Use this one"

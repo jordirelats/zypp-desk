@@ -53,11 +53,22 @@ Paketquellen neu laden, die Aktualisierungen herunterladen und sie dann installi
 führt sie nacheinander aus und zeigt jeden Schritt. <b>Routine bearbeiten …</b> ändert sie mit Schaltflächen oder
 als Text, so wie du sie in einem Terminal eingeben würdest.</li>
 <li><b>Was es zu aktualisieren gibt</b>: Pakete aus den Paketquellen, Flatpak-Apps, Programme aus dem Web und
-Firmware, mit einem Kästchen, um jedes einzeln anzuhaken. Die Karte rechts erklärt dir das Paket, das du
-auswählst.</li>
+Firmware, mit einem Kästchen, um jedes einzeln anzuhaken. <b>Alle markieren</b> und <b>Alle abwählen</b> unter
+der Liste haken alle auf einmal an oder ab. Die Karte rechts erklärt dir das Paket, das du auswählst.</li>
+<li>Die Liste zeigt, was der Computer beim letzten Neuladen der Paketquellen erfahren hat: <b>Erneut suchen</b>
+liest sie noch einmal. <b>Paketquellen neu laden</b> fragt zuerst jede Paketquelle, was es Neues gibt (mit dem
+Administratorpasswort), und sucht dann erneut.</li>
 <li><b>dup simulieren …</b>: die vollständige Systemaktualisierung von Tumbleweed (<code>zypper dup</code>) in
 einem eigenen Fenster, mit ihren Optionen.</li>
 </ul>
+<h3>Vorgeschlagene Routinen</h3>
+<p>Beim Bearbeiten der Routine zeigt <b>Vorgeschlagene Routinen …</b> einige fertige Routinen, jede mit dem, was
+sie tut, warum, und der Zeile, die sie in einem Terminal wäre. Die erste ist für diesen Computer gemacht: Außer dem
+System aktualisiert sie die Flatpak-Apps, falls du welche hast, und die Firmware, falls fwupd installiert ist; sie
+entfernt alte Kernel und heruntergeladene Pakete, wenn auf der Festplatte wenig Platz ist, und sagt dir am Ende,
+welche Programme neu gestartet werden müssen. Die anderen sind die übliche (alles herunterladen und nur
+installieren, wenn alles heruntergeladen wurde), eine, die nur herunterlädt, und eine schnelle. Die gewählte kommt
+in den Editor, wo du sie noch ändern kannst; gespeichert wird erst, wenn du <b>Speichern</b> drückst.</p>
 <h3>Eine große Aktualisierung</h3>
 <p>Wenn eine Aktualisierung groß ist oder das neue Tumbleweed vor weniger als einem Tag erschienen ist, fragt dich
 Zypp Desk, ob es sich lohnt zu warten. Es sagt dir, wie groß sie ist, wie neu die Version ist und ob der Computer
@@ -92,9 +103,60 @@ diese Pakete vorher auf, damit du siehst, was wegfällt.</li>
 <a href="page:locks">Paketsperren</a> entsperrst.</li>
 <li><a href="page:flatpak">Flatpak</a> enthält die Flatpak-Apps, ihre Aktualisierungen, ihre Flatpak-Quellen und
 ihre Berechtigungen. Sie kommen in dieselbe Warteschlange.</li>
+<li><b>Web-Apps</b> unter Anwendungen sind Websites, die deine Browser als Apps installiert haben (Chrome,
+Chromium, Edge, Brave, Vivaldi, Opera und Firefox mit der Erweiterung PWAsForFirefox). Der Browser installiert und
+aktualisiert sie; Zypp Desk zeigt die aller Browser zusammen und öffnet sie. Zum Entfernen öffnet Zypp Desk die
+App-Seite des Browsers selbst, denn nur der Browser kann eine Web-App endgültig entfernen. Ist ihr Browser nicht
+mehr installiert, funktioniert ihr Menüeintrag nicht mehr, und Zypp Desk kann ihn in den Papierkorb
+verschieben.</li>
 </ul>
 <p>Wenn das Programm nicht in deinen Paketquellen ist, sucht <b>Online suchen …</b> im openSUSE Build Service, in
 Fedora COPR und auf Flathub danach und erklärt, wie sehr du jeder Quelle vertrauen kannst.</p>
+<h3>Eine App schützen</h3>
+<p><b>Schützen</b> auf der Karte einer Anwendung unter Anwendungen ist für ein Programm, das du nie versehentlich
+verlieren willst: Solange es geschützt ist, weigert sich die Warteschlange, es zu entfernen, egal von welcher Seite
+aus. Sonst ändert sich nichts, und Aktualisierungen kommen weiterhin. <b>Nicht mehr schützen</b> nimmt die
+Markierung wieder weg.</p>
+<p>Eine Flatpak-App kann aus ihrer Flatpak-Quelle verschwinden, wenn niemand sie mehr pflegt oder verteilt.
+<b>Kopie speichern …</b> speichert die installierte App als eine einzige <code>.flatpak</code>-Datei
+(<code>flatpak build-bundle</code>), damit du sie aus dieser Datei wieder installieren kannst, auch wenn die
+Flatpak-Quelle sie nicht mehr hat. Was sie zum Laufen braucht (ihre Laufzeitumgebung), kommt weiterhin von
+Flathub.</p>
+<h3>AppImages</h3>
+<p>Ein <b>AppImage</b> ist ein ganzes Programm in einer einzigen Datei: Du lädst es beim Hersteller herunter und
+öffnest es, ohne etwas zu installieren. zypper kennt AppImages nicht, deshalb sucht Zypp Desk sie in den üblichen
+Ordnern (<code>~/Applications</code>, <code>~/AppImages</code>, <code>~/bin</code>, <code>~/.local/bin</code>,
+<code>/opt</code> und dein Download-Ordner) und unter den Menüeinträgen, und der Filter <b>AppImage</b> unter
+<a href="page:apps">Anwendungen</a> zeigt sie. Es sind deine eigenen Dateien: Sie gehen nie durch die
+Warteschlange, und nichts hier braucht das Administratorpasswort.</p>
+<p>Zypp Desk liest Name, Version und Symbol aus der Datei, ohne sie auszuführen. Dafür braucht es
+<code>unsquashfs</code> aus dem Paket <code>squashfs</code>; ohne das zeigt es den Dateinamen.</p>
+<ul>
+<li><b>Öffnen</b> startet das Programm unter deinem Benutzerkonto. Ist die Datei noch nicht ausführbar, fragt
+Zypp Desk vorher. Es führt nie ein AppImage als Administrator aus: Öffne nur AppImages von Herstellern, denen du
+vertraust.</li>
+<li><b>Zum Menü hinzufügen</b> gibt ihm einen Menüeintrag mit eigenem Namen und Symbol. <b>Aus dem Menü
+entfernen …</b> verschiebt den Eintrag und sein Symbol in den Papierkorb und lässt das Programm, wo es ist.</li>
+<li><b>Nach neuer Version suchen</b> fragt GitHub nach der neuesten Veröffentlichung, aber nur, wenn du es drückst.
+Die meisten AppImages sagen nicht, wo sie veröffentlicht werden: Dann fragt Zypp Desk dich nach der Adresse des
+Projekts auf GitHub, und <b>Ändern, wo gesucht wird …</b> ändert sie später. Nennt die Datei eine andere Website,
+öffnet die Schaltfläche diese im Browser.</li>
+<li><b>Neue Version holen …</b> lädt sie neben die, die du hast (als <code>.new</code>-Datei), und prüft sie:
+mit der SHA-256-Prüfsumme, die GitHub veröffentlicht, wenn es eine gibt, und ob es wirklich ein AppImage ist. Dann
+fragt Zypp Desk, bevor sie den Platz der alten einnimmt, unter demselben Namen, damit der Menüeintrag weiter
+funktioniert.</li>
+<li>Die alte Version bleibt als <code>.old</code>-Datei daneben, bis die neue einmal aus Zypp Desk heraus
+geöffnet wurde; dann kommt sie in den Papierkorb. Bis dahin holt <b>Zur vorherigen Version zurück …</b> die alte
+wieder.</li>
+<li><b>Schützen</b> funktioniert wie bei jeder anderen App, und <b>Entfernen …</b> verschiebt die Datei, ihre
+alte Version, ihren Menüeintrag und ihre Symbole in den Papierkorb. Ihre Einstellungen und Daten in deinem
+persönlichen Ordner bleiben.</li>
+<li><b>AppImage hinzufügen …</b> oben auf der Seite nimmt eine heruntergeladene Datei, verschiebt oder kopiert
+sie nach <code>~/Applications</code>, macht sie ausführbar und nimmt sie ins Menü auf.</li>
+</ul>
+<p>Ein AppImage in einem Ordner, den nur der Administrator ändern kann (zum Beispiel in <code>/opt</code>), lässt
+sich öffnen, aber von hier aus weder aktualisieren noch entfernen. Ein Menüeintrag, dessen Datei nicht mehr da
+ist, wird als verwaist markiert: <b>Aus dem Menü entfernen …</b> räumt ihn weg.</p>
 
 <!-- topic: web | Programme aus dem Web und .rpm-Dateien -->
 <h2>Programme aus dem Web und .rpm-Dateien</h2>
@@ -132,6 +194,220 @@ Quelle kommt, der du vertraust: Mit einem Schlüssel kann sein Besitzer alles au
 <p><a href="page:services">Dienste</a> sind Listen von Paketquellen, die jemand anderes pflegt (openSUSE pflegt die
 von Tumbleweed).</p>
 
+<!-- topic: system | Sprachen und Paketsperren -->
+<h2>Sprachen und Paketsperren</h2>
+<h3>Sprachen</h3>
+<p>Viele Programme bringen ihre Übersetzungen in eigenen Paketen mit (ihre <code>-lang</code>-Pakete, Wörterbücher
+und Rechtschreibprüfungen), und zypper installiert sie nur für die Sprachen, um die es gebeten wurde. Ist dein
+Computer auf eine Sprache eingestellt, um die zypper nie gebeten wurde, kommen diese Pakete nie, und Teile deiner
+Programme erscheinen auf Englisch. In diesem Fall sagt dir das die Seite <a href="page:home">Start</a> und bietet
+an, die Sprache des Computers mit einer Schaltfläche hinzuzufügen: Sie kommt in die Warteschlange.</p>
+<p><a href="page:locales">Sprachen</a> enthält alle Sprachen, die zypper kennt. <b>Deine</b> zeigt die, um die
+zypper gebeten wurde, <b>Alle</b> zeigt alle, und das Suchfeld findet eine Sprache über ihren Namen oder ihren
+Code. Hake eine Sprache an, um sie hinzuzufügen, oder nimm den Haken weg, um sie zu entfernen: Die Änderung kommt
+in die Warteschlange (<code>zypper addlocale</code> oder <code>removelocale</code>), und nichts passiert, bevor du
+sie anwendest. Die Karte rechts sagt dir, was sie mitbringen würde: wie viele Übersetzungspakete für deine
+Programme und welche Wörterbücher.</p>
+<ul>
+<li>Wird eine Sprache hinzugefügt, installiert zypper ihre Übersetzungen für die Programme, die du hast, und von da
+an für die, die du installierst.</li>
+<li>Wird eine Sprache entfernt, verschwinden ihre Übersetzungen; die Programme bleiben, in deinen anderen
+Sprachen.</li>
+<li>Englisch ist immer da, denn die Programme sind auf Englisch geschrieben. Die Sprache des Computers lässt sich
+hier nicht abwählen, sobald sie hinzugefügt ist.</li>
+<li>Diese Seite ändert nicht die Sprache der Fenster: Die wählst du in den Einstellungen deiner
+Arbeitsumgebung.</li>
+</ul>
+<h3>Paketsperren</h3>
+<p>Ein gesperrtes Paket wird von keinem zypper-Befehl installiert, entfernt oder aktualisiert, bis du es
+entsperrst. <a href="page:locks">Paketsperren</a> listet deine Sperren mit dem Symbol jedes Pakets auf. Die Karte
+rechts sagt dir, welche Version du hast, ob eine neuere wartet, welche Versionen und welche Paketquelle die Sperre
+betrifft, und lässt dich sie aufheben. Sperren und Entsperren kommen in die Warteschlange, wie jede andere
+Änderung.</p>
+<ul>
+<li><b>Paket sperren …</b> sucht nach Paketen: Hake mehrere an und sperre sie auf einmal. Ein Name mit
+Platzhaltern wie <code>vlc-*</code> sperrt jedes Paket, dessen Name darauf passt, auch die, die später
+dazukommen.</li>
+<li><b>Unnötige Sperren entfernen</b> entfernt die Sperren, auf die kein Paket mehr passt.</li>
+<li>Wenn du dich entscheidest, den Rest zu aktualisieren und einige Pakete so zu lassen, wie sie sind (siehe
+„Wenn etwas schiefgeht“), sperrt Zypp Desk sie. Diese Sperren sind als vorübergehend markiert, mit ihrem Datum. Ein
+Streifen oben sagt dir, wann ihre Paketquelle wieder etwas veröffentlicht hat, sodass du sie wahrscheinlich
+entsperren kannst, und <b>Entsperren</b> entsperrt sie alle auf einmal.</li>
+</ul>
+
+<!-- topic: move | Auf einen anderen Computer umziehen -->
+<h2>Auf einen anderen Computer umziehen</h2>
+<p>Wenn du den Computer wechselst, kann Zypp Desk deine Software in einer einzigen Datei mitnehmen. Wähle auf dem
+alten Computer <b>Software dieses Computers speichern …</b>: unter <a href="page:settings">Einstellungen</a>, auf
+der Karte <b>Auf einen anderen Computer umziehen</b>, oder unten auf der Seite <a href="page:home">Start</a>. Es
+entsteht eine Datei mit der Endung <code>.zdesk</code> mit allem, was du angehakt lässt:</p>
+<ul>
+<li><b>Paketquellen und Schlüssel</b>: die aktivierten Paketquellen mit ihren Prioritäten und die
+Signaturschlüssel, die sie verwenden.</li>
+<li><b>Die Pakete, die du ausgewählt hast</b>, nicht die, die nur installiert wurden, weil andere sie brauchten:
+Die holt zypper von selbst zurück.</li>
+<li>Die <b>Flatpak-Apps</b> mit ihren Flatpak-Quellen und die <b>Programme aus dem Web</b>, denen Zypp Desk
+folgt.</li>
+<li><b>Sperren, Sprachen, die Routine und die Einstellungen in zypp.conf</b> sowie die Apps, die du geschützt
+hast.</li>
+<li><b>Eine Liste dessen, was von Hand zu tun ist</b>: AppImages, Web-Apps, Programme mit eigenem Installer und
+aus einer Datei installierte Pakete. Sie lassen sich nicht von selbst installieren, deshalb kommen sie auf eine
+Liste.</li>
+</ul>
+<p>Die Datei enthält keine Passwörter und keines deiner Dokumente: nur die Liste deiner Software und woher sie
+kommt. Die Schlüssel darin sind öffentliche Schlüssel, die jeder herunterladen kann. Manches bleibt absichtlich
+draußen:</p>
+<ul>
+<li>Kernel, Firmware, Microcode, Treiber und der Bootloader: Sie gehören zur Hardware und zur Installation jedes
+Computers, und der neue hat seine eigenen;</li>
+<li>eine Paketquelle, deren Adresse einen Benutzernamen, ein Passwort oder ein Token enthält: Sie kommt ohne ihre
+Adresse auf die Liste dessen, was von Hand zu tun ist;</li>
+<li>vorübergehende Sperren (die entstehen, wenn du den Rest aktualisierst und einige Pakete so lässt, wie sie
+sind) und Pakete aus einem lokalen Ordner, dem „Programme aus dem Web“ nicht folgt.</li>
+</ul>
+<h3>Auf dem anderen Computer</h3>
+<p>Kopiere die Datei auf den anderen Computer und doppelklicke sie: Sie öffnet sich mit Zypp Desk. Du kannst auch
+an denselben Stellen <b>Aus einer Datei importieren …</b> wählen. Zypp Desk vergleicht die Datei mit diesem Computer und
+zeigt, was es tun würde: die Paketquellen, die es hinzufügen würde, mit ihren Schlüsseln und Fingerabdrücken, die
+Pakete und Flatpak-Apps, die es installieren würde, die Sperren und Sprachen, die es hinzufügen würde, und wie
+viel schon da ist. <b>Auswählen …</b> lässt dich einiges abwählen. Mit <b>In die Warteschlange stellen</b> kommt
+dann alles in die Warteschlange, wo du es überprüfst, simulierst und anwendest wie jede andere Änderung. Bevor du sie anwendest,
+ändert sich nichts.</p>
+<ul>
+<li>Deine Routine, die Einstellungen von zypper (<code>zypp.conf</code>), die geschützten Apps und die Programme
+aus dem Web ändern sich nur, wenn du es sagst. Bevor etwas in die Warteschlange kommt, zeigt eine Frage jedes
+davon, wie es jetzt ist und wie es danach wäre: Hake an, was sich ändern soll. <code>zypp.conf</code> kommt mit
+dem Rest in die Warteschlange; die anderen ändern sich, sobald du antwortest.</li>
+<li><b>Von Hand</b> nennt, was Zypp Desk nicht für dich tun kann, jeweils mit dem, was zu tun ist: ein
+AppImage oder einen Installer erneut beim Hersteller herunterladen, eine Web-App erneut in ihrem Browser
+installieren, einen Programmordner kopieren, eine Paketquelle hinzufügen, die ein Passwort braucht, eine
+Flatpak-App aus der gespeicherten Kopie installieren. <b>Liste kopieren</b> kopiert sie, damit du sie zur Hand
+hast.</li>
+<li>Pakete, die nicht in den Paketquellen dieses Computers sind oder hier gesperrt sind, bleiben draußen, und das
+Fenster sagt, welche: Ein einziges würde die ganze Installation anhalten.</li>
+<li>Manches muss warten: die Pakete einer Paketquelle, die erst jetzt hinzukommt, und die Sperren von Paketen, die
+jetzt installiert werden. Wenn du die Warteschlange angewendet hast, öffne die Datei noch einmal, dann fügt
+Zypp Desk den Rest hinzu.</li>
+<li>Kommt die Datei von einer anderen openSUSE-Version oder von einem Computer mit einer anderen Art Prozessor,
+warnt dich das Fenster: Manche Paketquellen oder Programme passen vielleicht nicht.</li>
+</ul>
+<p>Öffne nur eine Datei, die du selbst gemacht hast oder die von jemandem kommt, dem du vertraust: Ihre
+Paketquellen und Schlüssel erlauben zypper, Programme daraus als Administrator zu installieren. Zypp Desk prüft
+alles in der Datei und lässt weg, was die Prüfung nicht besteht, bevor es dir etwas zeigt.</p>
+
+<!-- topic: health | Systemcheck -->
+<h2>Systemcheck</h2>
+<p>Oben auf der Seite <a href="page:maintenance">Wartung</a> sieht sich Zypp Desk die Software dieses Computers an
+und sagt dir, was einen Blick wert ist, das Wichtigste zuerst. Jeder Fund hat einen Satz, der ihn erklärt, und
+unter <b>Details</b> die Namen. Das Nachsehen ändert nichts: Die Schaltfläche eines Fundes öffnet die
+passende Seite oder stellt eine Frage und stellt die Änderungen in die Warteschlange, die dir die genauen Befehle
+zeigt. <b>Erneut prüfen</b> sieht noch einmal nach, zum Beispiel nachdem du etwas installiert oder entfernt
+hast.</p>
+<p>Was es finden kann:</p>
+<ul>
+<li><b>Firmware für Hardware, die du nicht hast.</b> openSUSE installiert die Firmware für jedes mögliche Gerät,
+oft fast ein Gigabyte. Jedes Firmware-Paket sagt, für welche Geräte es ist; deshalb behält Zypp Desk, was
+dieser Computer benutzt, und bietet auf der <a href="page:drivers">Seite der Treiber</a> an, den Rest zu
+entfernen.</li>
+<li><b>Apps, die nicht mehr gepflegt werden.</b> Eine Flatpak-App, deren Entwickler aufgehört haben, bekommt keine
+Aktualisierungen mehr, und Flathub bietet sie vielleicht bald nicht mehr an. Schütze sie und speichere unter
+<a href="page:apps">Anwendungen</a> eine Kopie, damit du sie nicht verlierst.</li>
+<li><b>Pakete eines anderen Anbieters.</b> Sie kommen aus einer Paketquelle, die du nicht mehr hast oder die sie
+nicht mehr hat, und zypper aktualisiert sie nicht von selbst. Zypp Desk bietet an, sie aus der Paketquelle neu zu
+installieren, die du hast; hat diese nur ältere Versionen, lässt du sie besser, wie sie sind.</li>
+<li><b>Paketquellen mit schwachen Prüfungen.</b> Nichts aus ihnen wird mit einer Signatur geprüft, oder ihre
+Paketliste kommt unsigniert über unverschlüsseltes http. Eine Signatur beweist, dass das, was du installierst,
+wirklich von dem kommt, der es angibt.</li>
+<li><b>Abgelaufene Schlüssel.</b> Ein Schlüssel, mit dem eine Paketquelle signiert, ist abgelaufen oder läuft bald
+ab. Meist erneuert das Projekt ihn, und zypper übernimmt das neue Datum beim Neuladen der Paketquellen; zeigt das
+Neuladen einen Schlüsselfehler, importiere den neuen Schlüssel unter <a href="page:keys">Signaturschlüssel</a>.
+Abgelaufene Schlüssel, die keine Paketquelle benutzt, lassen sich dort entfernen.</li>
+<li><b>Pakete, die keine Paketquelle hat.</b> Sie bekommen keine Aktualisierungen mehr. Meist sind es
+Überbleibsel von Programmen, die etwas anderes ersetzt hat: Sieh sie dir an, bevor du sie entfernst.</li>
+<li><b>Doppelt installierte Apps</b>, als Paket und als Flatpak-App. Sie belegen doppelt Platz und erscheinen
+doppelt im Menü: Behalte die, die du benutzt.</li>
+<li><b>Was am meisten Platz belegt</b>: die größten Pakete, die Flatpak-Apps, die heruntergeladenen Pakete und die
+alten Kernel. Jeder Name führt dich dorthin, wo du es entfernen kannst.</li>
+</ul>
+<p>Die Prüfungen, die nichts finden, stehen zusammen in einer grünen Zeile. Unter den Funden folgen die üblichen
+Wartungsaufgaben (siehe „Wenn etwas schiefgeht“).</p>
+
+<!-- topic: drivers | Treiber -->
+<h2>Treiber</h2>
+<p>Die <a href="page:drivers">Seite der Treiber</a> zeigt die Teile dieses Computers (Grafik, WLAN und Bluetooth,
+Netzwerk, Ton, Webcams, Drucker), jeden auf einer Karte mit dem Treiber, den er benutzt, und ob dieser frei ist.
+Die meisten Treiber sind frei und Teil des Kernels: Dann sagt die Karte in Grün, dass alles in Ordnung ist, und es
+gibt nichts zu tun. Die anderen Markierungen sagen:</p>
+<ul>
+<li>Es gibt einen besseren Treiber: Ein proprietärer funktioniert viel besser als der freie, vor allem bei
+NVIDIA-Karten.</li>
+<li>Es fehlt Firmware, oder es geht besser: Der Treiber kann ein Paket nutzen, das nicht installiert ist
+(Firmware, den Microcode des Prozessors, die Videodekodierung in der Grafikkarte).</li>
+<li>Kein Treiber: Kein Treiber benutzt das Gerät.</li>
+<li>Optional: Es gibt einen Treiber, aber er ist alt, und der freie funktioniert weiter.</li>
+<li>Gut zu wissen: etwas, das man wissen sollte, ohne dass etwas zu tun ist.</li>
+</ul>
+<p>Die Schaltfläche einer Karte stellt nur Änderungen in die Warteschlange, nach einer Frage, die sagt, was jedes
+Paket ist, woher es kommt, ob es proprietär ist und was mit Secure Boot passiert, mit den genauen Befehlen. Nichts
+ändert sich, bevor du die Warteschlange anwendest, und der Treiber arbeitet nach dem nächsten Neustart. Steckst du
+ein Dock oder einen Adapter an, sieht sich die Seite die Hardware noch einmal an, wenn du zu ihr zurückkehrst;
+<b>Erneut suchen</b> tut es sofort.</p>
+<h3>NVIDIA</h3>
+<p>Mit einer NVIDIA-Karte startet Linux mit nouveau, einem freien Treiber, der mit den meisten Karten langsam ist.
+Zypp Desk schlägt den NVIDIA-Treiber vor, der für deine Karte gemacht ist:</p>
+<ul>
+<li><b>Neuere Karten</b> (GeForce GTX 16, RTX 20 und neuer): die Serie G07. Ihr Kernelteil ist quelloffen, kommt
+aus der Hauptpaketquelle von openSUSE und ist von openSUSE signiert; deshalb startet er mit eingeschaltetem
+Secure Boot, ohne dass etwas einzutragen ist. Der Rest (Grafikbibliotheken, Videodekodierung, CUDA, Einstellungen)
+ist proprietär und kommt aus der Paketquelle von NVIDIA für openSUSE. Hast du diese noch nicht, fügt Zypp Desk sie
+mit dem Signaturschlüssel von NVIDIA hinzu, nachdem es geprüft hat, dass es der Schlüssel ist, den es kennt.</li>
+<li><b>Ältere Karten</b> (Maxwell, Pascal und Volta: die GeForce GTX 750, 900 und 10): die Serie G06, ganz aus der
+Paketquelle von NVIDIA. Ihr Kernelteil wird bei der Installation auf deinem Computer gebaut, was den Compiler und
+die Entwicklungsdateien des Kernels mitbringt (einige hundert MB), und mit einem Schlüssel signiert, der auf
+deinem Computer erzeugt wird.</li>
+<li><b>Sehr alte Karten</b>: Die alten Serien von NVIDIA gibt es noch, aber NVIDIA aktualisiert sie nicht mehr,
+und sie funktionieren nur in einer X11-Sitzung. Sie sind als optional markiert; nouveau funktioniert weiter.</li>
+</ul>
+<p>Mit eingeschaltetem Secure Boot braucht ein Treiber, der mit einem auf deinem Computer erzeugten Schlüssel
+signiert ist, einen Schritt beim nächsten Start: Ein blauer Bildschirm (MokManager) bittet dich, den Schlüssel
+einzutragen. Wähle <b>Enroll MOK</b>, dann <b>Continue</b> und <b>Yes</b>, und gib das root-Passwort ein; die
+Tastatur ist dort amerikanisch (US-Layout: Y und Z sind vertauscht). Überspringst du das, startet der Computer mit
+nouveau, und du kannst den Schlüssel bei einem späteren Start eintragen.</p>
+<h3>WLAN von Broadcom</h3>
+<p>Manche WLAN-Karten von Broadcom funktionieren mit keinem freien Treiber. Für sie schlägt Zypp Desk den Treiber
+wl von Broadcom vor, aus der unfreien Paketquelle von openSUSE (repo-non-oss): Die Lizenz von Broadcom erlaubt
+nicht, dass er freie Software ist, aber openSUSE signiert ihn, deshalb startet er mit eingeschaltetem Secure Boot.
+Ist diese Paketquelle deaktiviert, aktiviert die Warteschlange sie zuerst. wl schaltet die freien Broadcom-Treiber
+ab; deshalb schlägt Zypp Desk ihn nicht vor, wenn ein anderes Gerät des Computers einen davon benutzt.</p>
+<h3>Fehlende Firmware</h3>
+<p>Viele Geräte brauchen Firmware: ein kleines Programm, das ihr Treiber beim Start in das Gerät lädt. Kann ein
+Gerät ein Firmware-Paket nutzen, das nicht installiert ist, sagt seine Karte das und hat eine Schaltfläche, um es
+aus deinen Paketquellen zu installieren. Hat ein Treiber beim Start nach Firmware gefragt, die er nicht gefunden
+hat, sagt dir eine Karte, welches Paket sie enthält. Enthält sie kein Paket, sagt die Karte auch das: Manche
+Treiber fragen zuerst nach einer neueren Datei und nehmen dann eine ältere; wenn alles funktioniert, macht es
+nichts.</p>
+<h3>Für diesen Computer nicht nötig</h3>
+<p>Am Ende der Seite listet Zypp Desk auf, was für Hardware installiert ist, die dieser Computer nicht hat, in
+Gruppen: Firmware für Geräte, die er nicht hat, Microcode für die andere Prozessormarke, Grafik- und WLAN-Treiber
+für andere Karten, Werkzeuge für virtuelle Maschinen und Druckertreiber. Es listet nur auf, wovon es sicher weiß,
+dass hier nichts es benutzt: nichts, was ein Gerät des Computers, ein geladener Treiber oder ein anderes
+installiertes Paket braucht, und nichts Gesperrtes oder Geschütztes. Ein Kasten sagt, was bleibt und warum: zum
+Beispiel die Firmware, die deine Geräte benutzen, und für alle Fälle die Firmware von Geräten, die oft später
+angesteckt werden (Docks, USB-Netzwerkadapter, Kameras).</p>
+<ul>
+<li>Eine Gruppe ist angehakt, wenn das Entfernen sicher ist. Druckertreiber und Treiber für USB-Geräte, die
+vielleicht nur gerade nicht angesteckt sind, sind nicht angehakt: Behalte sie, wenn du so ein Gerät benutzen
+könntest.</li>
+<li>Die Schaltfläche zum Entfernen der Pakete zeigt, was wegfällt, und die genauen Befehle, und stellt das
+Entfernen in die Warteschlange. Du kannst es auch in die Warteschlange stellen und sie sofort simulieren.</li>
+<li>openSUSE installiert die ganze Firmware über ein einziges Paket, <code>kernel-firmware-all</code>, das der
+Kernel empfiehlt. Wenn es entfernt wird, sperrt Zypp Desk es auch: Sonst würde jeder neue Kernel es wieder
+installieren und mit ihm die ganze Firmware. Die Sperre steht unter <a href="page:locks">Paketsperren</a>, wo du
+sie aufheben kannst.</li>
+<li>Steckst du eines Tages ein Gerät an, das ein entferntes Paket braucht, zeigt diese Seite es auf der Karte des
+Geräts, mit einer Schaltfläche, um es wieder zu installieren.</li>
+</ul>
+
 <!-- topic: problems | Wenn etwas schiefgeht -->
 <h2>Wenn etwas schiefgeht</h2>
 <ul>
@@ -167,3 +443,52 @@ Kernel behalten werden, Verbindungen pro Download …), das Terminal und welches
 <p>Zypp Desk spricht Englisch, Katalanisch, Deutsch und Französisch. Wenn du es in deine Sprache übersetzen
 möchtest, sieh dir <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>
 an.</p>
+
+<!-- topic: expert | Eigene Installer und Experte -->
+<h2>Eigene Installer und Experte</h2>
+<h3>Programme mit eigenem Installer</h3>
+<p>Manche Programme sind weder RPM-Pakete noch Flatpak-Apps: Sie werden mit einem eigenen Installer installiert
+(einer <code>.sh</code>- oder <code>.run</code>-Datei oder einem <code>.tgz</code>-Archiv mit einem
+Installationsskript darin). zypper kennt sie nicht, deshalb aktualisiert sie niemand.
+<a href="page:scripts">Eigene Installer</a> findet sie in deinem persönlichen Ordner, in <code>/opt</code> und
+<code>/usr/local</code> sowie unter den Menüeinträgen, die zu keinem Paket gehören, und sagt dir, wo jedes liegt
+und wie viel Platz es belegt. Auf dieser Seite läuft nichts als Administrator.</p>
+<ul>
+<li><b>Deinstallieren …</b> führt das eigene Deinstallationsprogramm des Programms aus, falls es eines hat, unter
+deinem Benutzerkonto, in einem Terminalfenster, in dem du seine Fragen beantworten kannst. Hat es keines und liegt
+es in deinem persönlichen Ordner, verschiebt Zypp Desk seinen Ordner, seine Menüeinträge und Symbole in den
+Papierkorb; von dort kannst du sie zurückholen.</li>
+<li>Ein Programm, das für den ganzen Computer installiert ist (in <code>/opt</code> oder <code>/usr/local</code>),
+braucht zum Entfernen das Administratorpasswort. Zypp Desk macht das nicht: Es erklärt, warum, und gibt dir die
+Befehle, die du in einem Terminal ausführen kannst.</li>
+<li><b>Aus einem Ordner installieren …</b> führt den Installer eines Programms aus, das du heruntergeladen hast
+(eine <code>.sh</code>- oder <code>.run</code>-Datei oder ein <code>.tgz</code>- oder <code>.zip</code>-Archiv mit
+einem Installer darin; ein Archiv wird in einen eigenen Ordner von Zypp Desk entpackt). Zypp Desk fragt, bevor es
+ihn ausführt, und startet ihn unter deinem Benutzerkonto, ohne Administratorpasswort, in einem Terminalfenster.
+Wenn er fertig ist, notiert Zypp Desk, was er angelegt hat, damit es das Programm später entfernen kann, auch ohne
+Deinstallationsprogramm. Niemand signiert diese Installer: Führe nur solche aus, die du von der Website des
+Programms selbst heruntergeladen hast.</li>
+<li>Menüeinträge, deren Programm nicht mehr da ist, werden als Überbleibsel angezeigt, und Zypp Desk kann sie in
+den Papierkorb verschieben.</li>
+</ul>
+<h3>Experte</h3>
+<p><a href="page:expert">Experte</a> ist für alle, die zypper kennen. Dort gibt es jeden zypper-Befehl mit den
+Optionen, die die Hilfe von zypper selbst nennt (auf Englisch). Links stehen die meistbenutzten Befehle nach
+Gruppen, und die letzte Zeile der Liste zeigt alle; rechts das Formular des gewählten Befehls und der genaue
+Befehl, der ausgeführt wird. Du kannst auch eine Zeile wie in einem Terminal eingeben, zum Beispiel
+<code>zypper se vlc</code>; <code>sudo</code> brauchst du nicht.</p>
+<ul>
+<li>Befehle, die nur lesen (Suchen, Informationen, die Listen der Paketquellen, Pakete oder Sperren …), laufen
+unter deinem Benutzerkonto, ohne Passwort, und ihre Ausgabe erscheint im Terminal.</li>
+<li>Befehle, die das System ändern, fragen zuerst in Worten nach und dann nach dem Administratorpasswort. Sie
+laufen immer mit <code>-n</code>: Hier kann niemand zypper antworten, deshalb nimmt es seine Standardantworten.
+Wenn ein Befehl einen Probelauf hat, zeigt <b>Simulieren</b>, was er tun würde. Installationen, Entfernungen,
+Sperren, Sprachen und Änderungen an Paketquellen können auch in die Warteschlange.</li>
+<li>Manche Zeilen werden abgelehnt, bevor irgendetwas läuft, und die Meldung sagt, warum: mehr als ein Befehl auf
+einmal (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), alles, was nicht zypper ist,
+Befehle, die darauf warten, dass du etwas eingibst (<code>zypper shell</code>), Befehle, die das Hilfsprogramm
+nicht ausführt, das zypper als Administrator startet, und Optionen, die zypper auf ein anderes Wurzelverzeichnis
+oder einen anderen Ordner für Konfiguration, Zwischenspeicher oder Paketquellen lenken oder die von sich aus
+Paketquellen hinzufügen oder Schlüsseln vertrauen (<code>--root</code>, <code>--plus-repo</code>,
+<code>--gpg-auto-import-keys</code> …).</li>
+</ul>

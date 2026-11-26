@@ -79,7 +79,7 @@ def paragraphs(text):
 def signature_state(name):
     """(state, key ID) of an installed package; state is 'checked' (signed with a key in rpm's keyring, so rpm
     checked it when it was installed), 'unsigned', 'unknown-key' or '' (unknown). Runs rpm: call it in a thread."""
-    # rpm -qi as text that may not be UTF-8 (AutoFirma's description is Latin-1): only the Signature line matters
+    # rpm -qi as text that may not be UTF-8 (some packages use Latin-1): only the Signature line matters
     p = subprocess.run(["rpm", "-qi", "--", name], capture_output=True, text=True, errors="replace",
                        env=backend.ENV_C)
     line = next((x.split(":", 1)[1].strip() for x in p.stdout.splitlines() if x.startswith("Signature")), "")
@@ -384,7 +384,7 @@ class PackageDetails(QWidget):
         self._render_info()
 
     def _render_info(self):
-        """The Information tab: a clean table (as in the approved card), then the description."""
+        """The Information tab: a clean table, then the description."""
         d = self.current
         if not d:
             return

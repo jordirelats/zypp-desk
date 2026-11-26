@@ -5,7 +5,7 @@ The problems come from simulation.problem_items(): each one has a plain explanat
 solutions, with the queue actions that carry each one out. Many problems are first shown grouped by cause
 (problemgroups), with what is usually done: wait a day or two, or leave them as they are and update the rest.
 
-The window is the question itself (visual review 0.5, #7): each answer shows the exact commands it runs now
+The window is the question itself: each answer shows the exact commands it runs now
 or puts in the queue, and the password line shows when something runs now. After it, the caller runs the
 chosen solutions without asking again (mainwindow.apply_solutions(…, confirmed=True))."""
 
@@ -294,7 +294,7 @@ def remind_tomorrow(widget=None, now=None, reason="problems"):
 
 def reminder_promise():
     """What "Wait and try again tomorrow" promises, honestly: with the tray icon off at login, the reminder only
-    comes if the session is still open tomorrow morning (visual review 0.5, #9)."""
+    comes if the session is still open tomorrow morning."""
     try:
         from .. import tray
         on = tray.autostart_enabled()
@@ -315,7 +315,7 @@ class _More(QLabel):
         super().__init__(self._closed, parent)
         self._target, self._on_toggle = target, on_toggle
         self.setTextFormat(Qt.TextFormat.PlainText)
-        # the keyboard focus must show (visual review 0.5, #14), as in question.py
+        # the keyboard focus must show, as in question.py
         self.setStyleSheet(f"QLabel {{ color: {BLUE}; padding: 1px 3px; border-radius: 4px; }} "
                            "QLabel:focus { background: rgba(29, 153, 243, 0.18); }")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -456,7 +456,7 @@ class ProblemDialog(QDialog):
     problems. Enter never starts a change: the default button is Cancel.
 
     The causes, the answers and the problems scroll together; the note, the password line and the buttons stay
-    in view, and the window is at most 85 % of the screen high (visual review 0.5, #2)."""
+    in view, and the window is at most 85 % of the screen high."""
 
     def __init__(self, items, parent=None, apply_label=None, note=None, *, now=False):
         super().__init__(parent)

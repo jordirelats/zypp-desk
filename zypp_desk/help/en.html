@@ -51,10 +51,22 @@ the updates, then install them. <b>Run the routine</b> runs them one after the o
 <b>Edit the routine…</b> changes it with buttons, or as text, as you would
 type it in a terminal.</li>
 <li><b>What there is to update</b>: packages from the repositories, Flatpak apps, programs from the web and
-firmware, with a box to tick each one. The card on the right tells you about the package you choose.</li>
+firmware, with a box to tick each one. <b>Mark all</b> and <b>Unmark all</b>, under the list, tick or untick them
+all at once. The card on the right tells you about the package you choose.</li>
+<li>The list shows what the computer knew the last time the repositories were refreshed: <b>Look again</b> reads
+it again. <b>Refresh the repositories</b> first asks every repository for what is new (with the administrator
+password), then looks again.</li>
 <li><b>Simulate the dup…</b>: the full upgrade of Tumbleweed (<code>zypper dup</code>) in its own window, with
 its options.</li>
 </ul>
+<h3>Proposed routines</h3>
+<p>In the routine editor, <b>Proposed routines…</b> shows a few ready routines, each with what it does, why, and
+the line it makes in a terminal. The first one is made for this computer: besides updating the system, it updates
+the Flatpak apps if you have any and the firmware if fwupd is installed, removes old kernels and downloaded
+packages if the disk is short of room, and tells you at the end which programs need a restart. The others are the
+usual one (download everything, then install only if everything was downloaded), one that only downloads, and a
+quick one. The one you choose goes into the editor, where you can still change it; nothing is saved until you
+press <b>Save</b>.</p>
 <h3>A big update</h3>
 <p>When an update is big, or the new Tumbleweed came out less than a day ago, Zypp Desk asks whether it is worth
 waiting. It tells you how big it is, how new the version is and whether the computer is on battery. You can
@@ -87,9 +99,53 @@ first, so you see what goes.</li>
 <a href="page:locks">Locks</a>.</li>
 <li><a href="page:flatpak">Flatpak</a> has the Flatpak apps, their updates, their remotes and their
 permissions. They go to the same queue.</li>
+<li><b>Web apps</b>, in Applications, are the sites your browsers installed as apps (Chrome, Chromium, Edge,
+Brave, Vivaldi, Opera, and Firefox with the PWAsForFirefox extension). The browser installs and updates them;
+Zypp Desk shows those of every browser together and opens them. To remove one, Zypp Desk opens the browser's own
+page of apps, because only the browser can remove it for good. If its browser is no longer installed, its menu
+entry does not work any more, and Zypp Desk can move it to the trash.</li>
 </ul>
 <p>If the program is not in your repositories, <b>Search online…</b> looks for it in the openSUSE Build Service,
 Fedora COPR and Flathub, and explains how much you can trust each source.</p>
+<h3>Protecting an app</h3>
+<p><b>Protect it</b>, on the card of an application in Applications, is for a program you never want to lose by
+mistake: while it is protected, the queue refuses to remove it, from any page. Nothing else changes, and it still
+gets its updates. <b>Stop protecting it</b> takes the mark away.</p>
+<p>A Flatpak app can disappear from its remote when nobody maintains or distributes it any more. <b>Save a
+copy…</b> saves the installed app as one <code>.flatpak</code> file (<code>flatpak build-bundle</code>), so that
+you can install it again from that file even when the remote no longer has it. What it needs to run (its runtime)
+still comes from Flathub.</p>
+<h3>AppImages</h3>
+<p>An <b>AppImage</b> is a whole program in one file: you download it from its maker and open it, without installing
+anything. zypper does not know AppImages, so Zypp Desk looks for them in the usual folders (<code>~/Applications</code>,
+<code>~/AppImages</code>, <code>~/bin</code>, <code>~/.local/bin</code>, <code>/opt</code> and your Downloads
+folder) and among the menu entries, and the <b>AppImage</b> filter of <a href="page:apps">Applications</a> shows
+them. They are your own files: they never go through the queue, and nothing here needs the administrator
+password.</p>
+<p>Zypp Desk reads the name, the version and the icon from inside the file, without running it. For that it needs
+<code>unsquashfs</code>, from the package <code>squashfs</code>; without it, it shows the file's name.</p>
+<ul>
+<li><b>Open it</b> starts the program as you. If the file is not executable yet, Zypp Desk asks first. It never
+runs an AppImage as administrator: open only AppImages from makers you trust.</li>
+<li><b>Add it to the menu</b> gives it a menu entry with its own name and icon. <b>Remove it from the menu…</b>
+moves the entry and its icon to the trash, and leaves the program where it is.</li>
+<li><b>Look for a new version</b> asks GitHub for the newest release, only when you press it. Most AppImages do
+not say where they are published: then Zypp Desk asks you for the address of the project on GitHub, and
+<b>Change where to look…</b> changes it later. If the file names another site, the button opens it in the
+browser.</li>
+<li><b>Get the new version…</b> downloads it next to the one you have (as a <code>.new</code> file) and checks
+it: with the SHA-256 that GitHub publishes, when there is one, and that it really is an AppImage. Then Zypp Desk
+asks before it takes the old one's place, with the same name, so that the menu entry keeps working.</li>
+<li>The old version stays beside it as a <code>.old</code> file until the new one has opened once from Zypp Desk;
+then it goes to the trash. Until then, <b>Back to the previous version…</b> puts the old one back.</li>
+<li><b>Protect it</b> works as for any other app, and <b>Remove it…</b> moves the file, its old version, its
+menu entry and its icons to the trash. Its settings and data in your home folder stay.</li>
+<li><b>Add an AppImage…</b>, at the top of the page, takes a file you downloaded, moves or copies it to
+<code>~/Applications</code>, makes it executable and puts it in the menu.</li>
+</ul>
+<p>An AppImage in a folder only the administrator can change (in <code>/opt</code>, for example) can be opened,
+but not updated or removed from here. A menu entry whose file is gone is marked as an orphan: <b>Remove it from
+the menu…</b> clears it.</p>
 
 <!-- topic: web | Programs from the web and .rpm files -->
 <h2>Programs from the web and .rpm files</h2>
@@ -122,6 +178,198 @@ source you trust: a key lets its owner install anything on your computer.</p>
 <p><a href="page:services">Services</a> are lists of repositories kept by someone else (openSUSE keeps the
 Tumbleweed ones).</p>
 
+<!-- topic: system | Languages and locks -->
+<h2>Languages and locks</h2>
+<h3>Languages</h3>
+<p>Many programs bring their translations in separate packages (their <code>-lang</code> packages, dictionaries
+and spell checkers), and zypper installs them only for the languages it was asked for. If your computer is in a
+language zypper was never asked for, those packages never come, and parts of your programs show in English. When
+that happens, <a href="page:home">Home</a> says so and offers to add the language of the computer with one button:
+it goes to the queue.</p>
+<p><a href="page:locales">Languages</a> has every language zypper knows. <b>The ones you have</b> shows those
+zypper was asked for, <b>All</b> shows them all, and the search field finds a language by its name or its code.
+Tick a language to add it, or untick it to remove it: the change goes to the queue (<code>zypper addlocale</code>
+or <code>removelocale</code>), and nothing happens until you apply it. The card on the right tells you what it
+would bring: how many translation packages for the programs you have, and which dictionaries.</p>
+<ul>
+<li>When a language is added, zypper installs its translations for the programs you have, and from then on for
+those you install.</li>
+<li>When a language is removed, its translations go; the programs stay, in your other languages.</li>
+<li>English is always there, because the programs are written in it. The language of the computer, once added,
+cannot be unticked here.</li>
+<li>This page does not change the language of the windows: that is chosen in the settings of your desktop.</li>
+</ul>
+<h3>Locks</h3>
+<p>A locked package is never installed, removed or updated by any zypper command until you unlock it.
+<a href="page:locks">Locks</a> lists your locks with the icon of each package. The card on the right tells you
+which version you have, whether a newer one is waiting, which versions and which repository the lock covers, and
+lets you unlock it. Locking and unlocking go to the queue, like any other change.</p>
+<ul>
+<li><b>Lock a package…</b> searches for packages: tick several and lock them at once. A name with wildcards,
+like <code>vlc-*</code>, locks every package whose name matches, also the ones that come later.</li>
+<li><b>Clean useless locks</b> removes the locks that no package matches any more.</li>
+<li>When you choose to update the rest and leave some packages as they are (see When something goes wrong),
+Zypp Desk locks them. Those locks are marked as temporary, with their date. A band at the top tells you when their
+repository has published again, so that you can probably unlock them, and <b>Unlock them</b> unlocks them all at
+once.</li>
+</ul>
+
+<!-- topic: move | Moving to another computer -->
+<h2>Moving to another computer</h2>
+<p>When you change computers, Zypp Desk can take your software with you in one file. On the old computer, choose
+<b>Save this computer's software…</b>: in <a href="page:settings">Settings</a>, on the card <b>Move to another
+computer</b>, or at the bottom of <a href="page:home">Home</a>. It saves a file ending in <code>.zdesk</code> with
+what you leave ticked:</p>
+<ul>
+<li><b>Repositories and keys</b>: the enabled repositories with their priorities, and the signing keys they
+use.</li>
+<li><b>The packages you chose</b>, not those installed only because others needed them: zypper brings those back
+by itself.</li>
+<li><b>Flatpak apps</b>, with their remotes, and the <b>Programs from the web</b> that Zypp Desk follows.</li>
+<li><b>Locks, languages, the routine and the zypp.conf settings</b>, and the apps you protected.</li>
+<li><b>A list of what to do by hand</b>: AppImages, web apps, programs with their own installer and packages
+installed from a file. They cannot be installed by themselves, so they go on a list.</li>
+</ul>
+<p>The file holds no passwords and none of your documents: only the list of your software and where it comes
+from. The keys in it are public keys, which anyone can download. Some things are left out on purpose:</p>
+<ul>
+<li>kernels, firmware, microcode, drivers and the boot loader: they belong to the hardware and the installation of
+each computer, and the new one has its own;</li>
+<li>a repository whose address has a user name, a password or a token: it goes on the list by hand, without its
+address;</li>
+<li>temporary locks (those you get when you update the rest and leave some packages as they are), and packages
+from a local folder that Programs from the web does not follow.</li>
+</ul>
+<h3>On the other computer</h3>
+<p>Copy the file to the other computer and double-click it: it opens with Zypp Desk. You can also choose
+<b>Import it from a file…</b>, in the same places. Zypp Desk compares the file with this computer and shows what
+it would do: the repositories to add, with their keys and fingerprints, the packages and Flatpak apps to install,
+the locks and languages to add, and how much is here already. <b>Choose…</b> lets you untick some of them.
+<b>Put it in the queue</b> adds everything to the queue, where you review, simulate and apply it like any other
+change. Until you apply it, nothing changes.</p>
+<ul>
+<li>Your routine, zypper's settings (<code>zypp.conf</code>), the protected apps and the programs from the web
+only change if you say so. Before anything goes to the queue, a question shows each of them as it is now and as
+it would be: tick the ones to change. <code>zypp.conf</code> goes to the queue with the rest; the others change as
+soon as you answer.</li>
+<li><b>By hand</b> lists what Zypp Desk cannot do for you, each with what to do: download an AppImage or an
+installer again from its maker, install a web app again from its browser, copy a folder of programs, add a
+repository that needs a password, install a Flatpak app from the copy you saved. <b>Copy the list</b> copies it,
+to keep it at hand.</li>
+<li>Packages that are not in the repositories of this computer, or that are locked here, are left out, and the
+window says which: one of them would stop the whole install.</li>
+<li>Some changes have to wait: the packages of a repository that is only added now, and the locks of packages
+that are installed now. After you apply the queue, open the file again, and Zypp Desk adds what is left.</li>
+<li>If the file comes from another version of openSUSE, or from a computer with another kind of processor, the
+window warns you: some repositories or programs may not fit.</li>
+</ul>
+<p>Open only a file you made yourself, or one from someone you trust: its repositories and keys let zypper
+install programs from them as administrator. Zypp Desk checks everything in the file, and leaves out what does not
+pass, before it shows you anything.</p>
+
+<!-- topic: health | Health check -->
+<h2>Health check</h2>
+<p>At the top of <a href="page:maintenance">Maintenance</a>, Zypp Desk looks at the software of this computer and
+tells you what is worth a look, the most important first. Each finding has a sentence that explains it and, under
+<b>Details</b>, the names. Looking changes nothing: a finding's button opens the right page, or asks a question and
+puts the changes in the queue, which shows you the exact commands. <b>Check again</b> looks again, for example
+after you have installed or removed something.</p>
+<p>What it can find:</p>
+<ul>
+<li><b>Firmware for hardware you do not have.</b> openSUSE installs the firmware of every possible device, often
+close to a gigabyte. Each firmware package says which devices it is for, so Zypp Desk keeps what this computer
+uses and offers to remove the rest, on the <a href="page:drivers">Drivers</a> page.</li>
+<li><b>Apps no longer maintained.</b> A Flatpak app whose developers have stopped gets no more updates, and
+Flathub may stop offering it. Protect it and save a copy in <a href="page:apps">Applications</a>, so that you do
+not lose it.</li>
+<li><b>Packages from another vendor.</b> They came from a repository you no longer have, or that no longer has
+them, and zypper does not update them on its own. Zypp Desk offers to install them again from the repository you
+have; when it only has older versions, it is better to leave them as they are.</li>
+<li><b>Repositories with weak checks.</b> Nothing from them is checked against a signature, or their list of
+packages comes unsigned over plain http. A signature proves that what you install comes from who it says.</li>
+<li><b>Expired keys.</b> A key a repository signs with has expired, or expires soon. Usually the project renews
+it, and zypper takes the new date when it refreshes; if refreshing shows a key error, import the new key in
+<a href="page:keys">Signing keys</a>. Expired keys that no repository uses can be removed there.</li>
+<li><b>Packages that no repository has.</b> They get no updates any more. Most are leftovers of programs that
+something else replaced: look at them before you remove them.</li>
+<li><b>Apps installed twice</b>, as a package and as a Flatpak app. They take room twice and show twice in the
+menu: keep the one you use.</li>
+<li><b>What takes most room</b>: the biggest packages, the Flatpak apps, the downloaded packages and the old
+kernels. Each name takes you to where it can be removed.</li>
+</ul>
+<p>The checks that find nothing are listed together in one green line. Under the findings are the usual
+maintenance tasks (see When something goes wrong).</p>
+
+<!-- topic: drivers | Drivers -->
+<h2>Drivers</h2>
+<p><a href="page:drivers">Drivers</a> shows the parts of this computer (graphics, Wi-Fi and Bluetooth, network,
+sound, webcams, printers), each on a card with the driver it uses and whether that driver is free. Most drivers
+are free and part of the kernel: then the card says <b>All good</b>, and there is nothing to do. The other
+marks:</p>
+<ul>
+<li><b>There is a better driver</b>: a proprietary driver works much better than the free one, above all with
+NVIDIA cards.</li>
+<li><b>Firmware missing</b> or <b>Can be better</b>: the driver can use a package that is not installed
+(firmware, the processor's microcode, video decoding in the card).</li>
+<li><b>No driver</b>: no driver is using the device.</li>
+<li><b>Optional</b>: a driver exists, but it is old, and the free one keeps working.</li>
+<li><b>Good to know</b>: something worth knowing, with nothing to do.</li>
+</ul>
+<p>The button of a card only puts changes in the queue, after a question that says what each package is, where it
+comes from, whether it is proprietary and what happens with Secure Boot, with the exact commands. Nothing changes
+until you apply the queue, and the driver starts working after the next restart. If you plug in a dock or an
+adapter, the page looks at the hardware again when you come back to it; <b>Look again</b> does it at once.</p>
+<h3>NVIDIA</h3>
+<p>With an NVIDIA card, Linux starts with nouveau, a free driver that is slow with most cards. Zypp Desk proposes
+the NVIDIA driver made for your card:</p>
+<ul>
+<li><b>Recent cards</b> (GeForce GTX 16, RTX 20 and newer): the series G07. Its kernel part is open source, comes
+from openSUSE's main repository and is signed by openSUSE, so it starts with Secure Boot on, with nothing to
+enroll. The rest (graphics libraries, video decoding, CUDA, settings) is proprietary and comes from NVIDIA's
+repository for openSUSE. If you do not have that repository yet, Zypp Desk adds it with NVIDIA's signing key,
+after checking that the key is the one it knows.</li>
+<li><b>Older cards</b> (Maxwell, Pascal and Volta: the GeForce GTX 750, 900 and 10 series): the series G06, all
+from NVIDIA's repository. Its kernel part is built on your computer when it is installed, which brings the
+compiler and the kernel's development files (a few hundred MB), and it is signed with a key made on your
+computer.</li>
+<li><b>Very old cards</b>: NVIDIA's old series still exist, but NVIDIA no longer updates them, and they only work
+in an X11 session. They are marked as optional; nouveau keeps working.</li>
+</ul>
+<p>With Secure Boot on, a driver signed with a key made on your computer needs one step at the next start: a blue
+screen (MokManager) asks to enroll the key. Choose <b>Enroll MOK</b>, then <b>Continue</b> and <b>Yes</b>, and
+type the root password; the keyboard there is English (US). If you skip it, the computer starts with nouveau, and
+you can enroll the key at a later start.</p>
+<h3>Broadcom Wi-Fi</h3>
+<p>Some Broadcom Wi-Fi cards work with no free driver. For them, Zypp Desk proposes Broadcom's driver wl, from
+openSUSE's non-free repository (repo-non-oss): Broadcom's licence does not let it be free software, but openSUSE
+signs it, so it starts with Secure Boot on. If that repository is disabled, the queue enables it first. wl
+switches off the free Broadcom drivers, so Zypp Desk does not propose it when another device of this computer uses
+one of them.</p>
+<h3>Missing firmware</h3>
+<p>Many devices need firmware: a small program that their driver loads into the device when it starts. When a
+device can use a firmware package that is not installed, its card says so and has a button to install it from
+your repositories. If, at start, a driver asked for firmware it did not find, a card tells you which package has
+it. When no package has it, the card says that too: some drivers ask for a newer file first and then use an older
+one, so if everything works, it does not matter.</p>
+<h3>Not needed for this computer</h3>
+<p>At the end of the page, Zypp Desk lists what is installed for hardware this computer does not have, in groups:
+firmware for devices it does not have, microcode for the other make of processor, graphics and Wi-Fi drivers for
+other cards, tools for virtual machines, and printer drivers. It only lists what it is sure nothing here uses:
+nothing that a device of this computer, a loaded driver or another installed package needs, and nothing locked or
+protected. <b>Stays</b> says what stays and why: for example the firmware your devices use and, just in case, the
+firmware of devices that are often plugged in later (docks, USB network adapters, cameras).</p>
+<ul>
+<li>A group is ticked when removing it is safe. Printer drivers, and drivers for USB devices that may simply not be
+plugged in now, are unticked: keep them if you might use one.</li>
+<li><b>Remove the packages…</b> shows what goes and the exact commands, and puts the removals in the queue.
+<b>Look first (simulate)</b> puts them in the queue and simulates it at once.</li>
+<li>openSUSE installs all the firmware through one package, <code>kernel-firmware-all</code>, which the kernel
+recommends. When it goes, Zypp Desk also locks it: otherwise every new kernel would install it again, and all the
+firmware with it. The lock is in <a href="page:locks">Locks</a>, where you can remove it.</li>
+<li>If one day you plug in a device that needs a package that is gone, this page shows it on the device's card,
+with a button to install it again.</li>
+</ul>
+
 <!-- topic: problems | When something goes wrong -->
 <h2>When something goes wrong</h2>
 <ul>
@@ -153,3 +401,46 @@ connections per download…), the terminal, and which program opens <code>.rpm</
 from the web is changed in Programs from the web (<b>Change the folder…</b>).</p>
 <p>Zypp Desk speaks English, Catalan, German and French. To translate it into your language, see
 <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>
+
+<!-- topic: expert | Own installers and Expert -->
+<h2>Own installers and Expert</h2>
+<h3>Programs with their own installer</h3>
+<p>Some programs are neither RPM packages nor Flatpak apps: they install with their own installer (a
+<code>.sh</code>, a <code>.run</code>, or a <code>.tgz</code> with an install script inside). zypper does not know
+them, so nobody updates them. <a href="page:scripts">Own installers</a> finds them in your folder, in
+<code>/opt</code> and <code>/usr/local</code>, and among the menu entries that belong to no package, and tells you
+where each one is and how much room it takes. Nothing on this page runs as administrator.</p>
+<ul>
+<li><b>Uninstall…</b> runs the program's own uninstaller, if it has one, as you, in a terminal window where you
+can answer its questions. If it has none and it is in your folder, Zypp Desk moves its folder, menu entries and
+icons to the trash, and you can bring them back from there.</li>
+<li>A program installed for the whole computer (in <code>/opt</code> or <code>/usr/local</code>) needs the
+administrator password to be removed. Zypp Desk does not do it: it explains why and gives you the commands to run
+in a terminal.</li>
+<li><b>Install from a folder…</b> runs the installer of a program you downloaded (a <code>.sh</code>, a
+<code>.run</code>, or a <code>.tgz</code> or <code>.zip</code> with an installer inside; an archive is unpacked
+into a folder of Zypp Desk's own). Zypp Desk asks before running it, and runs it as you, without the administrator
+password, in a terminal window. When it ends, Zypp Desk notes what it created, so that it can remove the program later even without an
+uninstaller. Nobody signs these installers: run only the ones you downloaded from the program's own website.</li>
+<li>Menu entries whose program is not there any more are shown as left behind, and Zypp Desk can move them to the
+trash.</li>
+</ul>
+<h3>Expert</h3>
+<p><a href="page:expert">Expert</a> is for those who know zypper. It has every zypper command, with the options
+that zypper's own help gives (in English). On the left are the most used commands by group, and the last row of
+the list shows them all; on the right, the form of the chosen command and the exact command it will run. You can also type a line as you would in
+a terminal, for example <code>zypper se vlc</code>; you do not need <code>sudo</code>.</p>
+<ul>
+<li>Commands that only read (searches, information, the lists of repositories, packages or locks…) run as you,
+without the password, and show their output in the terminal.</li>
+<li>Commands that change the system ask first, in words, and then ask for the administrator password. They always
+run with <code>-n</code>: nobody can answer zypper here, so it takes its default answers. When a command has a dry
+run, <b>Simulate</b> shows what it would do. Installs, removals, locks, languages and repository changes can also
+go to the queue.</li>
+<li>Some lines are refused before anything runs, and the message says why: more than one command at a time
+(<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), anything that is not zypper,
+commands that wait for you to type (<code>zypper shell</code>), commands the administrator helper does not run,
+and options that point zypper at another root, configuration, cache or repository folder, or that add
+repositories or trust keys on their own (<code>--root</code>, <code>--plus-repo</code>,
+<code>--gpg-auto-import-keys</code>…).</li>
+</ul>

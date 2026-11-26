@@ -6,7 +6,8 @@ want the full power of zypper without giving up a desktop application: search, i
 remove packages, upgrade the distribution, manage repositories, locks, languages, history and
 maintenance — and always see the exact zypper command and its real output.
 
-> **Status: 0.5, early development.** Searching, package details, the change queue with
+> **Status: 0.5, early development.** Drivers and what the hardware does not need, a health check,
+> moving to another computer, AppImages, searching, package details, the change queue with
 > simulation and solutions to dependency problems (grouped by cause when there are many), questions
 > in plain words with the exact commands underneath, routines (written or built step by step), big
 > upgrades that ask whether it is worth waiting, upgrades in parts when the disk is nearly full, your
@@ -54,8 +55,9 @@ The window has a **Help** section (F1) in English, Catalan, German and French.
   `zypper -v ref ; zypper -v dup -d -l && zypper -v dup ; flatpak update -y`, and run it with one
   click, step by step.
 - **Your applications, wherever they come from.** One list of the programs you have, from the
-  repositories, from Flatpak or from files downloaded from the web, with what can be updated;
-  and the openSUSE and Flathub catalogues to discover programs by theme.
+  repositories, from Flatpak, from files downloaded from the web, AppImages and the web apps of
+  Chromium-based browsers, with what can be updated; protect an app so that it is never removed by
+  mistake; and the openSUSE and Flathub catalogues to discover programs by theme.
 - **Flatpak too.** Installed apps, search, updates and remotes, through the same queue.
 - **Programs from the web.** Follow programs you install from RPM files: from GitHub releases, a
   fixed download address or a download page (a .zip with the RPM inside works too). Zypp Desk
@@ -85,6 +87,17 @@ The window has a **Help** section (F1) in English, Catalan, German and French.
 - **Keys and settings.** Which signing key signs which repository and which of your packages,
   delete the ones nobody uses, import new ones after checking the fingerprint; and the settings
   of `zypp.conf`, written to a drop-in file of its own.
+- **Drivers, and what your hardware does not need.** Each device with the driver it uses; the
+  proprietary driver when it works better (NVIDIA, some Broadcom Wi-Fi cards), with what happens with
+  Secure Boot; missing firmware; and the firmware, microcode and drivers for hardware the computer
+  does not have, which can go (kernel-firmware-all alone brings firmware for every possible device).
+- **A health check.** Maintenance says what is worth a look: apps no longer maintained, packages
+  from another vendor, weak repositories, expired keys, packages no repository has, apps installed
+  twice, and what takes most room.
+- **Moving to another computer.** One file with your repositories and their keys, your programs and
+  your settings; opened on the new computer, everything goes to the queue for you to review.
+- **Every zypper command.** Languages, locks, programs installed with their own `.sh` installer,
+  and an Expert section with every zypper command, on a form or typed as in a terminal.
 - **Warnings explained.** After every run, each message is shown with how serious it is, what it
   means in plain words and what to do.
 - **Native.** Qt 6 through PySide6, so it follows the Plasma theme (Breeze) and the system icons.
@@ -106,6 +119,8 @@ is asked once and remembered for a few minutes.
 - Python 3.11 or newer, `python3-pyside6` (on Tumbleweed: `python313-pyside6`), `python3-rpm`
 - polkit with `pkexec`, and a polkit agent (Plasma and GNOME have one)
 - `gettext-tools` to build the translations
+- Optional: `flatpak`, `fwupd`, `snapper`, `squashfs` (to read the name and icon inside an AppImage)
+  and `python3-solv` (a faster health check)
 
 ## Running from the source tree
 

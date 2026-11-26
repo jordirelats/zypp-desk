@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The question before a change to the computer, in words for someone who does not know zypper.
 
-One pattern for every question that changes the system (Jordi, 26/11/2026: "Run these commands?" was not clear
-for a person who does not know): the title says what will be done; under it, each change in words with an icon;
+One pattern for every question that changes the system ("Run these commands?" is not clear for someone who
+does not know zypper): the title says what will be done; under it, each change in words with an icon;
 "What it means for you"; a warning when it can hurt; the exact commands underneath, small, as information; the
-password note; and buttons that say what they do. The mockups are preguntes-v3-*.png.
+password note; and buttons that say what they do.
 
 Enter never starts a change: the default button is the first one that is not primary (usually "Not yet").
 Every text is plain text: package and repository names come from the network.
@@ -72,7 +72,7 @@ class _More(QLabel):
         super().__init__(text_closed, parent)
         self._closed, self._open, self._target = text_closed, text_open, target
         self.setTextFormat(Qt.TextFormat.PlainText)
-        # the keyboard focus must show (visual review 0.5, #14): a soft blue background
+        # the keyboard focus must show: a soft blue background
         self.setStyleSheet(f"QLabel {{ color: {BLUE}; padding: 1px 3px; border-radius: 4px; }} "
                            "QLabel:focus { background: rgba(29, 153, 243, 0.18); }")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -345,7 +345,7 @@ class Question(QDialog):
         scr = (self.screen() or QGuiApplication.primaryScreen()).availableGeometry()
         lay = self._body.layout()
         # the height the content needs at the width it gets without a scroll bar (the geometry of the widgets is
-        # not laid out again yet when the scroll bar has just gone: that left an empty band, visual review #13)
+        # not laid out again yet when the scroll bar has just gone: that left an empty band)
         width = self._scroll.width()
         if lay.hasHeightForWidth():
             bottom = lay.totalHeightForWidth(width)

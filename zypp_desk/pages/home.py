@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Home: a friendly start. A big search field and tiles that say what there is to do."""
 
+import html
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
 
@@ -151,6 +153,14 @@ class HomePage(Page):
             grid.setColumnStretch(c, 1)
         lay.addLayout(grid)
         lay.addStretch(1)
+        # "Move to another computer": save this computer's software in a file, or open one from another computer
+        move = QLabel(self)
+        move.setTextFormat(Qt.TextFormat.RichText)
+        move.setText(html.escape(_("Moving to another computer?")) + " " + " · ".join(
+            f'<a href="{key}">{html.escape(text)}</a>' for key, text in
+            (("export", _("Save this computer's software…")), ("import", _("Import it from a file…")))))
+        move.linkActivated.connect(self._move)
+        lay.addWidget(move)
         lay.addWidget(muted(_("Every change waits in the queue at the bottom until you apply it. You can always see "
                               "the exact zypper command and what zypper answers.")))
 
@@ -186,6 +196,13 @@ class HomePage(Page):
     def _add_language(self):
         if self._lang_code:
             self.ctx.queue.add(Action("locale-add", self._lang_code))
+
+    def _move(self, key):
+        from .migrate import open_export, open_import
+        if key == "export":
+            open_export(self.ctx, self)
+        else:
+            open_import(self.ctx, self)
 
     def _search_online(self):
         try:
@@ -308,7 +325,7 @@ class HomePage(Page):
         if newer:
             self.t_web.set(ngettext("{n} new version", "{n} new versions", len(newer)).format(n=len(newer)),
                            ", ".join(r["package"] for r in newer)[:80], ORANGE)
-        else:  # green, as the other tiles say "up to date"; orange is for new versions (visual review 0.5, #20)
+        else:  # green, as the other tiles say "up to date"; orange is for new versions
             self.t_web.set(_("All up to date"),
                            ngettext("{n} program followed", "{n} programs followed", len(res)).format(n=len(res)),
                            GREEN)

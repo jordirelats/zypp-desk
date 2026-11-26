@@ -81,7 +81,7 @@ def collect_in_gui_thread(app):
 
     Left to itself, the collector runs in whichever thread happens to allocate. A run_async worker could then
     finalise Qt wrappers that the GUI thread was destroying at that very moment (rebuilding the rows of the queue
-    review, cards, the routine band): a random segfault (code review 0.5, #1: core dump of 26/11, reproduced in
+    review, cards, the routine band): a random segfault (reproduced in
     1 of 4 runs of 90 s; none in 6 runs with this). Plain reference counting still frees everything else at once."""
     import gc
 

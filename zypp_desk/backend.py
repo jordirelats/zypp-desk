@@ -28,8 +28,8 @@ class ZypperError(Exception):
 
 
 # At most this many zypper processes of the window at once. Each one loads every repository into memory
-# (hundreds of MB): unticking 95 rows of Updates one after the other started about 190 of them and the whole
-# computer froze (Jordi, 26/11/2026, 7.5 GB of RAM). The others wait their turn in their thread.
+# (hundreds of MB): unticking 95 rows of Updates one after the other started about 190 of them and froze the
+# whole computer. The others wait their turn in their thread.
 ZYPPER_SLOTS = threading.BoundedSemaphore(2)
 
 
@@ -232,7 +232,7 @@ def _parse_info(text):
 
 
 def rpm_query(args):
-    # a package's text may not be UTF-8 (AutoFirma's description is Latin-1): never fail on it
+    # a package's text may not be UTF-8 (some packages use Latin-1): never fail on it
     p = subprocess.run(["rpm", *args], capture_output=True, text=True, errors="replace", env=ENV_C)
     return p.stdout if p.returncode == 0 else ""
 
@@ -271,7 +271,7 @@ def repos():
 
 def _add_repo_file_fields(repo_list):
     """keeppackages and the owning service are only in the .repo files (readable by everyone)."""
-    # The file name does not have to match the alias (megasync.repo can hold [MEGAsync]): read every file
+    # The file name does not have to match the alias (vendor.repo can hold [VendorApp]): read every file
     # and find each repository by its section name.
     sections = {}
     for f in sorted(Path("/etc/zypp/repos.d").glob("*.repo")):
@@ -336,6 +336,13 @@ def no_lock_removed(output, lang=None):
     return any(t in (output or "") for t in texts)
 
 
+def locale_requested(text):
+    """The third column of 'zypper locales': "Requested" (older zypper: "Yes") for a language that was asked for;
+    "Fallback" for one that only comes with it (ca with ca_ES), and nothing or "No" for the others."""
+    t = (text or "").strip().lower()
+    return t == "requested" or t.startswith("y")
+
+
 def locales():
     """'zypper locales' has no XML output: parse its table."""
     p = run_c(["--no-refresh", "locales"])
@@ -343,7 +350,7 @@ def locales():
     for line in p.stdout.splitlines():
         cols = [c.strip() for c in line.split("|")]
         if len(cols) >= 3 and cols[0] and cols[0] != "Code" and not set(cols[0]) <= {"-", "+"}:
-            out.append(dict(code=cols[0], name=cols[1], requested=cols[2].lower().startswith("y")))
+            out.append(dict(code=cols[0], name=cols[1], requested=locale_requested(cols[2])))
     return out
 
 

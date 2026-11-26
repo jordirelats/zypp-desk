@@ -22,7 +22,7 @@ PKG_KINDS = ("install", "remove")
 # "Show them", instead of hundreds of rows.
 GROUP_FROM = 6
 # The queue review shows each change with its own button; from this many of one kind on, they are one row with
-# "Show them" and one button (a window of 2,000 rows took seconds to draw: code review 0.5, #4).
+# "Show them" and one button (a window of 2,000 rows took seconds to draw).
 REVIEW_GROUP_FROM = 30
 # The order the queue runs in (TxQueue.steps); the review window numbers the changes in this order.
 RUN_ORDER = ("key-import", "zypp-conf", "repo-url", "repo-add", "repo-modify", "repo-remove", "unlock", "lock",
@@ -60,8 +60,8 @@ def pkg_ident(action):
 
 
 def nice_fpr(fpr):
-    """'0FF9 D4D2 6264 C149 3957 0657 FD53 6322 2423 2811': a whole fingerprint in groups of 4 (security review
-    0.5, #3: 8 digits are a short key ID, easy to fake). Each half never breaks; a line may break between them."""
+    """'0FF9 D4D2 6264 C149 3957 0657 FD53 6322 2423 2811': a whole fingerprint in groups of 4 (8 digits are a
+    short key ID, easy to fake). Each half never breaks; a line may break between them."""
     fpr = (fpr or "").upper().replace(" ", "")
     groups = [fpr[i:i + 4] for i in range(0, len(fpr), 4)]
     half = (len(groups) + 1) // 2
@@ -131,7 +131,7 @@ class Action:
         runs them). icon is a theme icon name ('a|b': the first one the theme has); package: the package whose
         own icon the window may show instead.
 
-        Every title has the context "change" (language review 0.5, #1): the same English words are also buttons
+        Every title has the context "change": the same English words are also buttons
         ("Remove {name}"), and Catalan says a change in a list with the infinitive ("Treure {name}")."""
         k, t, o = self.kind, self.target, self.opts
         if k == "key-import":
@@ -264,7 +264,7 @@ class Action:
             parts.append(_("This exact version, older than the one you have.") if o.get("oldpackage") else
                          _("This exact version."))
         elif installed is not None and name in installed and not repo:
-            # zypper's install (and update) never changes the vendor of a package (zypper review 0.5, #11): a newer
+            # zypper's install (and update) never changes the vendor of a package: a newer
             # version from another vendor (Packman instead of openSUSE…) is left out
             return _w("system-software-update", pgettext("change", "Update {name}").format(name=name),
                       _("To the newest version from the same vendor."), package=name)
@@ -282,7 +282,7 @@ def _w(icon, title, detail="", more=None, package=None):
 
 
 def _repo_modify_words(alias, o):
-    """A change to a repository, by its name (visual review 0.5, #17): one title for one change ("Disable the
+    """A change to a repository, by its name: one title for one change ("Disable the
     repository …"), and each change in a sentence."""
     name = repo_name(alias)
     keys = set(o)
@@ -484,7 +484,7 @@ def step_actions(step):
 
 # ------------------------------------------------------------------ what needs what
 # Which signing key belongs to which repository waiting in the queue. Only links that someone made on purpose
-# (security review 0.5, #3: a key's name is whatever its maker wrote in it, so it never links a key):
+# (a key's name is whatever its maker wrote in it, so it never links a key):
 # - the key was fetched for that repository, from its own address or its .repo file (opts for_repo=<alias>);
 # - the key was fetched from an OBS project's own address (opts project=<project>): it signs that project's
 #   repositories, and those of its subprojects that have no key of their own; the repository's address holds the
@@ -535,7 +535,7 @@ def keys_for_repo(repo, keys):
 
 class Needs:
     """What needs what in a list of changes, worked out once for all of them (the review window asks it for each
-    row; asking needs() per row was quadratic: code review 0.5, #4):
+    row; asking needs() per row was quadratic):
     - a repository whose list is checked (gpg 'default' or 'allow-unsigned-package') needs its signing key;
     - an install from a repository that waits in the queue ('alias:package') needs that repository, and its key
       when only the packages are checked (COPR);
@@ -678,7 +678,7 @@ class TxQueue(QObject):
         self.settings = settings
         self._actions = []
         # (kind, what it is about) → the queued changes: add() finds what a change replaces without going
-        # through the whole queue (2,457 adds took 5.6 s: code review 0.5, #4)
+        # through the whole queue (2,457 adds took 5.6 s)
         self._index = {}
         self._index_of = None  # (the list, its length) the index was made for
         self._batch = 0
@@ -881,7 +881,7 @@ class TxQueue(QObject):
         - Removals with "Also remove what only it needed" go first, on their own: only 'zypper remove' has
           --clean-deps.
         - --allow-unsigned-rpm lets every file named in its command in without a signature, so it is only in a
-          command whose files were all accepted unsigned (security review 0.5, #1): a bridge package (made here,
+          command whose files were all accepted unsigned: a bridge package (made here,
           it only needs openSUSE packages) is installed on its own first, and files accepted unsigned go on their
           own before the rest when signed files are queued too.
         The dry run (simulation) is one transaction, as before: nothing is installed by it, and the program a
@@ -991,15 +991,26 @@ class TxQueue(QObject):
         rr = self.of("repo-remove")
         if rr:
             step(rr, "zypper", ["-n", "removerepo", "--", *(a.target for a in rr)])
-        for kind, sub in (("unlock", "removelock"), ("lock", "addlock")):
+        # A lock on a package this queue removes runs after the removal: before it, the lock would hold the
+        # installed package too and zypper would stop the removal (removing kernel-firmware-all and keeping it out).
+        removed = {a.target.split(":", 1)[-1].split("=", 1)[0] for a in self.of("remove")}
+        later = [a for a in self.of("lock") if a.target in removed and not a.opts.get("repo")]
+
+        def lock_steps(kind, sub, actions):
             groups = {}
-            for a in self.of(kind):
-                groups.setdefault((a.opts.get("type", "package"), a.opts.get("repo", "")), []).append(a)
-            for (typ, repo), acts in groups.items():
+            for a in actions:
+                groups.setdefault((a.opts.get("type", "package"), a.opts.get("repo", ""), a.opts.get("comment", "")),
+                                  []).append(a)
+            for (typ, repo, comment), acts in groups.items():
                 step(acts, "zypper", ["-n", sub, *([] if typ == "package" else ["-t", typ]),
-                                      *(["-r", repo] if repo else []), "--", *(a.target for a in acts)])
+                                      *(["-r", repo] if repo else []), *(["-m", comment] if comment else []),
+                                      "--", *(a.target for a in acts)])
+
+        lock_steps("unlock", "removelock", self.of("unlock"))
+        lock_steps("lock", "addlock", [a for a in self.of("lock") if a not in later])
         for pkg, acts in self._package_plan():
             step(acts, "zypper", ["-n", *pkg])
+        lock_steps("lock", "addlock", later)
         for kind, sub in (("locale-add", "addlocale"), ("locale-remove", "removelocale")):
             acts = self.of(kind)
             if acts:

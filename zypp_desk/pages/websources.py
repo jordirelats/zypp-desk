@@ -611,7 +611,7 @@ class WebSourcesPage(Page):
         elif self.tree.currentItem() is None:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
 
-    # ------------------------------------------------ icons (Jordi, 26/11/2026: "falten icones als rpm web")
+    # ------------------------------------------------ icons
     def _program_icon(self, name):
         found = getattr(self, "_icons", {}).get(name)
         if found:
@@ -707,7 +707,7 @@ class WebSourcesPage(Page):
 
     def _worth_downloading(self, s, f):
         """A newer version, a changed file whose version is unknown, or a program that is not installed: an
-        up-to-date program is not downloaded again (Weasis is 160 MiB)."""
+        up-to-date program is not downloaded again (some are well over 100 MiB)."""
         if not s or s.get("type", "github") == "manual" or not f or f.get("error") or not f.get("url"):
             return False
         return self.counts_as_new(f) or not f.get("installed")
@@ -997,8 +997,8 @@ class WebSourcesPage(Page):
             return
         pending = {"version": res["version"], "fingerprint": f.get("fingerprint"), "unsigned": ""}
         if sig == "unsigned":
-            # asked once, after the look at what it needs: in the bridge's question when it needs one (visual
-            # review 0.5, #7), else in a question of its own
+            # asked once, after the look at what it needs: in the bridge's question when it needs one, else in a
+            # question of its own
             if res["sha256_checked"]:
                 why = _("The file is exactly the one GitHub publishes (SHA-256 checked), but rpm cannot confirm who "
                         "made it.")
@@ -1028,7 +1028,7 @@ class WebSourcesPage(Page):
 
     @staticmethod
     def _drop(path):
-        """Delete a download that was not accepted (it may already be gone: code review 0.5, #12)."""
+        """Delete a download that was not accepted (it may already be gone)."""
         try:
             os.unlink(path)
         except OSError:

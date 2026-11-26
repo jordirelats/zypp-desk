@@ -220,7 +220,8 @@ def main(argv=None):
     parser.add_argument("--run-routine", action="store_true", help="open Updates and run the update routine")
     parser.add_argument("--tray", action="store_true", help="only the icon in the system tray, which tells you "
                                                             "about updates")
-    parser.add_argument("files", nargs="*", help="downloaded .rpm files to look at and install")
+    parser.add_argument("files", nargs="*", help="downloaded .rpm files to look at and install, or a "
+                        "software list (.zdesk) to import")
     parser.add_argument("--screenshot", metavar="PNG", help=argparse.SUPPRESS)  # used to build the docs
     parser.add_argument("--screenshot-delay", type=float, default=6, help=argparse.SUPPRESS)
     args, qt_args = parser.parse_known_args(argv[1:])

@@ -252,7 +252,7 @@ def explain(text):
     missing = found.get(_missing_title())
     # a missing file of Tumbleweed itself (its address is on the line, or on the one or two before it) a few
     # hours after a new version: the mirrors are still copying it. Only Tumbleweed's own address counts, not an
-    # OBS project or VideoLAN built for Tumbleweed (zypper review 0.5, #13)
+    # OBS project or VideoLAN built for Tumbleweed
     if missing is not None and any(_names_tumbleweed(lines[j]) for i in missing_at
                                    for j in range(max(0, i - 2), i + 1)):
         settling, hours = _mirrors_settling()

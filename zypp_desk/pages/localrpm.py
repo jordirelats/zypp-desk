@@ -3,7 +3,7 @@
 
 Nothing is installed here. What goes to the queue is a private copy of the file, in the 0700 download folder
 (localrpm.copy_for_queue), with its SHA-256 (Apply checks it again), like the programs from the web: nobody else
-can change it between the check and the moment root installs it (security review 0.5, #1). The file itself stays
+can change it between the check and the moment root installs it. The file itself stays
 where it is. Before that the window says what the file is, who made it, the version you have now,
 whether its signature can be checked and what it needs. Files that must not be installed are refused, with
 the reason: not an RPM package, a source package, another processor, damaged, or a signature that does not
@@ -561,7 +561,7 @@ class LocalRpmDialog(QDialog):
         targets = self._queueable()
         if not targets:
             return
-        # one question per decision (visual review 0.5, #7): a file that needs a bridge says in the bridge's own
+        # one question per decision: a file that needs a bridge says in the bridge's own
         # question that it is not signed or older; the other files share one question
         bridged = [it for it in targets if (it.get("plan") or {}).get("needs_bridge")]
         rest = [it for it in targets if not (it.get("plan") or {}).get("needs_bridge")]

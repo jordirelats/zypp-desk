@@ -102,7 +102,7 @@ class PackagesPage(Page):
             lists.addWidget(b)
 
         self.info = muted("", self, wrap=False)
-        # mark several and do the same with all of them (mockup multiple-v1-A)
+        # mark several and do the same with all of them
         self.mark_all_btn = tool(_("Mark all"), "edit-select-all", self.toggle_mark_all)
         self.mark_all_btn.setVisible(False)
 

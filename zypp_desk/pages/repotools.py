@@ -596,7 +596,7 @@ def yum_question(entry, prep, action, key_path):
     from .. import keys as keyring
     who = yum_who(entry)
     warnings = []
-    if entry.get("plain_http"):  # security review 0.5, #2: said first, it matters most
+    if entry.get("plain_http"):  # said first: it matters most
         if entry["gpg"] == "allow-unsigned-repo":
             warnings.append(_("Its address is not encrypted (http, and https does not answer there), and its list of "
                               "packages is not signed: anybody on the same network (a café's Wi-Fi) could keep its "
@@ -664,7 +664,7 @@ def yum_question(entry, prep, action, key_path):
 
 def personal_project_question(parent, project, url, install=None):
     """The question before the repository of a personal project of the openSUSE Build Service (home:…) goes to
-    the queue (it replaces an old Yes/No box: visual review 0.5, #15). install: the package that goes with it."""
+    the queue (it replaces an old Yes/No box). install: the package that goes with it."""
     items = [(REPO_ICON, pgettext("change", "Add the repository “{name}”").format(name=project),
               _("A new place to download programs and updates from: {url}").format(url=url))]
     if install:

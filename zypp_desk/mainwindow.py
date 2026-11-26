@@ -20,6 +20,7 @@ from .pages.repos import ReposPage
 from .pages.home import HomePage
 from .pages.help import AboutPage, HelpPage
 from .pages.history import HistoryPage
+from .pages.drivers import DriversPage
 from .pages.expert import ExpertPage
 from .pages.locales import LocalesPage
 from .pages.scripts import ScriptsPage
@@ -40,10 +41,10 @@ from .ui import button, error_box, icon, info_box, mono, muted
 SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
     (_("Sources"), ["repos", "keys", "services", "websources", "scripts"]),
-    (_("System"), ["locks", "locales", "history", "maintenance", "settings", "expert"]),
+    (_("System"), ["locks", "locales", "history", "maintenance", "drivers", "settings", "expert"]),
 ]
 # Help and About are small buttons under the list (and F1 opens Help): with them in the list, it did not fit a
-# window lower than ~850 px, and Help was hidden below the fold (visual review 0.5, #1)
+# window lower than ~850 px, and Help was hidden below the fold
 SIDEBAR_FOOT = ["help", "about"]
 # the heights of a row and of a group's header, from roomy to tight: the first that lets every row be seen
 ROW_HEIGHTS = ((38, 32), (36, 30), (34, 28), (32, 26), (30, 24))
@@ -154,7 +155,7 @@ def _small_button(text):
 
 
 class TakeOutDialog(QDialog):
-    """Taking out a change that others in the queue need (mockup preguntes-v1-C): says what would fail, and offers
+    """Taking out a change that others in the queue need: says what would fail, and offers
     to take them all out, only this one, or to keep it. "Keep it in the queue" is the default (Enter, Escape)."""
 
     def __init__(self, parent, action, deps, actions, installed=None):
@@ -241,10 +242,10 @@ class TakeOutDialog(QDialog):
 
 
 class QueueDialog(QDialog):
-    """What is in the queue, change by change (mockup preguntes-v1-B): numbered in the order they run, each with
+    """What is in the queue, change by change: numbered in the order they run, each with
     its own button to take it out, nothing selected, and what each change needs from an earlier one. Many changes
     of one kind (installs, updates, removals…) are one row with "Show them" and one button, so that a queue of
-    thousands of packages opens at once (code review 0.5, #4). Taking out a change that others need asks first
+    thousands of packages opens at once. Taking out a change that others need asks first
     (TakeOutDialog). Close is the default button: Enter never takes anything out of the queue. "Apply…" closes the
     window and asks the Apply question (apply_requested)."""
 
@@ -254,7 +255,7 @@ class QueueDialog(QDialog):
         self.catalog = catalog or {}
         self.apply_requested = False
         # while a row's own question is open, a change of the queue (a download that ends) does not draw the rows
-        # again: that would delete the button whose click is still being handled (code review 0.5, #8)
+        # again: that would delete the button whose click is still being handled
         self._holding = 0
         self._pending = False
         self.setWindowTitle(_("Pending changes"))
@@ -454,7 +455,7 @@ class MainWindow(QMainWindow):
         # ------------------------------------------------ pages
         page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, KeysPage, ServicesPage,
                         WebSourcesPage, ScriptsPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage,
-                        SettingsPage, ExpertPage, HelpPage, AboutPage]
+                        DriversPage, SettingsPage, ExpertPage, HelpPage, AboutPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
         self.pages = {}
@@ -539,7 +540,7 @@ class MainWindow(QMainWindow):
 
         # ------------------------------------------------ header, terminal, queue bar
         # the title gives way ("…") before the page's buttons make the window wider than the screen (German
-        # Repositories widened a 1100 px window to 1113: visual review 0.5, #21)
+        # Repositories widened a 1100 px window to 1113)
         self.page_title = ElidedLabel(self)
         f = self.page_title.font()
         f.setBold(True)
@@ -677,7 +678,15 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, lambda: self.open_files(files))
 
     def open_files(self, paths):
-        """Downloaded .rpm files (opened from Dolphin, or given on the command line)."""
+        """Downloaded .rpm files and software lists of "Move to another computer" (.zdesk), opened from Dolphin or
+        given on the command line."""
+        lists = [p for p in paths if p.lower().endswith(".zdesk")]
+        paths = [p for p in paths if p not in lists]
+        for path in lists[:1]:  # one list at a time: each one fills the queue
+            from .pages.migrate import open_import
+            open_import(self, self, path)
+        if not paths:
+            return
         try:
             from .pages.localrpm import LocalRpmDialog
         except ImportError as e:
@@ -837,11 +846,11 @@ class MainWindow(QMainWindow):
         if rc == QDialog.DialogCode.Accepted:
             self.apply_queue(confirm=False, expected=snapshot)
         elif rc == getattr(SimulationDialog, "RESOLVE", 2):
-            # the problem window already showed what runs now and asked: no second question (visual review 0.5, #7)
+            # the problem window already showed what runs now and asked: no second question
             self.apply_solutions(chosen, then=self.simulate_queue, confirmed=True)
 
     def apply_solutions(self, solutions, then=None, now=False, confirmed=False):
-        """What Jordi chose for each problem of a simulation, then `then` (simulate again). confirmed: the window
+        """What you chose for each problem of a simulation, then `then` (simulate again). confirmed: the window
         the choice came from already showed what runs now and asked for it (the problem window), so the question
         before the commands that run at once is not asked again.
 
@@ -909,14 +918,14 @@ class MainWindow(QMainWindow):
         if confirm and not self._ask_apply(steps, changed=why):
             return
         if list(self.queue.actions) != actions:
-            # it changed while the question was open: ask again, and say why (code review 0.5, #11)
+            # it changed while the question was open: ask again, and say why
             return self.apply_queue(confirm=True, why="question")
         if not self._files_unchanged(actions):
             return
         self.run(steps, _("Applying the queue"), on_done=lambda ok: self._applied(ok, actions, steps))
 
     def _ask_apply(self, steps, changed=None):
-        """The Apply question (mockup preguntes-v3-A): each change in words, in the order it runs, what it means
+        """The Apply question: each change in words, in the order it runs, what it means
         for you, a warning when it can hurt, and the exact commands underneath, small. changed: why it is asked
         again ("simulation": the queue changed after the simulation; "question": while the question was open)."""
         acts = self.queue.actions

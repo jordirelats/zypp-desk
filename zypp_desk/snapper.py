@@ -692,7 +692,7 @@ def snapper_installed():
 # openSUSE's Btrfs layout keeps these folders in subvolumes of their own (and /home is often a partition of its
 # own): the snapshots of / do not have them, so undoing a change does not put them back.
 OWN_SUBVOLUMES = ("/opt", "/usr/local", "/srv", "/root", "/var", "/home")
-# where whole programs get installed (Chrome, Vivaldi, Brave, Edge, Zoom, Master PDF…); /var only holds their
+# where whole programs get installed (Chrome, Vivaldi, Brave, Edge…); /var only holds their
 # logs, caches and data, and /home your own files
 PROGRAM_FOLDERS = ("/opt", "/usr/local", "/srv", "/root")
 

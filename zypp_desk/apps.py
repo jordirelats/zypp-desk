@@ -167,7 +167,7 @@ def installed():
         if e and not WEB_APP_RE.search(e["exec"]):
             entries[str(f)] = e
     owners = _owners(list(entries))
-    # .desktop files copied by an install script (RustDesk, Weasis…) belong to no package: ask for the program
+    # .desktop files copied by an install script (programs from the web) belong to no package: ask for the program
     execs = {}
     for path, e in entries.items():
         if path not in owners:

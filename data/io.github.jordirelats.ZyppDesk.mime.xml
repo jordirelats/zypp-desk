@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The file "Move to another computer" writes: the list of software of one computer, opened with Zypp Desk. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-zypp-desk-migration">
+    <comment>Zypp Desk software list</comment>
+    <comment xml:lang="ca">Llista de programari de Zypp Desk</comment>
+    <comment xml:lang="de">Zypp-Desk-Softwareliste</comment>
+    <comment xml:lang="fr">Liste de logiciels de Zypp Desk</comment>
+    <sub-class-of type="application/json"/>
+    <generic-icon name="package-x-generic"/>
+    <glob pattern="*.zdesk"/>
+  </mime-type>
+</mime-info>

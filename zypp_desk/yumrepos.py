@@ -10,12 +10,12 @@ Only some can be used on openSUSE: an address on the web (http or https) whose o
 $arch. An address with $releasever is made for one version of Fedora, and a metalink or mirrorlist is a list of
 mirrors that zypper cannot read; those are listed as "cannot be used", with the reason. So is an address that
 carries settings for zypper in its query (?ssl_verify=no turns off the https check), and an http address whose
-packages are not signed either: anybody on the network could change what root installs (security review 0.5, #2).
+packages are not signed either: anybody on the network could change what root installs.
 An http address is tried with https first (scan), and the https one is used when it answers.
 
 The signature checks follow the file: gpgcheck (the packages) and repo_gpgcheck (the list of packages) become the
 queue's 'default' (both), 'allow-unsigned-repo' (only the packages), 'allow-unsigned-package' (only the list:
-zypper addrepo --gpgcheck-allow-unsigned-package keeps the list checked, zypper review 0.5, #7) or 'off'.
+zypper addrepo --gpgcheck-allow-unsigned-package keeps the list checked) or 'off'.
 
 Nothing here changes the system: it reads the files, asks rpm as the normal user, and reads key files with gpg in a
 throwaway folder (keys.py). Adding a repository and importing its key go through the queue.
@@ -236,7 +236,7 @@ def https_answers(url):
 
 def secure_transport(entry):
     """For a usable repository whose file says http: use the same address with https when it answers; otherwise it
-    stays http, and one whose packages are not signed either cannot be used (security review 0.5, #2). Network."""
+    stays http, and one whose packages are not signed either cannot be used. Network."""
     if not entry["usable"] or not entry["url"].lower().startswith("http://"):
         return entry
     if https_answers(entry["url"]):
