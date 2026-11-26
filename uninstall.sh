@@ -29,6 +29,10 @@ sudo sh -c 'if [ -e /etc/systemd/system/zypp-desk-refresh.timer ]; then
                 systemctl daemon-reload
               fi
             fi
+            # "Look for new updates": the unit and the polkit rule of install.sh (the package keeps its own)
+            rm -f /etc/systemd/system/zypp-desk-check.service
+            rm -f /etc/polkit-1/rules.d/50-io.github.jordirelats.ZyppDesk.rules
+            systemctl daemon-reload
             rm -f /usr/local/libexec/zypp-desk/zypp-desk-helper /usr/local/libexec/zypp-desk/zypp-desk-refresh
             rmdir --ignore-fail-on-non-empty /usr/local/libexec/zypp-desk 2>/dev/null
             for f in "$1" "$2"; do

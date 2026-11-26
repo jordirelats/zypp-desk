@@ -1,4 +1,16 @@
 -------------------------------------------------------------------
+Thu Nov 26 19:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.5:
+  * Tray: "Look for new updates" (was "Check now") asks every
+    repository for what is new before counting, without a password:
+    it starts zypp-desk-check.service, which only refreshes the lists
+    (as the timer does every six hours) and never installs anything;
+    a polkit rule lets a user at the computer start exactly that unit
+  * When the repositories cannot be asked, the tray says why next to
+    the count; the automatic checks still only count
+
+-------------------------------------------------------------------
 Thu Nov 26 18:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.4: every button says what it acts on

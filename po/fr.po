@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 16:26+0100\n"
+"POT-Creation-Date: 2026-11-26 17:10+0100\n"
 "PO-Revision-Date: 2026-11-25 12:41+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: French\n"
@@ -509,7 +509,7 @@ msgstr "virtuels de VirtualBox"
 #: zypp_desk/drivers.py:1625 zypp_desk/pages/apps.py:993
 #: zypp_desk/pages/flatpak.py:430 zypp_desk/pages/repos.py:1099
 #: zypp_desk/pages/system.py:113 zypp_desk/pages/system.py:114
-#: zypp_desk/tray.py:914
+#: zypp_desk/tray.py:950
 msgid "no"
 msgstr "non"
 
@@ -2048,7 +2048,7 @@ msgstr "Gestionnaire de paquets utilisé par {proc}"
 msgid "No restart needed"
 msgstr "Aucun redémarrage nécessaire"
 
-#: zypp_desk/mainwindow.py:1152 zypp_desk/tray.py:851 zypp_desk/tray.py:1211
+#: zypp_desk/mainwindow.py:1152 zypp_desk/tray.py:884 zypp_desk/tray.py:1278
 msgid "Restart needed"
 msgstr "Redémarrage nécessaire"
 
@@ -2484,7 +2484,7 @@ msgid "Utilities"
 msgstr "Utilitaires"
 
 #: zypp_desk/pages/apps.py:54 zypp_desk/pages/system.py:825
-#: zypp_desk/tray.py:816 zypp_desk/tray.py:817
+#: zypp_desk/tray.py:849 zypp_desk/tray.py:850
 msgid "Settings"
 msgstr "Paramètres"
 
@@ -3326,7 +3326,7 @@ msgstr "Demande d'abord, puis télécharge {file} depuis {place} et le vérifie�
 
 #: zypp_desk/pages/apps.py:1073 zypp_desk/pages/home.py:341
 #: zypp_desk/pages/updates.py:901 zypp_desk/pages/updates.py:1332
-#: zypp_desk/pages/updates.py:1463 zypp_desk/tray.py:673
+#: zypp_desk/pages/updates.py:1463 zypp_desk/tray.py:706
 msgid "Looking…"
 msgstr "Recherche…"
 
@@ -3742,7 +3742,7 @@ msgid "All"
 msgstr "Tout"
 
 #: zypp_desk/pages/apps.py:1513 zypp_desk/pages/flatpak.py:75
-#: zypp_desk/routine.py:154 zypp_desk/tray.py:682
+#: zypp_desk/routine.py:154 zypp_desk/tray.py:715
 msgid "Flatpak"
 msgstr "Flatpak"
 
@@ -6849,7 +6849,7 @@ msgstr "Ouvre Mises à jour, pour choisir ce qu'il faut mettre à jour."
 
 #: zypp_desk/pages/home.py:141 zypp_desk/pages/home.py:218
 #: zypp_desk/pages/updates.py:857 zypp_desk/pages/updates.py:1475
-#: zypp_desk/tray.py:868 zypp_desk/tray.py:1000
+#: zypp_desk/tray.py:901 zypp_desk/tray.py:1045
 msgid "Update everything…"
 msgstr "Tout mettre à jour…"
 
@@ -7012,7 +7012,7 @@ msgid_plural "{n} programs from the web"
 msgstr[0] "{n} programme du web"
 msgstr[1] "{n} programmes du web"
 
-#: zypp_desk/pages/home.py:319 zypp_desk/tray.py:693
+#: zypp_desk/pages/home.py:319 zypp_desk/tray.py:726
 #, python-brace-format
 msgid "{n} firmware"
 msgid_plural "{n} firmware"
@@ -7020,7 +7020,7 @@ msgstr[0] "{n} micrologiciel"
 msgstr[1] "{n} micrologiciels"
 
 #: zypp_desk/pages/home.py:320 zypp_desk/pages/updates.py:245
-#: zypp_desk/tray.py:675
+#: zypp_desk/tray.py:708
 #, python-brace-format
 msgid "{n} update"
 msgid_plural "{n} updates"
@@ -8940,6 +8940,8 @@ msgstr ""
 "\n"
 "Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk (Paramètres → Changer d'ordinateur, ou ouvrez le fichier).Enregistré dans {file}.\n"
 "\n"
+"Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk (Paramètres → Changer d'ordinateur, ou ouvrez le fichier).Enregistré dans {file}.\n"
+"\n"
 "Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk (Paramètres → Changer d'ordinateur, ou ouvrez le fichier)."
 
 #: zypp_desk/pages/migrate.py:227
@@ -10189,7 +10191,7 @@ msgstr "pas encore vérifié"
 
 #: zypp_desk/pages/repos.py:88 zypp_desk/pages/updates.py:716
 #: zypp_desk/pages/updates.py:1412 zypp_desk/pages/updates.py:1594
-#: zypp_desk/tray.py:941
+#: zypp_desk/tray.py:984
 msgid "could not check"
 msgstr "vérification impossible"
 
@@ -12529,7 +12531,7 @@ msgid "Keep only the firmware this computer needs?"
 msgstr "Garder seulement les micrologiciels dont cet ordinateur a besoin ?"
 
 #: zypp_desk/pages/system.py:1066 zypp_desk/pages/updates.py:1415
-#: zypp_desk/pages/updates.py:1663 zypp_desk/tray.py:850
+#: zypp_desk/pages/updates.py:1663 zypp_desk/tray.py:883
 msgid "Firmware"
 msgstr "Micrologiciels"
 
@@ -16034,224 +16036,262 @@ msgstr "Enregistrer la sortie du terminal"
 msgid "Text files (*.txt)"
 msgstr "Fichiers texte (*.txt)"
 
-#: zypp_desk/tray.py:203
+#: zypp_desk/tray.py:206
 msgid "Tells you when there are updates"
 msgstr "Vous avertit quand il y a des mises à jour"
 
-#: zypp_desk/tray.py:454
+#: zypp_desk/tray.py:400
+msgid "Asks every repository for what is new, then counts the updates. No password: it only refreshes the lists, as the timer does every six hours, and never installs anything."
+msgstr "Demande à chaque dépôt ce qu'il y a de nouveau, puis compte les mises à jour. Sans mot de passe : il ne fait que rafraîchir les listes, comme le minuteur toutes les six heures, et n'installe jamais rien."
+
+#: zypp_desk/tray.py:410
+msgid "systemctl is missing"
+msgstr "systemctl est absent"
+
+#: zypp_desk/tray.py:415
+msgid "the repositories took too long to answer"
+msgstr "les dépôts ont mis trop de temps à répondre"
+
+#: zypp_desk/tray.py:423
+msgid "this installation has no unit to refresh them (it comes with the zypp-desk package)"
+msgstr "cette installation n'a pas l'unité qui les rafraîchit (elle vient avec le paquet zypp-desk)"
+
+#: zypp_desk/tray.py:425
+msgid "this user may not refresh them without a password here"
+msgstr "cet utilisateur ne peut pas les rafraîchir ici sans mot de passe"
+
+#: zypp_desk/tray.py:426
+#, python-brace-format
+msgid "exit code {code}"
+msgstr "code de sortie {code}"
+
+#: zypp_desk/tray.py:487
 #, python-brace-format
 msgid "There is {n} update"
 msgid_plural "There are {n} updates"
 msgstr[0] "Il y a {n} mise à jour"
 msgstr[1] "Il y a {n} mises à jour"
 
-#: zypp_desk/tray.py:458
+#: zypp_desk/tray.py:491
 #, python-brace-format
 msgid "All from the repositories: {names}"
 msgstr "Toutes depuis les dépôts : {names}"
 
-#: zypp_desk/tray.py:460
+#: zypp_desk/tray.py:493
 #, python-brace-format
 msgid "Flatpak: {names}"
 msgstr "Flatpak : {names}"
 
-#: zypp_desk/tray.py:460
+#: zypp_desk/tray.py:493
 #, python-brace-format
 msgid "Repositories: {names}"
 msgstr "Dépôts : {names}"
 
-#: zypp_desk/tray.py:460
+#: zypp_desk/tray.py:493
 #, python-brace-format
 msgid "Web: {names}"
 msgstr "Web : {names}"
 
-#: zypp_desk/tray.py:461
+#: zypp_desk/tray.py:494
 #, python-brace-format
 msgid "Firmware: {names}"
 msgstr "Micrologiciels : {names}"
 
-#: zypp_desk/tray.py:464
+#: zypp_desk/tray.py:497
 msgid "The computer must restart to finish an earlier update."
 msgstr "L'ordinateur doit redémarrer pour terminer une mise à jour précédente."
 
-#: zypp_desk/tray.py:485
+#: zypp_desk/tray.py:518
 msgid "Time to try the update again"
 msgstr "C'est le moment de réessayer la mise à jour"
 
-#: zypp_desk/tray.py:486
+#: zypp_desk/tray.py:519
 msgid "You asked Zypp Desk to remind you today. Simulate the update again: the problems that fix themselves may be gone by now."
 msgstr "Vous avez demandé à Zypp Desk de vous le rappeler aujourd'hui. Simulez de nouveau la mise à jour : les problèmes qui se règlent tout seuls ont peut-être disparu."
 
-#: zypp_desk/tray.py:489 zypp_desk/tray.py:492
+#: zypp_desk/tray.py:522 zypp_desk/tray.py:525
 msgid "Time to look at the update again"
 msgstr "C'est le moment de revoir la mise à jour"
 
-#: zypp_desk/tray.py:490
+#: zypp_desk/tray.py:523
 msgid "You asked Zypp Desk to remind you today about the update you put off. Open Updates and run it when it suits you."
 msgstr "Vous avez demandé à Zypp Desk de vous rappeler aujourd'hui la mise à jour que vous avez reportée. Ouvrez Mises à jour et lancez-la quand cela vous convient."
 
-#: zypp_desk/tray.py:493
+#: zypp_desk/tray.py:526
 msgid "You asked Zypp Desk to remind you today. Simulate the update again: if it had problems that fix themselves, they may be gone by now."
 msgstr "Vous avez demandé à Zypp Desk de vous le rappeler aujourd'hui. Simulez de nouveau la mise à jour : si elle avait des problèmes qui se règlent tout seuls, ils ont peut-être disparu."
 
-#: zypp_desk/tray.py:637 zypp_desk/tray.py:673
+#: zypp_desk/tray.py:670 zypp_desk/tray.py:706
 msgid "Not checked yet"
 msgstr "Pas encore vérifié"
 
-#: zypp_desk/tray.py:643
+#: zypp_desk/tray.py:676
 #, python-brace-format
 msgid "Checked today at {time}"
 msgstr "Vérifié aujourd'hui à {time}"
 
-#: zypp_desk/tray.py:645
+#: zypp_desk/tray.py:678
 #, python-brace-format
 msgid "Checked yesterday at {time}"
 msgstr "Vérifié hier à {time}"
 
-#: zypp_desk/tray.py:646
+#: zypp_desk/tray.py:679
 #, python-brace-format
 msgid "Checked on {date} at {time}"
 msgstr "Vérifié le {date} à {time}"
 
-#: zypp_desk/tray.py:660
+#: zypp_desk/tray.py:693
 #, python-brace-format
 msgid "Repositories refreshed today at {time}"
 msgstr "Dépôts actualisés aujourd'hui à {time}"
 
-#: zypp_desk/tray.py:662
+#: zypp_desk/tray.py:695
 #, python-brace-format
 msgid "Repositories refreshed yesterday at {time}"
 msgstr "Dépôts actualisés hier à {time}"
 
-#: zypp_desk/tray.py:665
+#: zypp_desk/tray.py:698
 #, python-brace-format
 msgid "Repositories refreshed {n} day ago"
 msgid_plural "Repositories refreshed {n} days ago"
 msgstr[0] "Dépôts actualisés il y a {n} jour"
 msgstr[1] "Dépôts actualisés il y a {n} jours"
 
-#: zypp_desk/tray.py:677
+#: zypp_desk/tray.py:710
 msgid "Could not check"
 msgstr "Vérification impossible"
 
-#: zypp_desk/tray.py:678
+#: zypp_desk/tray.py:711
 msgid "Everything is up to date"
 msgstr "Tout est à jour"
 
-#: zypp_desk/tray.py:682
+#: zypp_desk/tray.py:715
 msgid "the repositories"
 msgstr "les dépôts"
 
-#: zypp_desk/tray.py:682
+#: zypp_desk/tray.py:715
 msgid "the web"
 msgstr "le web"
 
-#: zypp_desk/tray.py:683
+#: zypp_desk/tray.py:716
 msgid "everything"
 msgstr "tout"
 
-#: zypp_desk/tray.py:683
+#: zypp_desk/tray.py:716
 msgid "whether a restart is needed"
 msgstr "si un redémarrage est nécessaire"
 
-#: zypp_desk/tray.py:688
+#: zypp_desk/tray.py:721
 msgid "Flatpak: ?"
 msgstr "Flatpak : ?"
 
-#: zypp_desk/tray.py:688
+#: zypp_desk/tray.py:721
 msgid "Repositories: ?"
 msgstr "Dépôts : ?"
 
-#: zypp_desk/tray.py:688
+#: zypp_desk/tray.py:721
 msgid "Web: ?"
 msgstr "Web : ?"
 
-#: zypp_desk/tray.py:689
+#: zypp_desk/tray.py:722
 msgid "Firmware: ?"
 msgstr "Micrologiciels : ?"
 
-#: zypp_desk/tray.py:690
+#: zypp_desk/tray.py:723
 #, python-brace-format
 msgid "{n} from the repositories"
 msgid_plural "{n} from the repositories"
 msgstr[0] "{n} des dépôts"
 msgstr[1] "{n} des dépôts"
 
-#: zypp_desk/tray.py:691
+#: zypp_desk/tray.py:724
 #, python-brace-format
 msgid "{n} Flatpak"
 msgid_plural "{n} Flatpak"
 msgstr[0] "{n} Flatpak"
 msgstr[1] "{n} Flatpak"
 
-#: zypp_desk/tray.py:692
+#: zypp_desk/tray.py:725
 #, python-brace-format
 msgid "{n} from the web"
 msgid_plural "{n} from the web"
 msgstr[0] "{n} du web"
 msgstr[1] "{n} du web"
 
-#: zypp_desk/tray.py:829 zypp_desk/tray.py:1248 zypp_desk/tray.py:1273
+#: zypp_desk/tray.py:862 zypp_desk/tray.py:1315 zypp_desk/tray.py:1340
 msgid "Open Updates"
 msgstr "Ouvrir Mises à jour"
 
-#: zypp_desk/tray.py:870
+#: zypp_desk/tray.py:903
 msgid "Opens Zypp Desk and runs your routine, which updates the whole system (with the administrator password)."
 msgstr "Ouvre Zypp Desk et lance votre routine, qui met à jour tout le système (avec le mot de passe administrateur)."
 
-#: zypp_desk/tray.py:876 zypp_desk/tray.py:999
+#: zypp_desk/tray.py:909 zypp_desk/tray.py:1044
 msgid "Open Zypp Desk"
 msgstr "Ouvrir Zypp Desk"
 
-#: zypp_desk/tray.py:877 zypp_desk/tray.py:1001
-msgid "Check now"
-msgstr "Vérifier maintenant"
+#: zypp_desk/tray.py:910 zypp_desk/tray.py:1046
+msgid "Look for new updates"
+msgstr "Rechercher de nouvelles mises à jour"
 
-#: zypp_desk/tray.py:891 zypp_desk/tray.py:1202
+#: zypp_desk/tray.py:925
+msgid "Asking the repositories for what is new…"
+msgstr "Interrogation des dépôts sur les nouveautés…"
+
+#: zypp_desk/tray.py:927 zypp_desk/tray.py:1269
 msgid "Looking for updates…"
 msgstr "Recherche de mises à jour…"
 
-#: zypp_desk/tray.py:893 zypp_desk/tray.py:1204
+#: zypp_desk/tray.py:929 zypp_desk/tray.py:1271
 msgid "It looks for updates in a moment."
 msgstr "La recherche de mises à jour commencera dans un instant."
 
-#: zypp_desk/tray.py:914
+#: zypp_desk/tray.py:950
 msgid "yes, to finish an earlier update"
 msgstr "oui, pour terminer une mise à jour précédente"
 
-#: zypp_desk/tray.py:917
+#: zypp_desk/tray.py:956
+#, python-brace-format
+msgid "Could not ask the repositories for what is new: {why}. These are the lists from the last refresh."
+msgstr "Impossible de demander aux dépôts ce qu'il y a de nouveau : {why}. Ce sont les listes du dernier rafraîchissement."
+
+#: zypp_desk/tray.py:959
 #, python-brace-format
 msgid "Could not check: {parts}."
 msgstr "Vérification impossible : {parts}."
 
-#: zypp_desk/tray.py:937
+#: zypp_desk/tray.py:980
 msgid "not checked (turned off in the settings)"
 msgstr "non vérifié (désactivé dans les paramètres)"
 
-#: zypp_desk/tray.py:939
+#: zypp_desk/tray.py:982
 msgid "fwupd is not installed"
 msgstr "fwupd n'est pas installé"
 
-#: zypp_desk/tray.py:944
+#: zypp_desk/tray.py:987
 msgid "nothing new"
 msgstr "rien de nouveau"
 
-#: zypp_desk/tray.py:946
+#: zypp_desk/tray.py:989
 #, python-brace-format
 msgid "{n} update: {what}"
 msgid_plural "{n} updates: {what}"
 msgstr[0] "{n} mise à jour : {what}"
 msgstr[1] "{n} mises à jour : {what}"
 
-#: zypp_desk/tray.py:1003
+#: zypp_desk/tray.py:1049
 msgid "Settings…"
 msgstr "Paramètres…"
 
-#: zypp_desk/tray.py:1005
+#: zypp_desk/tray.py:1051
 msgid "Quit"
 msgstr "Quitter"
 
-#: zypp_desk/tray.py:1247
+#: zypp_desk/tray.py:1234
+msgid "unknown error"
+msgstr "erreur inconnue"
+
+#: zypp_desk/tray.py:1314
 msgid "Update everything"
 msgstr "Tout mettre à jour"
 
@@ -16812,6 +16852,9 @@ msgstr "sudo n'est pas nécessaire : Zypp Desk demande lui-même le mot de pass
 #, python-brace-format
 msgid "Only zypper runs here: “{word}” is not a zypper command."
 msgstr "Seul zypper s'exécute ici : « {word} » n'est pas une commande zypper."
+
+#~ msgid "Check now"
+#~ msgstr "Vérifier maintenant"
 
 #~ msgid "Look at them"
 #~ msgstr "Examiner"

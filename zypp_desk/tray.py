@@ -20,6 +20,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -46,6 +47,8 @@ RETRY_AFTER_ERROR_S = 1800   # a part that failed (no network yet after waking u
 WATCH_SETTLE_MS = 60_000     # after the zypp cache or the rpm database changes, wait until it is quiet…
 WATCH_MIN_GAP_S = 600        # …and look at most once every ten minutes for that reason
 INTERVALS = (1, 3, 6, 12, 24)
+CHECK_UNIT = "zypp-desk-check.service"  # refreshes the lists at once, as root, without a password (polkit rule)
+CHECK_TIMEOUT_S = 660        # the unit gives up after 10 minutes
 SOLV_DIR = "/var/cache/zypp/solv"  # rewritten when the repositories are refreshed (by the timer or anyone)
 STALE_S = 24 * 3600          # lists of the repositories older than this are shown in orange (the timer runs every 6 h)
 RPMDB_FILES = ("/usr/lib/sysimage/rpm/rpmdb.sqlite", "/usr/lib/sysimage/rpm/Packages.db",
@@ -391,6 +394,36 @@ def _needs_reboot():
 def empty_result():
     return {"time": time.time(), "repo": None, "flatpak": None, "web": None, "firmware": None,
             "firmware_state": "off", "reboot": None, "refreshed": None, "errors": {}}
+
+
+def LOOK_TIP():  # noqa: N802 (a text, translated when it is used)
+    return _("Asks every repository for what is new, then counts the updates. No password: it only refreshes the "
+             "lists, as the timer does every six hours, and never installs anything.")
+
+
+def refresh_now():
+    """Ask every repository for what is new, now: start zypp-desk-check.service, which refreshes the lists of
+    packages (and of firmware) as root and never installs anything. The package's polkit rule lets a user at the
+    computer start exactly this unit without a password. (ok, why) — why says what went wrong, in words."""
+    exe = shutil.which("systemctl")
+    if not exe:
+        return False, _("systemctl is missing")
+    try:
+        p = subprocess.run([exe, "--no-ask-password", "start", CHECK_UNIT], capture_output=True, text=True,
+                           timeout=CHECK_TIMEOUT_S, env=dict(os.environ, LC_ALL="C", LANG="C", LANGUAGE="C"))
+    except subprocess.TimeoutExpired:
+        return False, _("the repositories took too long to answer")
+    except OSError as e:
+        return False, str(e)
+    if p.returncode == 0:
+        return True, ""
+    err = (p.stderr or p.stdout or "").strip()
+    _log(f"refresh: {err}")
+    if "not found" in err or "not loaded" in err:
+        return False, _("this installation has no unit to refresh them (it comes with the zypp-desk package)")
+    if "authentication" in err.lower() or "access denied" in err.lower():
+        return False, _("this user may not refresh them without a password here")
+    return False, (err.splitlines()[-1][:200] if err else _("exit code {code}").format(code=p.returncode))
 
 
 def gather(settings):
@@ -874,7 +907,8 @@ class Popup(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
         self.open_btn = button(_("Open Zypp Desk"), None, lambda: self._emit(self.open_app), parent=card)
-        self.check_btn = button(_("Check now"), None, lambda: self._emit(self.check_now), parent=card)
+        self.check_btn = button(_("Look for new updates"), None, lambda: self._emit(self.check_now), parent=card)
+        self.check_btn.setToolTip(LOOK_TIP())
         row.addWidget(self.open_btn, 1)
         row.addWidget(self.check_btn, 1)
         lay.addLayout(row)
@@ -885,9 +919,11 @@ class Popup(QWidget):
         self.hide()
         signal.emit()
 
-    def set_state(self, result, checking):
+    def set_state(self, result, checking, refreshing=False):
         c = counts(result)
-        if checking:
+        if refreshing:
+            self.when.setText(_("Asking the repositories for what is new…"))
+        elif checking:
             self.when.setText(_("Looking for updates…"))
         elif result is None:
             self.when.setText(_("It looks for updates in a moment."))
@@ -913,9 +949,16 @@ class Popup(QWidget):
         reboot = (result or {}).get("reboot")
         self.reboot.setText("—" if reboot is None else (_("yes, to finish an earlier update") if reboot else _("no")))
         self.reboot.setStyleSheet(f"color: {ORANGE}; font-weight: 600;" if reboot else "")
-        failed = [k for k in ("repo", "flatpak", "web", "reboot", "all") if k in (result or {}).get("errors", {})]
-        self.errors.setText(_("Could not check: {parts}.").format(parts=", ".join(_part_name(k) for k in failed)))
-        self.errors.setVisible(bool(failed))
+        errors = (result or {}).get("errors", {})
+        failed = [k for k in ("repo", "flatpak", "web", "reboot", "all") if k in errors]
+        lines = []
+        if "refresh" in errors:
+            lines.append(_("Could not ask the repositories for what is new: {why}. These are the lists from the last "
+                           "refresh.").format(why=errors["refresh"]))
+        if failed:
+            lines.append(_("Could not check: {parts}.").format(parts=", ".join(_part_name(k) for k in failed)))
+        self.errors.setText("\n".join(lines))
+        self.errors.setVisible(bool(lines))
         if self.isVisible():
             self._fit()
 
@@ -985,6 +1028,8 @@ class Tray(QObject):
         self.settings = settings
         self.last = None
         self.checking = False
+        self.refreshing = False  # "Look for new updates": the repositories are being asked
+        self._refresh_error = None
         self._started = time.time()
         self._last_start = None
         self._watch_pending = False
@@ -998,7 +1043,8 @@ class Tray(QObject):
         self.menu = QMenu()
         self.menu.addAction(self.base_icon, _("Open Zypp Desk"), self.open_app)
         self.menu.addAction(icon("view-refresh"), _("Update everything…"), self.run_routine)
-        self.check_action = self.menu.addAction(icon("view-refresh"), _("Check now"), self.check_now)
+        self.check_action = self.menu.addAction(icon("view-refresh"), _("Look for new updates"), self.look_now)
+        self.check_action.setToolTip(LOOK_TIP())
         self.menu.addSeparator()
         self.menu.addAction(icon("configure"), _("Settings…"), self.open_settings)
         self.menu.addSeparator()
@@ -1011,7 +1057,7 @@ class Tray(QObject):
         self.popup.run_routine.connect(self.run_routine)
         self.popup.open_app.connect(self.open_app)
         self.popup.open_updates.connect(self.open_updates)
-        self.popup.check_now.connect(self.check_now)
+        self.popup.check_now.connect(self.look_now)
         self.popup.open_settings.connect(self.open_settings)
 
         self.notifier = DBusNotifier(self)
@@ -1172,6 +1218,24 @@ class Tray(QObject):
         return True
 
     # ------------------------------------------------ checking
+    def look_now(self):
+        """"Look for new updates": ask the repositories first (refresh_now: as root, without a password), then count.
+        The automatic checks only count, with the lists the timer refreshes every six hours."""
+        if self.checking:
+            return
+        self.checking = True
+        self.refreshing = True
+        self.check_action.setEnabled(False)
+        self._refresh_look()
+        run_async(refresh_now, on_done=self._refreshed)
+
+    def _refreshed(self, res, err):
+        ok, why = res if isinstance(res, tuple) else (False, str(err))
+        self._refresh_error = None if ok else (why or _("unknown error"))
+        self.refreshing = False
+        self.checking = False
+        self.check_now()
+
     def check_now(self):
         if self.checking:
             return
@@ -1189,6 +1253,9 @@ class Tray(QObject):
             result = empty_result()
             result["errors"]["all"] = str(err)
             _log(f"check failed: {err}")
+        if self._refresh_error:  # "Look for new updates" could not ask the repositories: say so with the count
+            result.setdefault("errors", {})["refresh"] = self._refresh_error
+            self._refresh_error = None
         self.last = result
         self._refresh_look()
         self._maybe_notify()
@@ -1219,7 +1286,7 @@ class Tray(QObject):
         n = counts(self.last)["total"] if self.last else 0
         self.icon.setIcon(badge_icon(self.base_icon, n))
         self.icon.setToolTip(f"{APP_NAME}\n{self.tooltip_text()}")
-        self.popup.set_state(self.last, self.checking)
+        self.popup.set_state(self.last, self.checking, self.refreshing)
 
     def _activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
@@ -1228,10 +1295,10 @@ class Tray(QObject):
             else:
                 self._show_popup()
         elif reason == QSystemTrayIcon.ActivationReason.MiddleClick:
-            self.check_now()
+            self.look_now()
 
     def _show_popup(self):
-        self.popup.set_state(self.last, self.checking)
+        self.popup.set_state(self.last, self.checking, self.refreshing)
         geo = self.icon.geometry()
         anchor = geo.center() if geo.isValid() and not geo.isEmpty() else QCursor.pos()
         self.popup.show_near(anchor)

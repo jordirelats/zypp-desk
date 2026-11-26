@@ -25,10 +25,13 @@ fi
 "$SRC/tools/build-mo.sh"
 tmp=$(mktemp)
 service=$(mktemp)
-trap 'rm -f "$tmp" "$service"' EXIT
+check=$(mktemp)
+trap 'rm -f "$tmp" "$service" "$check"' EXIT
 sed -e "s|@HELPER@|$HELPER|" -e "s|\"$APP_ID\.run\"|\"$APP_ID.run-local\"|" \
     "$SRC/data/$APP_ID.policy.in" > "$tmp"
 sed -e "s|@REFRESH@|$REFRESH|" "$SRC/data/zypp-desk-refresh.service" > "$service"
+# "Look for new updates" in the tray: the same refresh at once; the polkit rule lets a user at the computer start it
+sed -e "s|@REFRESH@|$REFRESH|" "$SRC/data/zypp-desk-check.service" > "$check"
 echo "Installing the helper, the polkit action and the timer that refreshes the repositories (root password needed):"
 # The paths go to root as arguments, never inside the command text.
 sudo sh -c 'install -D -o root -g root -m 0755 "$1" "$2" && install -D -o root -g root -m 0644 "$3" "$4" &&
@@ -36,9 +39,12 @@ sudo sh -c 'install -D -o root -g root -m 0755 "$1" "$2" && install -D -o root -
             install -D -o root -g root -m 0755 "$6" "$7" &&
             install -D -o root -g root -m 0644 "$8" "$9/zypp-desk-refresh.service" &&
             install -D -o root -g root -m 0644 "${10}" "$9/zypp-desk-refresh.timer" &&
+            install -D -o root -g root -m 0644 "${11}" "$9/zypp-desk-check.service" &&
+            install -D -o root -g root -m 0644 "${12}" "${13}" &&
             systemctl daemon-reload && systemctl enable --now zypp-desk-refresh.timer' \
   sh "$SRC/helper/zypp-desk-helper" "$HELPER" "$tmp" "$POLICY" "$OLD_POLICY" \
-     "$SRC/helper/zypp-desk-refresh" "$REFRESH" "$service" "$UNITS" "$SRC/data/zypp-desk-refresh.timer"
+     "$SRC/helper/zypp-desk-refresh" "$REFRESH" "$service" "$UNITS" "$SRC/data/zypp-desk-refresh.timer" \
+     "$check" "$SRC/data/$APP_ID.rules" "/etc/polkit-1/rules.d/50-$APP_ID.rules"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$SRC/data/icons/$APP_ID.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_ID.svg"

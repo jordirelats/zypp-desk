@@ -9,7 +9,7 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.5.4
+Version:        0.5.5
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later
@@ -93,6 +93,11 @@ install -d %{buildroot}%{_unitdir} %{buildroot}%{_presetdir}
 sed 's|@REFRESH@|%{helperdir}/%{name}-refresh|' data/%{name}-refresh.service \
   > %{buildroot}%{_unitdir}/%{name}-refresh.service
 install -m 0644 data/%{name}-refresh.timer %{buildroot}%{_unitdir}/%{name}-refresh.timer
+# "Look for new updates" in the tray: the same refresh at once, without downloading ahead; a polkit rule lets a user
+# at the computer start exactly this unit without a password (it never installs anything)
+sed 's|@REFRESH@|%{helperdir}/%{name}-refresh|' data/%{name}-check.service \
+  > %{buildroot}%{_unitdir}/%{name}-check.service
+install -D -m 0644 data/%{app_id}.rules %{buildroot}%{_datadir}/polkit-1/rules.d/50-%{app_id}.rules
 echo "enable %{name}-refresh.timer" > %{buildroot}%{_presetdir}/90-%{name}.preset
 # the flag the helper writes to download updates ahead: owned (not installed) so that removing the package removes it
 install -d %{buildroot}%{_sysconfdir}/%{name}
@@ -117,10 +122,10 @@ done
 %find_lang %{name}
 
 %pre
-%service_add_pre %{name}-refresh.service %{name}-refresh.timer
+%service_add_pre %{name}-refresh.service %{name}-refresh.timer %{name}-check.service
 
 %post
-%service_add_post %{name}-refresh.service %{name}-refresh.timer
+%service_add_post %{name}-refresh.service %{name}-refresh.timer %{name}-check.service
 # A new installation: the preset has turned the timer on, but it would only start at the next boot. Start it now
 # (it waits for the zypp lock of this installation; systemctl does nothing in a chroot or an image build).
 if [ "$1" -eq 1 ] && [ -d /run/systemd/system ] && systemctl -q is-enabled %{name}-refresh.timer 2>/dev/null; then
@@ -128,11 +133,11 @@ if [ "$1" -eq 1 ] && [ -d /run/systemd/system ] && systemctl -q is-enabled %{nam
 fi
 
 %preun
-%service_del_preun %{name}-refresh.service %{name}-refresh.timer
+%service_del_preun %{name}-refresh.service %{name}-refresh.timer %{name}-check.service
 
 %postun
 # no restart on upgrade: a restarted oneshot would run zypper while the upgrade still holds the zypp lock
-%service_del_postun_without_restart %{name}-refresh.service %{name}-refresh.timer
+%service_del_postun_without_restart %{name}-refresh.service %{name}-refresh.timer %{name}-check.service
 
 %check
 # a version forgotten in one place: the window would warn that the helper is from another version
@@ -160,10 +165,12 @@ find . -name '__pycache__' -prune -exec rm -rf {} +
 %{helperdir}/%{name}-refresh
 %{_unitdir}/%{name}-refresh.service
 %{_unitdir}/%{name}-refresh.timer
+%{_unitdir}/%{name}-check.service
 %{_presetdir}/90-%{name}.preset
 %dir %{_sysconfdir}/%{name}
 %ghost %{_sysconfdir}/%{name}/download-ahead
 %{_datadir}/polkit-1/actions/%{app_id}.policy
+%{_datadir}/polkit-1/rules.d/50-%{app_id}.rules
 %{_datadir}/applications/%{app_id}.desktop
 %config(noreplace) %{_sysconfdir}/xdg/autostart/%{app_id}.tray.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg

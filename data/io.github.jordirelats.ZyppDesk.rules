@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Zypp Desk: a user sitting at the computer may start zypp-desk-check.service without a password ("Look for new
+// updates" in the tray icon). That unit only refreshes the lists of packages and of firmware, as the timer does every
+// six hours; it never downloads packages ahead and never installs anything. Every other unit, and stopping or
+// changing this one, still goes through the usual polkit rules.
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "zypp-desk-check.service" &&
+        action.lookup("verb") == "start" &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+});

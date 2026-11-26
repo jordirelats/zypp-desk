@@ -60,6 +60,12 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.5" date="2026-11-26">
+      <description>
+        <p>The tray's "Look for new updates" asks every repository for what is new before counting, without a
+          password (it only refreshes the lists and never installs anything).</p>
+      </description>
+    </release>
     <release version="0.5.4" date="2026-11-26">
       <description>
         <p>Every button says what it acts on (everything, the item, the ticked ones or the queue); green only for

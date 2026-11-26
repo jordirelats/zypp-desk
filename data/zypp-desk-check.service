@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Zypp Desk: "Look for new updates" in the tray starts this, as the user, without a password (the polkit rule
+# io.github.jordirelats.ZyppDesk.rules allows exactly this unit). It refreshes the lists of packages (and of firmware)
+# as root, like zypp-desk-refresh.service, but never downloads packages ahead and never installs anything.
+# @REFRESH@ is replaced when installing (install.sh, the RPM spec).
+[Unit]
+Description=Look for new updates for Zypp Desk now (refreshes the lists, never installs anything)
+Documentation=https://github.com/jordirelats/zypp-desk
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=@REFRESH@ --only-refresh
+Nice=10
+IOSchedulingClass=idle
+# the refresh of every repository and of the firmware list; the tray waits for it
+TimeoutStartSec=10min
+# fwupdmgr keeps what it downloads here ($CACHE_DIRECTORY)
+CacheDirectory=zypp-desk-refresh
+
+# Hardening: the whole system is read-only except what zypper and rpm write when refreshing and downloading.
+ProtectSystem=strict
+ReadWritePaths=/var/cache/zypp /var/lib/zypp /var/log/zypp /run /etc/zypp
+ReadWritePaths=-/var/log/zypper.log -/usr/lib/sysimage/rpm -/var/lib/rpm
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK

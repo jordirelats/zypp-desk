@@ -69,7 +69,8 @@ The window has a **Help** section (F1) in English, Catalan, German and French.
   how far each source can be trusted.
 - **Told when there is something new.** Without Discover nobody tells you about updates: a tray
   icon counts them (repositories, Flatpak, the web, firmware) and a notification says so once a
-  day. A system timer refreshes the repositories as root; it never installs anything.
+  day. A system timer refreshes the repositories as root every six hours, and “Look for new updates” in the
+  tray does it at once, without a password; neither ever installs anything.
 - **Undo, with snapper.** The history shows the snapshots before and after each change, compares
   their files and undoes a change.
 - **Questions in plain words.** Every question that changes the system says what will be done,
