@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 12:45+0100\n"
+"POT-Creation-Date: 2026-11-26 14:05+0100\n"
 "PO-Revision-Date: 2026-11-25 12:41+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: French\n"
@@ -61,7 +61,7 @@ msgstr "Le fichier téléchargé n'est pas une AppImage. Il a été supprimé."
 msgid "{file} is not an AppImage."
 msgstr "{file} n'est pas une AppImage."
 
-#: zypp_desk/backend.py:40 zypp_desk/backend.py:63
+#: zypp_desk/backend.py:40 zypp_desk/backend.py:63 zypp_desk/health.py:335
 #, python-brace-format
 msgid "zypper exited with code {code}."
 msgstr "zypper s'est terminé avec le code {code}."
@@ -149,540 +149,541 @@ msgstr "{path} est le même emplacement que {real}, que {package} installe."
 msgid "No package of openSUSE has this file."
 msgstr "Aucun paquet d'openSUSE ne contient ce fichier."
 
-#: zypp_desk/drivers.py:157 zypp_desk/drivers.py:158 zypp_desk/drivers.py:159
+#: zypp_desk/drivers.py:163 zypp_desk/drivers.py:164 zypp_desk/drivers.py:165
 msgid "VMware's tools for virtual machines"
-msgstr ""
+msgstr "les outils de VMware pour machines virtuelles"
 
-#: zypp_desk/drivers.py:160 zypp_desk/drivers.py:161 zypp_desk/drivers.py:162
+#: zypp_desk/drivers.py:166 zypp_desk/drivers.py:167 zypp_desk/drivers.py:168
 msgid "VirtualBox's tools for virtual machines"
-msgstr ""
+msgstr "les outils de VirtualBox pour machines virtuelles"
 
-#: zypp_desk/drivers.py:163
+#: zypp_desk/drivers.py:169
 msgid "QEMU's agent for virtual machines"
-msgstr ""
-
-#: zypp_desk/drivers.py:164
-msgid "the SPICE agent of virtual machines"
-msgstr ""
-
-#: zypp_desk/drivers.py:165
-msgid "Microsoft Hyper-V's tools for virtual machines"
-msgstr ""
-
-#: zypp_desk/drivers.py:166
-msgid "VMware's mouse"
-msgstr ""
-
-#: zypp_desk/drivers.py:167
-msgid "Xen's tools for virtual machines"
-msgstr ""
+msgstr "l'agent de QEMU pour machines virtuelles"
 
 #: zypp_desk/drivers.py:170
-msgid "old Broadcom Wi-Fi cards that use the b43 driver"
-msgstr ""
+msgid "the SPICE agent of virtual machines"
+msgstr "l'agent SPICE des machines virtuelles"
 
 #: zypp_desk/drivers.py:171
-msgid "Broadcom's own Wi-Fi driver"
-msgstr ""
+msgid "Microsoft Hyper-V's tools for virtual machines"
+msgstr "les outils de Microsoft Hyper-V pour machines virtuelles"
 
 #: zypp_desk/drivers.py:172
-msgid "old Intel PRO/Wireless 2100, 2200 and 2915 Wi-Fi cards"
-msgstr ""
+msgid "VMware's mouse"
+msgstr "la souris de VMware"
 
 #: zypp_desk/drivers.py:173
+msgid "Xen's tools for virtual machines"
+msgstr "les outils de Xen pour machines virtuelles"
+
+#: zypp_desk/drivers.py:176
+msgid "old Broadcom Wi-Fi cards that use the b43 driver"
+msgstr "les anciennes cartes Wi-Fi Broadcom qui utilisent le pilote b43"
+
+#: zypp_desk/drivers.py:177
+msgid "Broadcom's own Wi-Fi driver"
+msgstr "le pilote Wi-Fi propre à Broadcom"
+
+#: zypp_desk/drivers.py:178
+msgid "old Intel PRO/Wireless 2100, 2200 and 2915 Wi-Fi cards"
+msgstr "les anciennes cartes Wi-Fi Intel PRO/Wireless 2100, 2200 et 2915"
+
+#: zypp_desk/drivers.py:179
 msgid "Broadcom Wi-Fi of small boards like the Raspberry Pi"
-msgstr ""
+msgstr "les puces Wi-Fi Broadcom des petites cartes comme le Raspberry Pi"
 
-#: zypp_desk/drivers.py:174
+#: zypp_desk/drivers.py:180
 msgid "old Atmel Wi-Fi adapters"
-msgstr ""
+msgstr "les anciens adaptateurs Wi-Fi Atmel"
 
-#: zypp_desk/drivers.py:175
+#: zypp_desk/drivers.py:181
 msgid "old ZyDAS Wi-Fi adapters"
-msgstr ""
+msgstr "les anciens adaptateurs Wi-Fi ZyDAS"
 
-#: zypp_desk/drivers.py:869 zypp_desk/health.py:143
+#: zypp_desk/drivers.py:1076 zypp_desk/health.py:147
 #, python-brace-format
 msgid "{list} and {n} more"
 msgid_plural "{list} and {n} more"
 msgstr[0] "{list} et {n} autre"
 msgstr[1] "{list} et {n} autres"
 
-#: zypp_desk/drivers.py:873 zypp_desk/pages/history.py:63
+#: zypp_desk/drivers.py:1080 zypp_desk/pages/history.py:63
 #: zypp_desk/problemgroups.py:805
 #, python-brace-format
 msgid "{list} and {last}"
 msgstr "{list} et {last}"
 
-#: zypp_desk/drivers.py:919
+#: zypp_desk/drivers.py:1126
 #, python-brace-format
 msgid "Its driver can use firmware from {names}, which is not installed."
 msgid_plural "Its driver can use firmware from {names}, which are not installed."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Son pilote peut utiliser le micrologiciel du paquet {names}, qui n'est pas installé."
+msgstr[1] "Son pilote peut utiliser les micrologiciels des paquets {names}, qui ne sont pas installés."
 
-#: zypp_desk/drivers.py:923
+#: zypp_desk/drivers.py:1130
 #, python-brace-format
 msgid "{names} is not installed: zypper installs it for this hardware."
 msgid_plural "{names} are not installed: zypper installs them for this hardware."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names} n'est pas installé : zypper l'installe pour ce matériel."
+msgstr[1] "{names} ne sont pas installés : zypper les installe pour ce matériel."
 
-#: zypp_desk/drivers.py:937
+#: zypp_desk/drivers.py:1144
 #, python-brace-format
 msgid "With its firmware ({packages})."
 msgid_plural "With its firmware ({packages})."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Avec son micrologiciel ({packages})."
+msgstr[1] "Avec ses micrologiciels ({packages})."
 
-#: zypp_desk/drivers.py:990 zypp_desk/drivers.py:1005 zypp_desk/drivers.py:1014
-#: zypp_desk/drivers.py:1025 zypp_desk/drivers.py:1035
-#: zypp_desk/drivers.py:1043 zypp_desk/drivers.py:1098
-#: zypp_desk/drivers.py:1248
+#: zypp_desk/drivers.py:1197 zypp_desk/drivers.py:1212
+#: zypp_desk/drivers.py:1221 zypp_desk/drivers.py:1232
+#: zypp_desk/drivers.py:1242 zypp_desk/drivers.py:1250
+#: zypp_desk/drivers.py:1305 zypp_desk/drivers.py:1456
 #, python-brace-format
 msgid "Free driver {driver}, part of the kernel."
-msgstr ""
+msgstr "Pilote libre {driver}, intégré au noyau."
 
-#: zypp_desk/drivers.py:991 zypp_desk/drivers.py:1026 zypp_desk/drivers.py:1036
-#: zypp_desk/drivers.py:1044 zypp_desk/drivers.py:1081
+#: zypp_desk/drivers.py:1198 zypp_desk/drivers.py:1233
+#: zypp_desk/drivers.py:1243 zypp_desk/drivers.py:1251
+#: zypp_desk/drivers.py:1288
 msgid "No driver is using it."
-msgstr ""
+msgstr "Aucun pilote ne l'utilise."
 
-#: zypp_desk/drivers.py:993
+#: zypp_desk/drivers.py:1200
 #, python-brace-format
 msgid "Bluetooth: {name}"
-msgstr ""
+msgstr "Bluetooth : {name}"
 
-#: zypp_desk/drivers.py:1004
+#: zypp_desk/drivers.py:1211
 #, python-brace-format
 msgid "Network (USB): {name}"
-msgstr ""
+msgstr "Réseau (USB) : {name}"
 
-#: zypp_desk/drivers.py:1004
+#: zypp_desk/drivers.py:1211
 #, python-brace-format
 msgid "Wi-Fi (USB): {name}"
-msgstr ""
+msgstr "Wi-Fi (USB) : {name}"
 
-#: zypp_desk/drivers.py:1016
+#: zypp_desk/drivers.py:1223
 #, python-brace-format
 msgid "Sound: {name}"
-msgstr ""
+msgstr "Son : {name}"
 
-#: zypp_desk/drivers.py:1023
+#: zypp_desk/drivers.py:1230
 #, python-brace-format
 msgid "USB sound: {names}"
-msgstr ""
+msgstr "Son USB : {names}"
 
-#: zypp_desk/drivers.py:1034
+#: zypp_desk/drivers.py:1241
 #, python-brace-format
 msgid "Webcam: {name}"
-msgstr ""
+msgstr "Webcam : {name}"
 
-#: zypp_desk/drivers.py:1042
+#: zypp_desk/drivers.py:1249
 #, python-brace-format
 msgid "Camera: {name}"
-msgstr ""
+msgstr "Caméra : {name}"
 
-#: zypp_desk/drivers.py:1057
+#: zypp_desk/drivers.py:1264
 msgid "Other hardware"
-msgstr ""
+msgstr "Autre matériel"
 
-#: zypp_desk/drivers.py:1057
+#: zypp_desk/drivers.py:1264
 msgid "Processor"
-msgstr ""
-
-#: zypp_desk/drivers.py:1058
-#, python-brace-format
-msgid "{names} is not installed: it has the processor's microcode updates."
-msgstr ""
-
-#: zypp_desk/drivers.py:1059
-msgid "Chips on the board or devices without a card of their own."
-msgstr ""
-
-#: zypp_desk/drivers.py:1079
-#, python-brace-format
-msgid "Its driver {modules} is there, but it did not start."
-msgid_plural "Its drivers {modules} are there, but none started."
-msgstr[0] ""
-msgstr[1] ""
-
-#: zypp_desk/drivers.py:1091
-#, python-brace-format
-msgid "Graphics: {name}"
-msgstr ""
-
-#: zypp_desk/drivers.py:1100
-msgid "It is the best one for this card: nothing else is needed."
-msgstr ""
-
-#: zypp_desk/drivers.py:1109
-msgid "NVIDIA no longer makes a driver for this card."
-msgstr ""
-
-#: zypp_desk/drivers.py:1116
-#, python-brace-format
-msgid "Zypp Desk can set it up on openSUSE Tumbleweed and Slowroll; on {distro} follow openSUSE's guide (SDB:NVIDIA drivers)."
-msgstr ""
-
-#: zypp_desk/drivers.py:1120
-#, python-brace-format
-msgid "NVIDIA's repository has no packages for this kind of processor ({arch})."
-msgstr ""
-
-#: zypp_desk/drivers.py:1124
-#, python-brace-format
-msgid "There is no NVIDIA package for the kernel this computer runs ({kernel})."
-msgstr ""
-
-#: zypp_desk/drivers.py:1133
-#, python-brace-format
-msgid "{package}, the kernel part, is not in your repositories: is openSUSE's main repository (repo-oss) enabled?"
-msgstr ""
-
-#: zypp_desk/drivers.py:1172
-#, python-brace-format
-msgid "NVIDIA's driver (series {series}). Its kernel part is open source and signed by openSUSE; the rest is proprietary, from NVIDIA."
-msgstr ""
-
-#: zypp_desk/drivers.py:1175
-#, python-brace-format
-msgid "NVIDIA's driver (series {series}), proprietary, from NVIDIA."
-msgstr ""
-
-#: zypp_desk/drivers.py:1177
-msgid "NVIDIA's driver, installed without zypper (it is not in the rpm database)."
-msgstr ""
-
-#: zypp_desk/drivers.py:1179
-msgid "It uses nouveau now (free), which is slow with this card."
-msgstr ""
-
-#: zypp_desk/drivers.py:1180
-msgid "No driver is using it now."
-msgstr ""
-
-#: zypp_desk/drivers.py:1183 zypp_desk/drivers.py:1197
-msgid "It uses nouveau (free)."
-msgstr ""
-
-#: zypp_desk/drivers.py:1187
-#, python-brace-format
-msgid "Proposed: NVIDIA's driver (series {series}, its kernel part is open source) from NVIDIA's repository, signed to start with Secure Boot."
-msgstr ""
-
-#: zypp_desk/drivers.py:1191
-#, python-brace-format
-msgid "Proposed: NVIDIA's driver for older cards (series {series}), from NVIDIA's repository. It is built on this computer when it is installed."
-msgstr ""
-
-#: zypp_desk/drivers.py:1194
-msgid "Secure Boot is on: at the next start you will be asked to enroll a key."
-msgstr ""
-
-#: zypp_desk/drivers.py:1198
-#, python-brace-format
-msgid "NVIDIA's old driver for this card (series {series}) still exists, but NVIDIA no longer updates it and it only works in the X11 session."
-msgstr ""
-
-#: zypp_desk/drivers.py:1222
-#, python-brace-format
-msgid "Wi-Fi and Bluetooth: {name}"
-msgstr ""
-
-#: zypp_desk/drivers.py:1225
-#, python-brace-format
-msgid "Wi-Fi: {name}"
-msgstr ""
-
-#: zypp_desk/drivers.py:1228
-#, python-brace-format
-msgid "Network: {name}"
-msgstr ""
-
-#: zypp_desk/drivers.py:1237
-msgid "Broadcom's driver wl (proprietary), from openSUSE's non-free repository."
-msgstr ""
-
-#: zypp_desk/drivers.py:1243
-#, python-brace-format
-msgid "Free drivers {drivers}, part of the kernel."
-msgstr ""
-
-#: zypp_desk/drivers.py:1245
-#, python-brace-format
-msgid "With their firmware ({packages})."
-msgid_plural "With their firmware ({packages})."
-msgstr[0] ""
-msgstr[1] ""
-
-#: zypp_desk/drivers.py:1262
-#, python-brace-format
-msgid "No free driver works with this card ({chip})."
-msgstr ""
+msgstr "Processeur"
 
 #: zypp_desk/drivers.py:1265
 #, python-brace-format
-msgid "Broadcom's driver wl would switch off {drivers}, which {devices} use: Zypp Desk does not propose it."
-msgstr ""
+msgid "{names} is not installed: it has the processor's microcode updates."
+msgstr "{names} n'est pas installé : il contient les mises à jour du microcode du processeur."
 
-#: zypp_desk/drivers.py:1276
-msgid "Broadcom's driver wl is in openSUSE's non-free repository (repo-non-oss), which this computer does not have."
-msgstr ""
+#: zypp_desk/drivers.py:1266
+msgid "Chips on the board or devices without a card of their own."
+msgstr "Puces de la carte mère ou périphériques sans carte propre."
 
-#: zypp_desk/drivers.py:1280
-msgid "Proposed: Broadcom's driver wl (proprietary), from openSUSE's non-free repository, signed by openSUSE."
-msgstr ""
-
-#: zypp_desk/drivers.py:1306
+#: zypp_desk/drivers.py:1286
 #, python-brace-format
-msgid "Printer: {name}"
-msgstr ""
+msgid "Its driver {modules} is there, but it did not start."
+msgid_plural "Its drivers {modules} are there, but none started."
+msgstr[0] "Son pilote {modules} est présent, mais il n'a pas démarré."
+msgstr[1] "Ses pilotes {modules} sont présents, mais aucun n'a démarré."
 
-#: zypp_desk/drivers.py:1309
-msgid "Prints without a driver (IPP Everywhere)."
-msgstr ""
-
-#: zypp_desk/drivers.py:1311
-msgid "HP also has HPLIP, for its scanners and ink levels, but printing does not need it."
-msgstr ""
-
-#: zypp_desk/drivers.py:1313
+#: zypp_desk/drivers.py:1298
 #, python-brace-format
-msgid "{vendor} also has a driver of its own, but it is not needed."
-msgstr ""
+msgid "Graphics: {name}"
+msgstr "Processeur graphique : {name}"
+
+#: zypp_desk/drivers.py:1307
+msgid "It is the best one for this card: nothing else is needed."
+msgstr "C'est le meilleur pour cette carte : rien d'autre n'est nécessaire."
 
 #: zypp_desk/drivers.py:1316
+msgid "NVIDIA no longer makes a driver for this card."
+msgstr "NVIDIA ne fait plus de pilote pour cette carte."
+
+#: zypp_desk/drivers.py:1323
+#, python-brace-format
+msgid "Zypp Desk can set it up on openSUSE Tumbleweed and Slowroll; on {distro} follow openSUSE's guide (SDB:NVIDIA drivers)."
+msgstr "Zypp Desk peut l'installer sur openSUSE Tumbleweed et Slowroll ; sur {distro}, suivez le guide d'openSUSE (SDB:NVIDIA drivers)."
+
+#: zypp_desk/drivers.py:1327
+#, python-brace-format
+msgid "NVIDIA's repository has no packages for this kind of processor ({arch})."
+msgstr "Le dépôt de NVIDIA n'a pas de paquets pour ce type de processeur ({arch})."
+
+#: zypp_desk/drivers.py:1331
+#, python-brace-format
+msgid "There is no NVIDIA package for the kernel this computer runs ({kernel})."
+msgstr "Il n'y a pas de paquet NVIDIA pour le noyau qu'utilise cet ordinateur ({kernel})."
+
+#: zypp_desk/drivers.py:1340
+#, python-brace-format
+msgid "{package}, the kernel part, is not in your repositories: is openSUSE's main repository (repo-oss) enabled?"
+msgstr "{package}, la partie noyau, n'est pas dans vos dépôts : le dépôt principal d'openSUSE (repo-oss) est-il activé ?"
+
+#: zypp_desk/drivers.py:1379
+#, python-brace-format
+msgid "NVIDIA's driver (series {series}). Its kernel part is open source and signed by openSUSE; the rest is proprietary, from NVIDIA."
+msgstr "Pilote NVIDIA (série {series}). Sa partie noyau est open source et signée par openSUSE ; le reste est propriétaire, fourni par NVIDIA."
+
+#: zypp_desk/drivers.py:1382
+#, python-brace-format
+msgid "NVIDIA's driver (series {series}), proprietary, from NVIDIA."
+msgstr "Pilote NVIDIA (série {series}), propriétaire, fourni par NVIDIA."
+
+#: zypp_desk/drivers.py:1384
+msgid "NVIDIA's driver, installed without zypper (it is not in the rpm database)."
+msgstr "Pilote NVIDIA, installé sans zypper (il n'est pas dans la base de données rpm)."
+
+#: zypp_desk/drivers.py:1386
+msgid "It uses nouveau now (free), which is slow with this card."
+msgstr "Le pilote actuel est nouveau (libre), qui est lent avec cette carte."
+
+#: zypp_desk/drivers.py:1387
+msgid "No driver is using it now."
+msgstr "Aucun pilote ne l'utilise pour l'instant."
+
+#: zypp_desk/drivers.py:1390 zypp_desk/drivers.py:1405
+msgid "It uses nouveau (free)."
+msgstr "Le pilote actuel est nouveau (libre)."
+
+#: zypp_desk/drivers.py:1394
+#, python-brace-format
+msgid "Proposed: NVIDIA's driver (series {series}). Its kernel part is open source and signed by openSUSE, so it starts with Secure Boot; the rest comes from NVIDIA's repository."
+msgstr "Proposé : le pilote NVIDIA (série {series}). Sa partie noyau est open source et signée par openSUSE, il démarre donc avec Secure Boot ; le reste vient du dépôt de NVIDIA."
+
+#: zypp_desk/drivers.py:1399
+#, python-brace-format
+msgid "Proposed: NVIDIA's driver for older cards (series {series}), from NVIDIA's repository. It is built on this computer when it is installed."
+msgstr "Proposé : le pilote NVIDIA pour les cartes plus anciennes (série {series}), du dépôt de NVIDIA. Il est compilé sur cet ordinateur lors de l'installation."
+
+#: zypp_desk/drivers.py:1402
+msgid "Secure Boot is on: at the next start you will be asked to enroll a key."
+msgstr "Secure Boot est activé : au prochain démarrage, il vous sera demandé d'enregistrer une clé."
+
+#: zypp_desk/drivers.py:1406
+#, python-brace-format
+msgid "NVIDIA's old driver for this card (series {series}) still exists, but NVIDIA no longer updates it and it only works in the X11 session."
+msgstr "L'ancien pilote NVIDIA pour cette carte (série {series}) existe encore, mais NVIDIA ne le met plus à jour et il ne fonctionne que dans la session X11."
+
+#: zypp_desk/drivers.py:1430
+#, python-brace-format
+msgid "Wi-Fi and Bluetooth: {name}"
+msgstr "Wi-Fi et Bluetooth : {name}"
+
+#: zypp_desk/drivers.py:1433
+#, python-brace-format
+msgid "Wi-Fi: {name}"
+msgstr "Wi-Fi : {name}"
+
+#: zypp_desk/drivers.py:1436
+#, python-brace-format
+msgid "Network: {name}"
+msgstr "Réseau : {name}"
+
+#: zypp_desk/drivers.py:1445
+msgid "Broadcom's driver wl (proprietary), from openSUSE's non-free repository."
+msgstr "Pilote wl de Broadcom (propriétaire), du dépôt non libre d'openSUSE."
+
+#: zypp_desk/drivers.py:1451
+#, python-brace-format
+msgid "Free drivers {drivers}, part of the kernel."
+msgstr "Pilotes libres {drivers}, intégrés au noyau."
+
+#: zypp_desk/drivers.py:1453
+#, python-brace-format
+msgid "With their firmware ({packages})."
+msgid_plural "With their firmware ({packages})."
+msgstr[0] "Avec leur micrologiciel ({packages})."
+msgstr[1] "Avec leurs micrologiciels ({packages})."
+
+#: zypp_desk/drivers.py:1470
+#, python-brace-format
+msgid "No free driver works with this card ({chip})."
+msgstr "Aucun pilote libre ne fonctionne avec cette carte ({chip})."
+
+#: zypp_desk/drivers.py:1473
+#, python-brace-format
+msgid "Broadcom's driver wl would switch off {drivers}, which {devices} use: Zypp Desk does not propose it."
+msgstr "Le pilote wl de Broadcom désactiverait {drivers}, en service pour {devices} : Zypp Desk ne le propose pas."
+
+#: zypp_desk/drivers.py:1484
+msgid "Broadcom's driver wl is in openSUSE's non-free repository (repo-non-oss), which this computer does not have."
+msgstr "Le pilote wl de Broadcom se trouve dans le dépôt non libre d'openSUSE (repo-non-oss), que cet ordinateur n'a pas."
+
+#: zypp_desk/drivers.py:1488
+msgid "Proposed: Broadcom's driver wl (proprietary), from openSUSE's non-free repository, signed by openSUSE."
+msgstr "Proposé : le pilote wl de Broadcom (propriétaire), du dépôt non libre d'openSUSE, signé par openSUSE."
+
+#: zypp_desk/drivers.py:1514
+#, python-brace-format
+msgid "Printer: {name}"
+msgstr "Imprimante : {name}"
+
+#: zypp_desk/drivers.py:1517
+msgid "Prints without a driver (IPP Everywhere)."
+msgstr "Imprime sans pilote (IPP Everywhere)."
+
+#: zypp_desk/drivers.py:1519
+msgid "HP also has HPLIP, for its scanners and ink levels, but printing does not need it."
+msgstr "HP propose aussi HPLIP, pour ses scanners et les niveaux d'encre, mais il n'est pas nécessaire pour imprimer."
+
+#: zypp_desk/drivers.py:1521
+#, python-brace-format
+msgid "{vendor} also has a driver of its own, but it is not needed."
+msgstr "{vendor} propose aussi son propre pilote, mais il n'est pas nécessaire."
+
+#: zypp_desk/drivers.py:1524
 #, python-brace-format
 msgid "It uses the driver “{model}”."
-msgstr ""
+msgstr "Elle utilise le pilote « {model} »."
 
-#: zypp_desk/drivers.py:1318
+#: zypp_desk/drivers.py:1526
 msgid "Zypp Desk could not read which driver it uses."
-msgstr ""
+msgstr "Zypp Desk n'a pas pu lire quel pilote elle utilise."
 
-#: zypp_desk/drivers.py:1352
+#: zypp_desk/drivers.py:1560
 msgid "Firmware the kernel asked for"
-msgstr ""
+msgstr "Micrologiciel demandé par le noyau"
 
-#: zypp_desk/drivers.py:1353
+#: zypp_desk/drivers.py:1561
 #, python-brace-format
 msgid "At start, a driver could not load its firmware. {names} has it."
 msgid_plural "At start, drivers could not load their firmware. {names} have it."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Au démarrage, un pilote n'a pas pu charger son micrologiciel. Le paquet {names} le contient."
+msgstr[1] "Au démarrage, des pilotes n'ont pas pu charger leurs micrologiciels. Les paquets {names} les contiennent."
 
-#: zypp_desk/drivers.py:1360
+#: zypp_desk/drivers.py:1568
 #, python-brace-format
 msgid "At start, a driver asked for {files}, and no package of your repositories has it. Some drivers ask for a newer file first and then use an older one: if everything works, it does not matter."
-msgstr ""
+msgstr "Au démarrage, un pilote a demandé {files}, et aucun paquet de vos dépôts ne le contient. Certains pilotes demandent d'abord un fichier plus récent, puis en utilisent un plus ancien : si tout fonctionne, ce n'est pas grave."
 
-#: zypp_desk/drivers.py:1364
+#: zypp_desk/drivers.py:1572
 msgid "The b43 driver needs Broadcom's firmware, which openSUSE may not ship: install b43-fwcutter and run install_bcm43xx_firmware as root, which downloads it."
-msgstr ""
+msgstr "Le pilote b43 a besoin du micrologiciel de Broadcom, qu'openSUSE n'a pas le droit de distribuer : installez b43-fwcutter et lancez install_bcm43xx_firmware en tant que root, qui le télécharge."
 
-#: zypp_desk/drivers.py:1366
+#: zypp_desk/drivers.py:1574
 msgid "Firmware no package has"
-msgstr ""
+msgstr "Micrologiciel absent de tous les paquets"
 
-#: zypp_desk/drivers.py:1415
+#: zypp_desk/drivers.py:1623
 msgid "VMware's virtual"
-msgstr ""
+msgstr "virtuels de VMware"
 
-#: zypp_desk/drivers.py:1415
+#: zypp_desk/drivers.py:1623
 msgid "virtual (QXL)"
-msgstr ""
+msgstr "virtuels (QXL)"
 
-#: zypp_desk/drivers.py:1415
+#: zypp_desk/drivers.py:1623
 msgid "virtual (virtio)"
-msgstr ""
+msgstr "virtuels (virtio)"
 
-#: zypp_desk/drivers.py:1416
+#: zypp_desk/drivers.py:1624
 msgid "QEMU's virtual"
-msgstr ""
+msgstr "virtuels de QEMU"
 
-#: zypp_desk/drivers.py:1416
+#: zypp_desk/drivers.py:1624
 msgid "VirtualBox's virtual"
-msgstr ""
+msgstr "virtuels de VirtualBox"
 
-#: zypp_desk/drivers.py:1417 zypp_desk/pages/apps.py:918
+#: zypp_desk/drivers.py:1625 zypp_desk/pages/apps.py:918
 #: zypp_desk/pages/flatpak.py:256 zypp_desk/pages/repos.py:982
 #: zypp_desk/pages/system.py:90 zypp_desk/pages/system.py:91
 #: zypp_desk/tray.py:911
 msgid "no"
 msgstr "non"
 
-#: zypp_desk/drivers.py:1441
+#: zypp_desk/drivers.py:1649
 msgid "For AMD processors; this one is Intel."
-msgstr ""
+msgstr "Pour les processeurs AMD ; celui-ci est un Intel."
 
-#: zypp_desk/drivers.py:1442
+#: zypp_desk/drivers.py:1650
 msgid "For Intel processors; this one is AMD."
-msgstr ""
+msgstr "Pour les processeurs Intel ; celui-ci est un AMD."
 
-#: zypp_desk/drivers.py:1448
+#: zypp_desk/drivers.py:1656
 #, python-brace-format
 msgid "For NVIDIA cards; this computer has {vendors} graphics."
-msgstr ""
-
-#: zypp_desk/drivers.py:1456
-#, python-brace-format
-msgid "For {need} graphics; this computer has {vendors}."
-msgstr ""
-
-#: zypp_desk/drivers.py:1461
-#, python-brace-format
-msgid "{what}. This computer is not a virtual machine."
-msgstr ""
-
-#: zypp_desk/drivers.py:1467
-msgid "Broadcom's own Wi-Fi driver; this computer has no Broadcom card."
-msgstr ""
-
-#: zypp_desk/drivers.py:1472
-#, python-brace-format
-msgid "For {what}; this computer has none."
-msgstr ""
-
-#: zypp_desk/drivers.py:1476
-msgid "For the sound processor of some Intel and AMD laptops; this computer has none."
-msgstr ""
-
-#: zypp_desk/drivers.py:1507
-msgid "No printer is set up on this computer."
-msgstr ""
-
-#: zypp_desk/drivers.py:1509
-#, python-brace-format
-msgid "For {vendors} printers; yours is not one of them."
-msgstr ""
-
-#: zypp_desk/drivers.py:1511
-msgid "Your printer does not use it."
-msgstr ""
-
-#: zypp_desk/drivers.py:1610
-msgid "A device of this computer can use it."
-msgstr ""
-
-#: zypp_desk/drivers.py:1615
-#, python-brace-format
-msgid "The driver {module}, loaded now, can use it."
-msgstr ""
-
-#: zypp_desk/drivers.py:1659
-msgid "Firmware for hardware you don't have"
-msgstr ""
-
-#: zypp_desk/drivers.py:1662
-msgid "Microcode for AMD processors"
-msgstr ""
+msgstr "Pour les cartes NVIDIA ; cet ordinateur a des processeurs graphiques {vendors}."
 
 #: zypp_desk/drivers.py:1664
-msgid "Microcode for Intel processors"
-msgstr ""
-
-#: zypp_desk/drivers.py:1665
-msgid "Microcode for other processors"
-msgstr ""
-
-#: zypp_desk/drivers.py:1667
-msgid "Graphics drivers for cards you don't have"
-msgstr ""
+#, python-brace-format
+msgid "For {need} graphics; this computer has {vendors}."
+msgstr "Pour les processeurs graphiques {need} ; ceux de cet ordinateur sont {vendors}."
 
 #: zypp_desk/drivers.py:1669
-msgid "Wi-Fi drivers for cards you don't have"
-msgstr ""
-
-#: zypp_desk/drivers.py:1671
-msgid "Parts for virtual machines"
-msgstr ""
-
-#: zypp_desk/drivers.py:1673
-msgid "Printer drivers"
-msgstr ""
+#, python-brace-format
+msgid "{what}. This computer is not a virtual machine."
+msgstr "{what}. Cet ordinateur n'est pas une machine virtuelle."
 
 #: zypp_desk/drivers.py:1675
-msgid "For devices that are often plugged in later"
-msgstr ""
+msgid "Broadcom's own Wi-Fi driver; this computer has no Broadcom card."
+msgstr "Pilote Wi-Fi propre à Broadcom ; cet ordinateur n'a pas de carte Broadcom."
 
-#: zypp_desk/drivers.py:1685
+#: zypp_desk/drivers.py:1680
+#, python-brace-format
+msgid "For {what}; this computer has none."
+msgstr "Pour {what} ; cet ordinateur n'en a pas."
+
+#: zypp_desk/drivers.py:1684
+msgid "For the sound processor of some Intel and AMD laptops; this computer has none."
+msgstr "Pour le processeur audio de certains portables Intel et AMD ; cet ordinateur n'en a pas."
+
+#: zypp_desk/drivers.py:1715
+msgid "No printer is set up on this computer."
+msgstr "Aucune imprimante n'est configurée sur cet ordinateur."
+
+#: zypp_desk/drivers.py:1717
+#, python-brace-format
+msgid "For {vendors} printers; yours is not one of them."
+msgstr "Pour les imprimantes {vendors} ; la vôtre est d'une autre marque."
+
+#: zypp_desk/drivers.py:1719
+msgid "Your printer does not use it."
+msgstr "Votre imprimante ne l'utilise pas."
+
+#: zypp_desk/drivers.py:1856
+msgid "A device of this computer can use it."
+msgstr "Un périphérique de cet ordinateur peut l'utiliser."
+
+#: zypp_desk/drivers.py:1861
+#, python-brace-format
+msgid "The driver {module}, loaded now, can use it."
+msgstr "Le pilote {module}, chargé actuellement, peut l'utiliser."
+
+#: zypp_desk/drivers.py:1905
+msgid "Firmware for hardware you don't have"
+msgstr "Micrologiciels pour du matériel que vous n'avez pas"
+
+#: zypp_desk/drivers.py:1908
+msgid "Microcode for AMD processors"
+msgstr "Microcode pour processeurs AMD"
+
+#: zypp_desk/drivers.py:1910
+msgid "Microcode for Intel processors"
+msgstr "Microcode pour processeurs Intel"
+
+#: zypp_desk/drivers.py:1911
+msgid "Microcode for other processors"
+msgstr "Microcode pour d'autres processeurs"
+
+#: zypp_desk/drivers.py:1913
+msgid "Graphics drivers for cards you don't have"
+msgstr "Pilotes graphiques pour des cartes que vous n'avez pas"
+
+#: zypp_desk/drivers.py:1915
+msgid "Wi-Fi drivers for cards you don't have"
+msgstr "Pilotes Wi-Fi pour des cartes que vous n'avez pas"
+
+#: zypp_desk/drivers.py:1917
+msgid "Parts for virtual machines"
+msgstr "Composants pour machines virtuelles"
+
+#: zypp_desk/drivers.py:1919
+msgid "Printer drivers"
+msgstr "Pilotes d'imprimante"
+
+#: zypp_desk/drivers.py:1921
+msgid "For devices that are often plugged in later"
+msgstr "Pour des périphériques souvent branchés plus tard"
+
+#: zypp_desk/drivers.py:1931
 #, python-brace-format
 msgid "{n} package: {names}."
 msgid_plural "{n} packages: {names}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} paquet : {names}."
+msgstr[1] "{n} paquets : {names}."
 
-#: zypp_desk/drivers.py:1689
+#: zypp_desk/drivers.py:1935
 #, python-brace-format
 msgid "{names}. This processor is {vendor} ({own} is the one it needs)."
-msgstr ""
+msgstr "{names}. Ce processeur est un {vendor} (il lui faut {own})."
 
-#: zypp_desk/drivers.py:1692
+#: zypp_desk/drivers.py:1938
 #, python-brace-format
 msgid "{names}. This computer has {vendors} graphics."
-msgstr ""
+msgstr "{names}. Cet ordinateur a des processeurs graphiques {vendors}."
 
-#: zypp_desk/drivers.py:1696
+#: zypp_desk/drivers.py:1942
 #, python-brace-format
 msgid "{name}, {what}. This computer is not a virtual machine."
-msgstr ""
+msgstr "{name}, {what}. Cet ordinateur n'est pas une machine virtuelle."
 
-#: zypp_desk/drivers.py:1698
+#: zypp_desk/drivers.py:1944
 #, python-brace-format
 msgid "{names}. This computer is not a virtual machine."
-msgstr ""
+msgstr "{names}. Cet ordinateur n'est pas une machine virtuelle."
 
-#: zypp_desk/drivers.py:1700
+#: zypp_desk/drivers.py:1946
 #, python-brace-format
 msgid "{names}. This computer has no such card."
-msgstr ""
+msgstr "{names}. Cet ordinateur n'a pas de carte de ce type."
 
-#: zypp_desk/drivers.py:1702
+#: zypp_desk/drivers.py:1948
 #, python-brace-format
 msgid "{names}. None is plugged in now, but they are for USB devices. Unticked: keep them if you might use one."
-msgstr ""
+msgstr "{names}. Aucun n'est branché pour l'instant, mais ils sont prévus pour des périphériques USB. Non coché : gardez-les si vous risquez d'en utiliser un."
 
-#: zypp_desk/drivers.py:1706
+#: zypp_desk/drivers.py:1952
 #, python-brace-format
 msgid "{names}. No printer is set up here. Unticked: if one day you connect a printer, it may need one of them."
-msgstr ""
+msgstr "{names}. Aucune imprimante n'est configurée ici. Non coché : si un jour vous branchez une imprimante, elle pourrait avoir besoin de l'un d'eux."
 
-#: zypp_desk/drivers.py:1708
+#: zypp_desk/drivers.py:1954
 #, python-brace-format
 msgid "{names}. Your printer does not use any of them. Unticked: if one day you connect another printer, it may need one."
-msgstr ""
+msgstr "{names}. Votre imprimante n'en utilise aucun. Non coché : si un jour vous branchez une autre imprimante, elle pourrait avoir besoin de l'un d'eux."
 
-#: zypp_desk/drivers.py:1739
+#: zypp_desk/drivers.py:1985
 #, python-brace-format
 msgid "The firmware your devices use ({names})."
-msgstr ""
+msgstr "Les micrologiciels qu'utilisent vos périphériques ({names})."
 
-#: zypp_desk/drivers.py:1741
+#: zypp_desk/drivers.py:1987
 #, python-brace-format
 msgid "And, just in case, firmware for devices that are often plugged in later, like USB network adapters, cameras and docks ({names})."
-msgstr ""
+msgstr "Et, au cas où, les micrologiciels des périphériques souvent branchés plus tard, comme les adaptateurs réseau USB, les caméras et les stations d'accueil ({names})."
 
-#: zypp_desk/drivers.py:1745
+#: zypp_desk/drivers.py:1991
 #, python-brace-format
 msgid "Other packages need {names}, so it stays."
 msgid_plural "Other packages need {names}, so they stay."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names} reste, car d'autres paquets en ont besoin."
+msgstr[1] "{names} restent, car d'autres paquets en ont besoin."
 
-#: zypp_desk/drivers.py:1749
+#: zypp_desk/drivers.py:1995
 #, python-brace-format
 msgid "Locked, so it stays: {names}."
 msgid_plural "Locked, so they stay: {names}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Verrouillé, il reste donc installé : {names}."
+msgstr[1] "Verrouillés, ils restent donc installés : {names}."
 
-#: zypp_desk/drivers.py:1753
+#: zypp_desk/drivers.py:1999
 #, python-brace-format
 msgid "Protected in Applications: {names}."
-msgstr ""
+msgstr "Protection activée dans Applications : {names}."
 
-#: zypp_desk/drivers.py:1769 zypp_desk/health.py:1063
+#: zypp_desk/drivers.py:2015 zypp_desk/health.py:1209
 msgid "Zypp Desk: only the firmware this computer uses"
 msgstr "Zypp Desk : seulement les micrologiciels que cet ordinateur utilise"
 
@@ -953,545 +954,545 @@ msgstr "zypper (ou un paquet) a écrit ceci et Zypp Desk n'a pas d'explication. 
 msgid "If something does not work afterwards, search for the exact text on the Internet."
 msgstr "Si quelque chose ne fonctionne pas ensuite, recherchez le texte exact sur Internet."
 
-#: zypp_desk/health.py:159
+#: zypp_desk/health.py:163
 msgid "rpm could not list the installed packages."
 msgstr "rpm n'a pas pu lister les paquets installés."
 
-#: zypp_desk/health.py:350 zypp_desk/health.py:362
+#: zypp_desk/health.py:496 zypp_desk/health.py:508
 #: zypp_desk/pages/system.py:985
 msgid "no vendor"
 msgstr "inconnu"
 
-#: zypp_desk/health.py:354
+#: zypp_desk/health.py:500
 #, python-brace-format
 msgid "They come from {vendor}, and none of your repositories has them from there any more: zypper does not update them on its own. Switched to the version of “{repo}”, they are updated again."
 msgstr "Leur fournisseur est {vendor}, et aucun de vos dépôts ne les propose plus de ce fournisseur : zypper ne les met pas à jour de lui-même. S'ils passent à la version de « {repo} », ils sont de nouveau mis à jour."
 
-#: zypp_desk/health.py:358
+#: zypp_desk/health.py:504
 #, python-brace-format
 msgid "They come from {vendor}, and none of your repositories has them from there any more: zypper does not update them on its own. Your repositories only have older versions, so it is better to leave them as they are for now."
 msgstr "Leur fournisseur est {vendor}, et aucun de vos dépôts ne les propose plus de ce fournisseur : zypper ne les met pas à jour de lui-même. Vos dépôts n'en ont que des versions plus anciennes : mieux vaut les laisser tels quels pour l'instant."
 
-#: zypp_desk/health.py:361 zypp_desk/pages/system.py:984
+#: zypp_desk/health.py:507 zypp_desk/pages/system.py:984
 #, python-brace-format
 msgid "{name}: {vendor} → “{repo}” {version}"
 msgstr "{name} : {vendor} → « {repo} » {version}"
 
-#: zypp_desk/health.py:363 zypp_desk/pages/system.py:986
+#: zypp_desk/health.py:509 zypp_desk/pages/system.py:986
 msgid "(an older version)"
 msgstr "(une version plus ancienne)"
 
-#: zypp_desk/health.py:364
+#: zypp_desk/health.py:510
 #, python-brace-format
 msgid "{n} package with a vendor different from its repository's"
 msgid_plural "{n} packages with a vendor different from their repository's"
 msgstr[0] "{n} paquet dont le fournisseur n'est pas celui de son dépôt"
 msgstr[1] "{n} paquets dont le fournisseur n'est pas celui de leur dépôt"
 
-#: zypp_desk/health.py:366 zypp_desk/health.py:503
+#: zypp_desk/health.py:512 zypp_desk/health.py:649
 msgid "Look at them"
 msgstr "Examiner"
 
-#: zypp_desk/health.py:385
+#: zypp_desk/health.py:531
 msgid "No repository is enabled, or none could be read."
 msgstr "Aucun dépôt n'est activé, ou aucun n'a pu être lu."
 
-#: zypp_desk/health.py:389
+#: zypp_desk/health.py:535
 msgid "No orphaned packages"
 msgstr "Aucun paquet orphelin"
 
-#: zypp_desk/health.py:390
+#: zypp_desk/health.py:536
 msgid "Every installed package comes from one of your repositories. Broken dependencies are looked for by “Check dependencies”, which asks for the administrator password."
 msgstr "Chaque paquet installé vient de l'un de vos dépôts. Les dépendances cassées sont recherchées par « Vérifier les dépendances », qui demande le mot de passe administrateur."
 
-#: zypp_desk/health.py:392 zypp_desk/pages/system.py:141
+#: zypp_desk/health.py:538 zypp_desk/pages/system.py:141
 msgid "Check dependencies"
 msgstr "Vérifier les dépendances"
 
-#: zypp_desk/health.py:394
+#: zypp_desk/health.py:540
 #, python-brace-format
 msgid "{n} package that no repository has"
 msgid_plural "{n} packages that no repository has"
 msgstr[0] "{n} paquet qu'aucun dépôt ne propose"
 msgstr[1] "{n} paquets qu'aucun dépôt ne propose"
 
-#: zypp_desk/health.py:396
+#: zypp_desk/health.py:542
 #, python-brace-format
 msgid "{names}. They get no updates any more; most are leftovers of programs that something else replaced. Look before removing them."
 msgstr "{names}. Ils ne reçoivent plus de mises à jour ; la plupart sont des restes de programmes remplacés par autre chose. Examinez-les avant de les supprimer."
 
-#: zypp_desk/health.py:398 zypp_desk/health.py:745
+#: zypp_desk/health.py:544 zypp_desk/health.py:891
 msgid "Show them"
 msgstr "Afficher"
 
-#: zypp_desk/health.py:472
+#: zypp_desk/health.py:618
 msgid "nothing from this folder is checked against a signature"
 msgstr "rien de ce qui vient de ce dossier n'est vérifié par une signature"
 
-#: zypp_desk/health.py:473
+#: zypp_desk/health.py:619
 msgid "nothing from it is checked against a signature"
 msgstr "rien de ce qui en vient n'est vérifié par une signature"
 
-#: zypp_desk/health.py:475
+#: zypp_desk/health.py:621
 #, python-brace-format
 msgid "its list of packages is not signed and comes over plain {scheme}; the packages themselves are checked"
 msgstr "sa liste de paquets n'est pas signée et arrive en {scheme} non chiffré ; les paquets eux-mêmes sont vérifiés"
 
-#: zypp_desk/health.py:496
+#: zypp_desk/health.py:642
 msgid "a folder"
 msgstr "un dossier"
 
-#: zypp_desk/health.py:498
+#: zypp_desk/health.py:644
 #, python-brace-format
 msgid "{names}. Signatures prove that what you install comes from who it says."
 msgstr "{names}. Les signatures prouvent que ce que vous installez vient bien de qui il prétend."
 
-#: zypp_desk/health.py:501
+#: zypp_desk/health.py:647
 #, python-brace-format
 msgid "{n} repository with weak signature checks"
 msgid_plural "{n} repositories with weak signature checks"
 msgstr[0] "{n} dépôt aux vérifications de signature faibles"
 msgstr[1] "{n} dépôts aux vérifications de signature faibles"
 
-#: zypp_desk/health.py:584
+#: zypp_desk/health.py:730
 #, python-brace-format
 msgid "An expired signing key: {name}"
 msgstr "Une clé de signature expirée : {name}"
 
-#: zypp_desk/health.py:585
+#: zypp_desk/health.py:731
 #, python-brace-format
 msgid "{n} expired signing key"
 msgid_plural "{n} expired signing keys"
 msgstr[0] "{n} clé de signature expirée"
 msgstr[1] "{n} clés de signature expirées"
 
-#: zypp_desk/health.py:588
+#: zypp_desk/health.py:734
 #, python-brace-format
 msgid "{repos} still sign with it. Usually the project renews it and zypper takes the new date when it refreshes; if refreshing shows a key error, import the new key in Signing keys."
 msgstr "Elle sert encore à signer {repos}. En général, le projet la renouvelle et zypper prend la nouvelle date lors de l'actualisation ; si l'actualisation affiche une erreur de clé, importez la nouvelle clé dans Clés de signature."
 
-#: zypp_desk/health.py:590 zypp_desk/health.py:602 zypp_desk/health.py:614
+#: zypp_desk/health.py:736 zypp_desk/health.py:748 zypp_desk/health.py:760
 #: zypp_desk/pages/keys.py:371
 msgid "Signing keys"
 msgstr "Clés de signature"
 
-#: zypp_desk/health.py:591
+#: zypp_desk/health.py:737
 #, python-brace-format
 msgid "{name} ({key}): expired on {date}; used by {repos}"
 msgstr "{name} ({key}) : expirée le {date} ; utilisée par {repos}"
 
-#: zypp_desk/health.py:598
+#: zypp_desk/health.py:744
 #, python-brace-format
 msgid "A signing key expires soon: {name}"
 msgstr "Une clé de signature expire bientôt : {name}"
 
-#: zypp_desk/health.py:599
+#: zypp_desk/health.py:745
 #, python-brace-format
 msgid "{n} signing key expires soon"
 msgid_plural "{n} signing keys expire soon"
 msgstr[0] "{n} clé de signature expire bientôt"
 msgstr[1] "{n} clés de signature expirent bientôt"
 
-#: zypp_desk/health.py:600
+#: zypp_desk/health.py:746
 #, python-brace-format
 msgid "On {date}. Projects usually renew their key in time: nothing to do unless refreshing shows a key error then."
 msgstr "Le {date}. Les projets renouvellent généralement leur clé à temps : rien à faire, sauf si l'actualisation affiche alors une erreur de clé."
 
-#: zypp_desk/health.py:603
+#: zypp_desk/health.py:749
 #, python-brace-format
 msgid "{name} ({key}): until {date}; used by {repos}"
 msgstr "{name} ({key}) : jusqu'au {date} ; utilisée par {repos}"
 
-#: zypp_desk/health.py:610
+#: zypp_desk/health.py:756
 #, python-brace-format
 msgid "{n} expired key that no repository uses"
 msgid_plural "{n} expired keys that no repository uses"
 msgstr[0] "{n} clé expirée qu'aucun dépôt n'utilise"
 msgstr[1] "{n} clés expirées qu'aucun dépôt n'utilise"
 
-#: zypp_desk/health.py:612
+#: zypp_desk/health.py:758
 msgid "Keys of repositories you no longer have. Signing keys shows whether installed packages still use them, and can remove the ones nothing uses."
 msgstr "Des clés de dépôts que vous n'avez plus. La page Clés de signature montre si des paquets installés les utilisent encore, et peut supprimer celles que rien n'utilise."
 
-#: zypp_desk/health.py:615
+#: zypp_desk/health.py:761
 #, python-brace-format
 msgid "{name} ({key}): expired on {date}"
 msgstr "{name} ({key}) : expirée le {date}"
 
-#: zypp_desk/health.py:661
+#: zypp_desk/health.py:807
 #, python-brace-format
 msgid "Its developers replaced it with {app}."
 msgstr "Ses développeurs l'ont remplacée par {app}."
 
-#: zypp_desk/health.py:662
+#: zypp_desk/health.py:808
 msgid "It gets no more updates, and Flathub may stop offering it."
 msgstr "Elle ne reçoit plus de mises à jour, et Flathub pourrait cesser de la proposer."
 
-#: zypp_desk/health.py:664
+#: zypp_desk/health.py:810
 msgid "It is protected and you have a copy."
 msgstr "Elle est protégée et vous en avez une copie."
 
-#: zypp_desk/health.py:666
+#: zypp_desk/health.py:812
 msgid "It is protected. Save a copy too (in Applications), to install it again if it disappears."
 msgstr "Elle est protégée. Enregistrez-en aussi une copie (dans Applications), pour pouvoir la réinstaller si elle disparaît."
 
-#: zypp_desk/health.py:669
+#: zypp_desk/health.py:815
 msgid "You have a copy. Protect it too (in Applications), so it is never removed by mistake."
 msgstr "Vous en avez une copie. Protégez-la aussi (dans Applications), pour qu'elle ne soit jamais supprimée par erreur."
 
-#: zypp_desk/health.py:672
+#: zypp_desk/health.py:818
 msgid "Protect it and save a copy in Applications, so you do not lose it."
 msgstr "Protégez-la et enregistrez-en une copie dans Applications, pour ne pas la perdre."
 
-#: zypp_desk/health.py:674
+#: zypp_desk/health.py:820
 #, python-brace-format
 msgid "An app that is no longer maintained: {name}"
 msgstr "Une application qui n'est plus maintenue : {name}"
 
-#: zypp_desk/health.py:675
+#: zypp_desk/health.py:821
 msgid "Show it"
 msgstr "Afficher"
 
-#: zypp_desk/health.py:742
+#: zypp_desk/health.py:888
 #, python-brace-format
 msgid "{n} app installed twice"
 msgid_plural "{n} apps installed twice"
 msgstr[0] "{n} application installée deux fois"
 msgstr[1] "{n} applications installées deux fois"
 
-#: zypp_desk/health.py:743
+#: zypp_desk/health.py:889
 #, python-brace-format
 msgid "{names}: as a package and as a Flatpak app. Two copies take room and show twice in the menu; keep the one you use."
 msgstr "{names} : en paquet et en application Flatpak. Deux copies prennent de la place et apparaissent deux fois dans le menu ; gardez celle que vous utilisez."
 
-#: zypp_desk/health.py:746
+#: zypp_desk/health.py:892
 #, python-brace-format
 msgid "{name}: package {package}, Flatpak {app}"
 msgstr "{name} : paquet {package}, Flatpak {app}"
 
-#: zypp_desk/health.py:779
+#: zypp_desk/health.py:925
 msgid "AMD graphics"
 msgstr "processeurs graphiques AMD"
 
-#: zypp_desk/health.py:780
+#: zypp_desk/health.py:926
 msgid "older AMD and ATI graphics"
 msgstr "anciens processeurs graphiques AMD et ATI"
 
-#: zypp_desk/health.py:781
+#: zypp_desk/health.py:927
 msgid "NVIDIA graphics and chips"
 msgstr "processeurs graphiques et puces NVIDIA"
 
-#: zypp_desk/health.py:782
+#: zypp_desk/health.py:928
 msgid "Intel graphics"
 msgstr "processeurs graphiques Intel"
 
-#: zypp_desk/health.py:783
+#: zypp_desk/health.py:929
 msgid "Intel chips: sound processors, cameras, sensors, accelerators"
 msgstr "puces Intel : processeurs audio, caméras, capteurs, accélérateurs"
 
-#: zypp_desk/health.py:784
+#: zypp_desk/health.py:930
 msgid "Intel Wi-Fi"
 msgstr "Wi-Fi Intel"
 
-#: zypp_desk/health.py:785
+#: zypp_desk/health.py:931
 msgid "Bluetooth adapters"
 msgstr "adaptateurs Bluetooth"
 
-#: zypp_desk/health.py:786
+#: zypp_desk/health.py:932
 msgid "sound chips"
 msgstr "puces audio"
 
-#: zypp_desk/health.py:787
+#: zypp_desk/health.py:933
 msgid "Qualcomm chips: Arm laptops and boards, 5G modems"
 msgstr "puces Qualcomm : portables et cartes Arm, modems 5G"
 
-#: zypp_desk/health.py:788 zypp_desk/health.py:789
+#: zypp_desk/health.py:934 zypp_desk/health.py:935
 msgid "Qualcomm Atheros Wi-Fi"
 msgstr "Wi-Fi Qualcomm Atheros"
 
-#: zypp_desk/health.py:790
+#: zypp_desk/health.py:936
 msgid "Qualcomm Wi-Fi 7"
 msgstr "Wi-Fi 7 Qualcomm"
 
-#: zypp_desk/health.py:791
+#: zypp_desk/health.py:937
 msgid "older Atheros Wi-Fi and Bluetooth"
 msgstr "anciens Wi-Fi et Bluetooth Atheros"
 
-#: zypp_desk/health.py:792
+#: zypp_desk/health.py:938
 msgid "MediaTek Wi-Fi and Bluetooth"
 msgstr "Wi-Fi et Bluetooth MediaTek"
 
-#: zypp_desk/health.py:793
+#: zypp_desk/health.py:939
 msgid "Realtek network cards, Wi-Fi and Bluetooth"
 msgstr "cartes réseau, Wi-Fi et Bluetooth Realtek"
 
-#: zypp_desk/health.py:794
+#: zypp_desk/health.py:940
 msgid "Broadcom and Cypress Wi-Fi"
 msgstr "Wi-Fi Broadcom et Cypress"
 
-#: zypp_desk/health.py:795
+#: zypp_desk/health.py:941
 msgid "Broadcom server network cards"
 msgstr "cartes réseau Broadcom pour serveurs"
 
-#: zypp_desk/health.py:796
+#: zypp_desk/health.py:942
 msgid "Marvell Wi-Fi"
 msgstr "Wi-Fi Marvell"
 
-#: zypp_desk/health.py:797
+#: zypp_desk/health.py:943
 msgid "Marvell and NXP Wi-Fi"
 msgstr "Wi-Fi Marvell et NXP"
 
-#: zypp_desk/health.py:798
+#: zypp_desk/health.py:944
 msgid "Marvell network switches"
 msgstr "commutateurs réseau Marvell"
 
-#: zypp_desk/health.py:799
+#: zypp_desk/health.py:945
 msgid "Mellanox server network cards"
 msgstr "cartes réseau Mellanox pour serveurs"
 
-#: zypp_desk/health.py:800
+#: zypp_desk/health.py:946
 msgid "QLogic server network and storage cards"
 msgstr "cartes réseau et de stockage QLogic pour serveurs"
 
-#: zypp_desk/health.py:801
+#: zypp_desk/health.py:947
 msgid "Chelsio server network cards"
 msgstr "cartes réseau Chelsio pour serveurs"
 
-#: zypp_desk/health.py:802
+#: zypp_desk/health.py:948
 msgid "Netronome server network cards"
 msgstr "cartes réseau Netronome pour serveurs"
 
-#: zypp_desk/health.py:803
+#: zypp_desk/health.py:949
 msgid "Cavium server network cards"
 msgstr "cartes réseau Cavium pour serveurs"
 
-#: zypp_desk/health.py:804
+#: zypp_desk/health.py:950
 msgid "NXP network processors (Arm boards)"
 msgstr "processeurs réseau NXP (cartes Arm)"
 
-#: zypp_desk/health.py:805
+#: zypp_desk/health.py:951
 msgid "Texas Instruments Wi-Fi and Bluetooth (boards)"
 msgstr "Wi-Fi et Bluetooth Texas Instruments (cartes)"
 
-#: zypp_desk/health.py:806
+#: zypp_desk/health.py:952
 msgid "old ADSL USB modems"
 msgstr "anciens modems ADSL USB"
 
-#: zypp_desk/health.py:878
+#: zypp_desk/health.py:1024
 msgid "Wi-Fi"
 msgstr "Wi-Fi"
 
-#: zypp_desk/health.py:878
+#: zypp_desk/health.py:1024
 msgid "graphics card"
 msgstr "carte graphique"
 
-#: zypp_desk/health.py:878
+#: zypp_desk/health.py:1024
 msgid "network card"
 msgstr "carte réseau"
 
-#: zypp_desk/health.py:879
+#: zypp_desk/health.py:1025
 msgid "sound card"
 msgstr "carte son"
 
-#: zypp_desk/health.py:879
+#: zypp_desk/health.py:1025
 msgid "video device"
 msgstr "périphérique vidéo"
 
-#: zypp_desk/health.py:879
+#: zypp_desk/health.py:1025
 msgid "wireless adapter"
 msgstr "adaptateur sans fil"
 
-#: zypp_desk/health.py:880
+#: zypp_desk/health.py:1026
 msgid "USB or Thunderbolt controller"
 msgstr "contrôleur USB ou Thunderbolt"
 
-#: zypp_desk/health.py:880
+#: zypp_desk/health.py:1026
 msgid "device"
 msgstr "périphérique"
 
-#: zypp_desk/health.py:880
+#: zypp_desk/health.py:1026
 msgid "disk controller"
 msgstr "contrôleur de disque"
 
-#: zypp_desk/health.py:885
+#: zypp_desk/health.py:1031
 msgid "Bluetooth adapter"
 msgstr "adaptateur Bluetooth"
 
-#: zypp_desk/health.py:885
+#: zypp_desk/health.py:1031
 msgid "USB network adapter"
 msgstr "adaptateur réseau USB"
 
-#: zypp_desk/health.py:886
+#: zypp_desk/health.py:1032
 msgid "USB device"
 msgstr "périphérique USB"
 
-#: zypp_desk/health.py:886
+#: zypp_desk/health.py:1032
 msgid "USB sound device"
 msgstr "périphérique audio USB"
 
-#: zypp_desk/health.py:886
+#: zypp_desk/health.py:1032
 msgid "camera"
 msgstr "caméra"
 
-#: zypp_desk/health.py:890
+#: zypp_desk/health.py:1036
 msgid "sound chip"
 msgstr "puce audio"
 
-#: zypp_desk/health.py:892
+#: zypp_desk/health.py:1038
 #, python-brace-format
 msgid "a chip on the board ({id})"
 msgstr "une puce de la carte mère ({id})"
 
-#: zypp_desk/health.py:893
+#: zypp_desk/health.py:1039
 #, python-brace-format
 msgid "device ({id})"
 msgstr "périphérique ({id})"
 
-#: zypp_desk/health.py:900
+#: zypp_desk/health.py:1046
 msgid "This computer has Intel chips, and this package has firmware for several kinds of them."
 msgstr "Cet ordinateur a des puces Intel, et ce paquet contient des micrologiciels pour plusieurs types de ces puces."
 
-#: zypp_desk/health.py:902
+#: zypp_desk/health.py:1048
 msgid "This computer has Intel graphics."
 msgstr "Cet ordinateur a un processeur graphique Intel."
 
-#: zypp_desk/health.py:905
+#: zypp_desk/health.py:1051
 msgid "This computer has AMD graphics."
 msgstr "Cet ordinateur a un processeur graphique AMD."
 
-#: zypp_desk/health.py:907
+#: zypp_desk/health.py:1053
 msgid "This computer has an NVIDIA chip."
 msgstr "Cet ordinateur a une puce NVIDIA."
 
-#: zypp_desk/health.py:909
+#: zypp_desk/health.py:1055
 msgid "This computer has Intel Wi-Fi."
 msgstr "Cet ordinateur a une puce Wi-Fi Intel."
 
-#: zypp_desk/health.py:911
+#: zypp_desk/health.py:1057
 msgid "This computer has Bluetooth."
 msgstr "Cet ordinateur a le Bluetooth."
 
-#: zypp_desk/health.py:913
+#: zypp_desk/health.py:1059
 msgid "This computer has a sound card."
 msgstr "Cet ordinateur a une carte son."
 
-#: zypp_desk/health.py:931
+#: zypp_desk/health.py:1077
 #, python-brace-format
 msgid "Needed by this computer's {devices}."
 msgstr "Cet ordinateur en a besoin pour : {devices}."
 
-#: zypp_desk/health.py:937
+#: zypp_desk/health.py:1083
 msgid "On this kind of computer firmware is often for chips on the board that Zypp Desk cannot see."
 msgstr "Sur ce type d'ordinateur, les micrologiciels servent souvent à des puces de la carte que Zypp Desk ne peut pas voir."
 
-#: zypp_desk/health.py:940
+#: zypp_desk/health.py:1086
 msgid "Docks and USB adapters often use it, and this computer has USB-C or Thunderbolt."
 msgstr "Les stations d'accueil et les adaptateurs USB l'utilisent souvent, et cet ordinateur a de l'USB-C ou du Thunderbolt."
 
-#: zypp_desk/health.py:943
+#: zypp_desk/health.py:1089
 msgid "It has firmware for many different devices; Zypp Desk cannot tell for sure that none of them is here."
 msgstr "Il contient des micrologiciels pour de nombreux périphériques différents ; Zypp Desk ne peut pas affirmer qu'aucun d'eux n'est présent ici."
 
-#: zypp_desk/health.py:946
+#: zypp_desk/health.py:1092
 msgid "Zypp Desk does not know which devices it is for."
 msgstr "Zypp Desk ne sait pas à quels périphériques il est destiné."
 
-#: zypp_desk/health.py:948
+#: zypp_desk/health.py:1094
 #, python-brace-format
 msgid "No device of this computer needs it: it is for {what}."
 msgstr "Aucun périphérique de cet ordinateur n'en a besoin. Il est prévu pour : {what}."
 
-#: zypp_desk/health.py:1028
+#: zypp_desk/health.py:1174
 msgid "Only installs all the others; it holds no firmware itself."
 msgstr "Il ne fait qu'installer tous les autres ; il ne contient lui-même aucun micrologiciel."
 
-#: zypp_desk/health.py:1073 zypp_desk/pages/scripts.py:452
+#: zypp_desk/health.py:1219 zypp_desk/pages/scripts.py:452
 #: zypp_desk/pages/scripts.py:462
 msgid "none"
 msgstr "aucun"
 
-#: zypp_desk/health.py:1076
+#: zypp_desk/health.py:1222
 #, python-brace-format
 msgid "The firmware of every possible device: {size}"
 msgstr "Les micrologiciels de tous les périphériques possibles : {size}"
 
-#: zypp_desk/health.py:1077
+#: zypp_desk/health.py:1223
 #, python-brace-format
 msgid "kernel-firmware-all installs {n} firmware package; this computer uses {used}. Removing the rest frees {freed}."
 msgid_plural "kernel-firmware-all installs {n} firmware packages; this computer uses {used}. Removing the rest frees {freed}."
 msgstr[0] "kernel-firmware-all installe {n} paquet de micrologiciels ; cet ordinateur utilise : {used}. Supprimer le reste libère {freed}."
 msgstr[1] "kernel-firmware-all installe {n} paquets de micrologiciels ; cet ordinateur utilise : {used}. Supprimer le reste libère {freed}."
 
-#: zypp_desk/health.py:1085
+#: zypp_desk/health.py:1231
 #, python-brace-format
 msgid "Firmware that this computer does not use: {size}"
 msgstr "Micrologiciels que cet ordinateur n'utilise pas : {size}"
 
-#: zypp_desk/health.py:1086
+#: zypp_desk/health.py:1232
 #, python-brace-format
 msgid "This computer uses {used}. The others are for devices it does not have."
 msgstr "Cet ordinateur utilise : {used}. Les autres sont destinés à des périphériques qu'il n'a pas."
 
-#: zypp_desk/health.py:1088 zypp_desk/health.py:1089
+#: zypp_desk/health.py:1234 zypp_desk/health.py:1235
 #, python-brace-format
 msgid "Keep {name}: {why}"
 msgstr "Garder {name} : {why}"
 
-#: zypp_desk/health.py:1090
+#: zypp_desk/health.py:1236
 #, python-brace-format
 msgid "Remove {name} ({size}): {why}"
 msgstr "Supprimer {name} ({size}) : {why}"
 
-#: zypp_desk/health.py:1092
-msgid "Keep only what is needed…"
-msgstr "Ne garder que le nécessaire…"
+#: zypp_desk/health.py:1238
+msgid "Show it in Drivers"
+msgstr "Afficher dans Pilotes"
 
-#: zypp_desk/health.py:1115 zypp_desk/health.py:1168 zypp_desk/migrate.py:849
+#: zypp_desk/health.py:1261 zypp_desk/health.py:1314 zypp_desk/migrate.py:849
 #: zypp_desk/pages/home.py:138 zypp_desk/pages/migrate.py:84
 #: zypp_desk/pages/updates.py:1204
 msgid "Flatpak apps"
 msgstr "Applications Flatpak"
 
-#: zypp_desk/health.py:1119
+#: zypp_desk/health.py:1265
 msgid "Flatpak runtimes"
 msgstr "Environnements d'exécution Flatpak"
 
-#: zypp_desk/health.py:1123
+#: zypp_desk/health.py:1269
 msgid "downloaded packages"
 msgstr "paquets téléchargés"
 
-#: zypp_desk/health.py:1127
+#: zypp_desk/health.py:1273
 #, python-brace-format
 msgid "{n} old kernel"
 msgid_plural "{n} old kernels"
 msgstr[0] "{n} ancien noyau"
 msgstr[1] "{n} anciens noyaux"
 
-#: zypp_desk/health.py:1168
+#: zypp_desk/health.py:1314
 msgid "firmware"
 msgstr "micrologiciels"
 
-#: zypp_desk/health.py:1168
+#: zypp_desk/health.py:1314
 msgid "vendors"
 msgstr "fournisseurs"
 
-#: zypp_desk/health.py:1169
+#: zypp_desk/health.py:1315
 msgid "orphaned packages"
 msgstr "paquets orphelins"
 
-#: zypp_desk/health.py:1169 zypp_desk/migrate.py:754
+#: zypp_desk/health.py:1315 zypp_desk/migrate.py:754
 msgid "repositories"
 msgstr "dépôts"
 
-#: zypp_desk/health.py:1169
+#: zypp_desk/health.py:1315
 msgid "signing keys"
 msgstr "clés de signature"
 
-#: zypp_desk/health.py:1170
+#: zypp_desk/health.py:1316
 msgid "apps installed twice"
 msgstr "applications installées deux fois"
 
-#: zypp_desk/health.py:1170
+#: zypp_desk/health.py:1316
 msgid "room"
 msgstr "espace"
 
@@ -3431,7 +3432,7 @@ msgstr "Déplacer"
 #: zypp_desk/pages/apps.py:1302 zypp_desk/pages/bridges.py:181
 #: zypp_desk/pages/bridges.py:203 zypp_desk/pages/bridges.py:384
 #: zypp_desk/pages/drivers.py:428 zypp_desk/pages/drivers.py:554
-#: zypp_desk/pages/drivers.py:579 zypp_desk/pages/drivers.py:604
+#: zypp_desk/pages/drivers.py:579 zypp_desk/pages/drivers.py:611
 #: zypp_desk/pages/findrepo.py:507 zypp_desk/pages/repos.py:1087
 #: zypp_desk/pages/repos.py:1268 zypp_desk/pages/scripts.py:194
 #: zypp_desk/pages/scripts.py:220 zypp_desk/pages/scripts.py:281
@@ -3891,84 +3892,84 @@ msgstr "Supprimer les deux"
 
 #: zypp_desk/pages/drivers.py:25
 msgid "All good"
-msgstr ""
+msgstr "Tout va bien"
 
 #: zypp_desk/pages/drivers.py:26
 msgid "There is a better driver"
-msgstr ""
+msgstr "Il existe un meilleur pilote"
 
 #: zypp_desk/pages/drivers.py:27
 msgid "Optional"
-msgstr ""
+msgstr "Facultatif"
 
 #: zypp_desk/pages/drivers.py:28
 msgid "Firmware missing"
-msgstr ""
+msgstr "Micrologiciel manquant"
 
 #: zypp_desk/pages/drivers.py:29
 msgid "Can be better"
-msgstr ""
+msgstr "Peut être amélioré"
 
 #: zypp_desk/pages/drivers.py:30
 msgid "No driver"
-msgstr ""
+msgstr "Aucun pilote"
 
 #: zypp_desk/pages/drivers.py:31
 msgid "Good to know"
-msgstr ""
+msgstr "Bon à savoir"
 
 #: zypp_desk/pages/drivers.py:100
 msgid "Install NVIDIA's driver…"
-msgstr ""
+msgstr "Installer le pilote NVIDIA…"
 
 #: zypp_desk/pages/drivers.py:102
 msgid "Install Broadcom's driver…"
-msgstr ""
+msgstr "Installer le pilote Broadcom…"
 
 #: zypp_desk/pages/drivers.py:105
 #, python-brace-format
 msgid "Install {name}…"
-msgstr ""
+msgstr "Installer {name}…"
 
 #: zypp_desk/pages/drivers.py:106
 msgid "Install them…"
-msgstr ""
+msgstr "Les installer…"
 
 #: zypp_desk/pages/drivers.py:167
 #, python-brace-format
 msgid "▸ {n} more: {names}"
 msgid_plural "▸ {n} more: {names}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "▸ {n} autre : {names}"
+msgstr[1] "▸ {n} autres : {names}"
 
-#: zypp_desk/pages/drivers.py:194 zypp_desk/pages/drivers.py:598
+#: zypp_desk/pages/drivers.py:194 zypp_desk/pages/drivers.py:605
 msgid "Drivers"
-msgstr ""
+msgstr "Pilotes"
 
 #: zypp_desk/pages/drivers.py:208
 msgid "The hardware of this computer and the driver each part uses. When a proprietary one works better (above all NVIDIA's, and Broadcom's for some Wi-Fi cards), Zypp Desk tells you what it is, where it comes from and what happens with Secure Boot, and puts it in the queue."
-msgstr ""
+msgstr "Le matériel de cet ordinateur et le pilote qu'utilise chaque élément. Quand un pilote propriétaire fonctionne mieux (surtout celui de NVIDIA, et celui de Broadcom pour certaines cartes Wi-Fi), Zypp Desk vous dit ce que c'est, d'où il vient et ce qui se passe avec Secure Boot, puis l'ajoute à la file d'attente."
 
 #: zypp_desk/pages/drivers.py:212 zypp_desk/pages/drivers.py:270
 msgid "Looking at the hardware…"
-msgstr ""
+msgstr "Examen du matériel…"
 
 #: zypp_desk/pages/drivers.py:228 zypp_desk/pages/drivers.py:425
 msgid "Not needed for this computer"
-msgstr ""
+msgstr "Pas nécessaire pour cet ordinateur"
 
 #: zypp_desk/pages/drivers.py:229
 msgid "Software for hardware this computer does not have. Zypp Desk only lists what it is sure nothing here uses."
-msgstr ""
+msgstr "Des logiciels pour du matériel que cet ordinateur n'a pas. Zypp Desk n'affiche que ce qui, à coup sûr, ne sert à rien ici."
 
 #: zypp_desk/pages/drivers.py:238
 msgid "Stays"
-msgstr ""
+msgstr "Ce qui reste"
 
 #: zypp_desk/pages/drivers.py:245 zypp_desk/pages/drivers.py:366
 #: zypp_desk/pages/drivers.py:374
 msgid "Remove the packages…"
-msgstr ""
+msgstr "Supprimer les paquets…"
 
 #: zypp_desk/pages/drivers.py:253 zypp_desk/pages/updates.py:805
 msgid "Look again"
@@ -3977,57 +3978,57 @@ msgstr "Chercher à nouveau"
 #: zypp_desk/pages/drivers.py:286
 #, python-brace-format
 msgid "The hardware could not be read: {error}"
-msgstr ""
+msgstr "Le matériel n'a pas pu être lu : {error}"
 
 #: zypp_desk/pages/drivers.py:304
 msgid "Zypp Desk found no graphics, network, sound or printer to show."
-msgstr ""
+msgstr "Zypp Desk n'a trouvé ni processeur graphique, ni réseau, ni son, ni imprimante à afficher."
 
 #: zypp_desk/pages/drivers.py:329
 msgid "The package that brings all the others; it stays locked."
-msgstr ""
+msgstr "Le paquet qui apporte tous les autres ; il reste verrouillé."
 
 #: zypp_desk/pages/drivers.py:332
 #, python-brace-format
 msgid "{what}: none here"
-msgstr ""
+msgstr "{what} : il n'y en a pas ici"
 
 #: zypp_desk/pages/drivers.py:365
 msgid "Nothing is ticked."
-msgstr ""
+msgstr "Rien n'est coché."
 
 #: zypp_desk/pages/drivers.py:369
 #, python-brace-format
 msgid "Ticked: {n} package, {size}. If you plug in a device that needs it, you will see it on this page."
 msgid_plural "Ticked: {n} packages, {size}. If you plug in a device that needs one of them, you will see it on this page."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Coché : {n} paquet, {size}. Si vous branchez un périphérique qui en a besoin, vous le verrez sur cette page."
+msgstr[1] "Cochés : {n} paquets, {size}. Si vous branchez un périphérique qui a besoin de l'un d'eux, vous le verrez sur cette page."
 
 #: zypp_desk/pages/drivers.py:373
 #, python-brace-format
 msgid "Remove the {n} package…"
 msgid_plural "Remove the {n} packages…"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Supprimer {n} paquet…"
+msgstr[1] "Supprimer les {n} paquets…"
 
 #: zypp_desk/pages/drivers.py:406
 #, python-brace-format
 msgid "{n} of firmware"
 msgid_plural "{n} of firmware"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} paquet de micrologiciel"
+msgstr[1] "{n} paquets de micrologiciels"
 
 #: zypp_desk/pages/drivers.py:409
 #, python-brace-format
 msgid "Remove {n} package this computer doesn't use"
 msgid_plural "Remove {n} packages this computer doesn't use"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Supprimer {n} paquet que cet ordinateur n'utilise pas"
+msgstr[1] "Supprimer {n} paquets que cet ordinateur n'utilise pas"
 
 #: zypp_desk/pages/drivers.py:411
 #, python-brace-format
 msgid "Frees {size}."
-msgstr ""
+msgstr "Libère {size}."
 
 #: zypp_desk/pages/drivers.py:414 zypp_desk/txqueue.py:190
 #, python-brace-format
@@ -4039,28 +4040,28 @@ msgstr "Verrouiller {name}"
 #, python-brace-format
 msgid "Otherwise every new kernel would bring it back, and with it the {n} firmware package."
 msgid_plural "Otherwise every new kernel would bring it back, and with it the {n} firmware packages."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Sinon, chaque nouveau noyau le réinstallerait, et avec lui {n} paquet de micrologiciel."
+msgstr[1] "Sinon, chaque nouveau noyau le réinstallerait, et avec lui les {n} paquets de micrologiciels."
 
 #: zypp_desk/pages/drivers.py:419
 msgid "the computer works the same. If one day you connect a device that needs one of these packages, this page tells you, and you can put it back with one click."
-msgstr ""
+msgstr "l'ordinateur fonctionne de la même façon. Si un jour vous branchez un périphérique qui a besoin de l'un de ces paquets, cette page vous le dit, et vous pouvez le remettre en un clic."
 
 #: zypp_desk/pages/drivers.py:422
 msgid "The lock can be removed in Locks."
-msgstr ""
+msgstr "Le verrou peut être retiré dans Verrous."
 
 #: zypp_desk/pages/drivers.py:423
 msgid "Everything goes to the queue: nothing changes until you apply it."
-msgstr ""
+msgstr "Tout va dans la file d'attente : rien ne change tant que vous ne l'appliquez pas."
 
 #: zypp_desk/pages/drivers.py:425
 msgid "Remove what this computer doesn't need?"
-msgstr ""
+msgstr "Supprimer ce dont cet ordinateur n'a pas besoin ?"
 
 #: zypp_desk/pages/drivers.py:428
 msgid "Look first (simulate)"
-msgstr ""
+msgstr "Voir d'abord (simuler)"
 
 #: zypp_desk/pages/drivers.py:429 zypp_desk/pages/flatpak.py:392
 #: zypp_desk/pages/system.py:352 zypp_desk/pages/system.py:381
@@ -4071,65 +4072,65 @@ msgstr "Oui, les supprimer"
 #, python-brace-format
 msgid "Added to the queue: remove {n} package."
 msgid_plural "Added to the queue: remove {n} packages."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Ajouté à la file d'attente : supprimer {n} paquet."
+msgstr[1] "Ajouté à la file d'attente : supprimer {n} paquets."
 
 #: zypp_desk/pages/drivers.py:453
 msgid "Secure Boot is on, and openSUSE signs this kernel part: it starts as it is, with nothing to enroll."
-msgstr ""
+msgstr "Secure Boot est activé, et openSUSE signe cette partie noyau : elle démarre telle quelle, sans rien à enregistrer."
 
 #: zypp_desk/pages/drivers.py:456
 msgid "Secure Boot is off on this computer. If you turn it on one day, this driver still starts: openSUSE signs it."
-msgstr ""
+msgstr "Secure Boot est désactivé sur cet ordinateur. Si vous l'activez un jour, ce pilote démarrera quand même : openSUSE le signe."
 
 #: zypp_desk/pages/drivers.py:458
 msgid "openSUSE signs this kernel part, so it also starts with Secure Boot on."
-msgstr ""
+msgstr "openSUSE signe cette partie noyau, elle démarre donc aussi avec Secure Boot activé."
 
 #: zypp_desk/pages/drivers.py:460
 msgid "Secure Boot is on. This driver is signed with a key made on this computer, so at the next start a blue screen (MokManager) asks to enroll it: choose “Enroll MOK”, then “Continue” and “Yes”, and type the root password (the keyboard there is English, US). If you skip it, the computer starts with nouveau, and you can enroll the key at a later start."
-msgstr ""
+msgstr "Secure Boot est activé. Ce pilote est signé avec une clé créée sur cet ordinateur : au prochain démarrage, un écran bleu (MokManager) vous demande donc d'enregistrer cette clé MOK. Choisissez « Enroll MOK », puis « Continue » et « Yes », et tapez le mot de passe root (sur cet écran, le clavier est en anglais américain, QWERTY). Si vous sautez cette étape, l'ordinateur démarre avec nouveau, et vous pourrez enregistrer la clé lors d'un démarrage ultérieur."
 
 #: zypp_desk/pages/drivers.py:464
 msgid "Secure Boot: one step at the next start"
-msgstr ""
+msgstr "Secure Boot : une étape au prochain démarrage"
 
 #: zypp_desk/pages/drivers.py:466
 msgid "Secure Boot is off on this computer, so nothing else is needed at start. If you turn it on one day, you will have to enroll the key this driver is signed with."
-msgstr ""
+msgstr "Secure Boot est désactivé sur cet ordinateur, rien d'autre n'est donc nécessaire au démarrage. Si vous l'activez un jour, vous devrez enregistrer la clé avec laquelle ce pilote est signé."
 
 #: zypp_desk/pages/drivers.py:468
 msgid "If Secure Boot is on, at the next start a blue screen (MokManager) asks to enroll the key this driver is signed with: choose “Enroll MOK”, “Continue”, “Yes”, and type the root password."
-msgstr ""
+msgstr "Si Secure Boot est activé, au prochain démarrage un écran bleu (MokManager) vous demande d'enregistrer la clé avec laquelle ce pilote est signé : choisissez « Enroll MOK », « Continue », « Yes », et tapez le mot de passe root."
 
 #: zypp_desk/pages/drivers.py:479
 msgid "Getting NVIDIA's key…"
-msgstr ""
+msgstr "Récupération de la clé de NVIDIA…"
 
 #: zypp_desk/pages/drivers.py:498 zypp_desk/pages/drivers.py:502
 #: zypp_desk/pages/drivers.py:550
 msgid "NVIDIA's driver"
-msgstr ""
+msgstr "Pilote NVIDIA"
 
 #: zypp_desk/pages/drivers.py:498
 #, python-brace-format
 msgid "NVIDIA's signing key could not be read: {error}"
-msgstr ""
+msgstr "La clé de signature de NVIDIA n'a pas pu être lue : {error}"
 
 #: zypp_desk/pages/drivers.py:503
 #, python-brace-format
 msgid "NVIDIA's repository publishes a signing key that is not the one Zypp Desk knows ({fpr}). Zypp Desk does not add it: follow openSUSE's guide (SDB:NVIDIA drivers) instead."
-msgstr ""
+msgstr "Le dépôt de NVIDIA publie une clé de signature qui n'est pas celle que connaît Zypp Desk ({fpr}). Zypp Desk ne l'ajoute pas : suivez plutôt le guide d'openSUSE (SDB:NVIDIA drivers)."
 
 #: zypp_desk/pages/drivers.py:517
 msgctxt "change"
 msgid "Trust NVIDIA's signing key"
-msgstr ""
+msgstr "Faire confiance à la clé de signature de NVIDIA"
 
 #: zypp_desk/pages/drivers.py:518
 #, python-brace-format
 msgid "Fingerprint {fpr}. NVIDIA signs its repository for openSUSE with it."
-msgstr ""
+msgstr "Empreinte {fpr}. NVIDIA s'en sert pour signer son dépôt pour openSUSE."
 
 #: zypp_desk/pages/drivers.py:522 zypp_desk/pages/findrepo.py:434
 #: zypp_desk/pages/repotools.py:639 zypp_desk/pages/repotools.py:668
@@ -4142,7 +4143,7 @@ msgstr "Ajouter le dépôt « {name} »"
 #: zypp_desk/pages/drivers.py:523
 #, python-brace-format
 msgid "{url}: NVIDIA's own repository for openSUSE, the one openSUSE's guide uses."
-msgstr ""
+msgstr "{url} : le dépôt de NVIDIA pour openSUSE, celui qu'utilise le guide d'openSUSE."
 
 #: zypp_desk/pages/drivers.py:526 zypp_desk/pages/drivers.py:565
 #: zypp_desk/txqueue.py:291
@@ -4153,51 +4154,51 @@ msgstr "Activer le dépôt « {name} »"
 
 #: zypp_desk/pages/drivers.py:527
 msgid "NVIDIA's repository is already here, but disabled."
-msgstr ""
+msgstr "Le dépôt de NVIDIA est déjà là, mais désactivé."
 
 #: zypp_desk/pages/drivers.py:530
 #, python-brace-format
 msgid "The kernel part ({kmp}) is open source, from openSUSE's main repository and signed by openSUSE. The rest (graphics libraries, video decoding, CUDA, settings) is proprietary and comes from NVIDIA."
-msgstr ""
+msgstr "La partie noyau ({kmp}) est open source, vient du dépôt principal d'openSUSE et est signée par openSUSE. Le reste (bibliothèques graphiques, décodage vidéo, CUDA, réglages) est propriétaire et vient de NVIDIA."
 
 #: zypp_desk/pages/drivers.py:534
 msgid "Everything comes from NVIDIA and is proprietary. The kernel part is built on this computer when it is installed: that brings gcc, make and the kernel's development files (a few hundred MB)."
-msgstr ""
+msgstr "Tout vient de NVIDIA et est propriétaire. La partie noyau est compilée sur cet ordinateur lors de l'installation : cela installe aussi gcc, make et les fichiers de développement du noyau (quelques centaines de Mo)."
 
 #: zypp_desk/pages/drivers.py:537
 #, python-brace-format
 msgid "Install NVIDIA's driver, series {series}"
-msgstr ""
+msgstr "Installer le pilote NVIDIA, série {series}"
 
 #: zypp_desk/pages/drivers.py:539
 #, python-brace-format
 msgid "after the next restart, the {card} uses NVIDIA's driver instead of nouveau: faster, with video decoding in the card and CUDA. NVIDIA's part is proprietary: nobody outside NVIDIA can check or fix its code, and NVIDIA's licence applies."
-msgstr ""
+msgstr "après le prochain redémarrage, la {card} utilise le pilote NVIDIA au lieu de nouveau : plus rapide, avec le décodage vidéo par la carte et CUDA. La partie NVIDIA est propriétaire : personne en dehors de NVIDIA ne peut vérifier ni corriger son code, et c'est la licence de NVIDIA qui s'applique."
 
 #: zypp_desk/pages/drivers.py:543
 msgid "This old series only works in an X11 session, not in Wayland."
-msgstr ""
+msgstr "Cette ancienne série ne fonctionne que dans une session X11, pas sous Wayland."
 
 #: zypp_desk/pages/drivers.py:544
 msgid "It goes to the queue: nothing changes until you apply it."
-msgstr ""
+msgstr "Cela va dans la file d'attente : rien ne change tant que vous ne l'appliquez pas."
 
 #: zypp_desk/pages/drivers.py:545
 #, python-brace-format
 msgid "NVIDIA no longer updates series {series}: it gets no security fixes, and a future kernel may not work with it. nouveau, which you have now, keeps working."
-msgstr ""
+msgstr "NVIDIA ne met plus à jour la série {series} : elle ne reçoit plus de correctifs de sécurité, et un futur noyau pourrait ne pas fonctionner avec elle. nouveau, que vous avez actuellement, continue de fonctionner."
 
 #: zypp_desk/pages/drivers.py:549
 #, python-brace-format
 msgid "Install NVIDIA's driver for the {card}?"
-msgstr ""
+msgstr "Installer le pilote NVIDIA pour la {card} ?"
 
 #: zypp_desk/pages/drivers.py:550 zypp_desk/pages/drivers.py:576
 msgid "Zypp Desk will put this in the queue, in this order:"
-msgstr ""
+msgstr "Zypp Desk ajoutera ceci à la file d'attente, dans cet ordre :"
 
 #: zypp_desk/pages/drivers.py:554 zypp_desk/pages/drivers.py:579
-#: zypp_desk/pages/drivers.py:604 zypp_desk/pages/findrepo.py:509
+#: zypp_desk/pages/drivers.py:611 zypp_desk/pages/findrepo.py:509
 #: zypp_desk/pages/localrpm.py:316 zypp_desk/pages/removedlg.py:104
 #: zypp_desk/pages/repos.py:141 zypp_desk/pages/repotools.py:202
 #: zypp_desk/pages/repotools.py:325 zypp_desk/pages/repotools.py:651
@@ -4208,82 +4209,90 @@ msgstr "Ajouter à la file d'attente"
 #: zypp_desk/pages/drivers.py:557
 #, python-brace-format
 msgid "Added to the queue: NVIDIA's driver, series {series} ({flavor} kernel)."
-msgstr ""
+msgstr "Ajouté à la file d'attente : le pilote NVIDIA, série {series} (noyau {flavor})."
 
 #: zypp_desk/pages/drivers.py:566
 msgid "openSUSE's non-free repository: programs openSUSE may share but not as free software."
-msgstr ""
+msgstr "Le dépôt non libre d'openSUSE : des programmes qu'openSUSE peut distribuer, mais pas en tant que logiciels libres."
 
 #: zypp_desk/pages/drivers.py:568
 msgid "Install Broadcom's driver wl"
-msgstr ""
+msgstr "Installer le pilote wl de Broadcom"
 
 #: zypp_desk/pages/drivers.py:569
 msgid "From openSUSE's non-free repository (repo-non-oss): Broadcom's licence does not allow it to be shipped as free software."
-msgstr ""
+msgstr "Du dépôt non libre d'openSUSE (repo-non-oss) : la licence de Broadcom ne permet pas de le distribuer en tant que logiciel libre."
 
 #: zypp_desk/pages/drivers.py:571
 #, python-brace-format
 msgid "after the next restart, the {card} ({chip}) works with Broadcom's driver wl. It switches off the free drivers b43, bcma, brcmfmac, brcmsmac and ssb, which no other device of this computer uses. It goes to the queue: nothing changes until you apply it."
-msgstr ""
+msgstr "après le prochain redémarrage, la carte {card} ({chip}) fonctionne avec le pilote wl de Broadcom. Il désactive les pilotes libres b43, bcma, brcmfmac, brcmsmac et ssb, qu'aucun autre périphérique de cet ordinateur n'utilise. Cela va dans la file d'attente : rien ne change tant que vous ne l'appliquez pas."
 
 #: zypp_desk/pages/drivers.py:575
 msgid "Broadcom's driver"
-msgstr ""
+msgstr "Pilote Broadcom"
 
 #: zypp_desk/pages/drivers.py:575
 msgid "Install Broadcom's Wi-Fi driver?"
-msgstr ""
+msgstr "Installer le pilote Wi-Fi de Broadcom ?"
 
 #: zypp_desk/pages/drivers.py:582
 msgid "Added to the queue: Broadcom's driver wl."
-msgstr ""
+msgstr "Ajouté à la file d'attente : le pilote wl de Broadcom."
 
-#: zypp_desk/pages/drivers.py:591
+#: zypp_desk/pages/drivers.py:595
 #, python-brace-format
 msgid "Firmware for {device}: its driver loads it when it starts."
-msgstr ""
+msgstr "Micrologiciel pour {device} : son pilote le charge au démarrage."
 
-#: zypp_desk/pages/drivers.py:592
+#: zypp_desk/pages/drivers.py:596
 #, python-brace-format
 msgid "For {device}."
-msgstr ""
+msgstr "Pour {device}."
 
-#: zypp_desk/pages/drivers.py:593 zypp_desk/pages/findrepo.py:436
+#: zypp_desk/pages/drivers.py:598
+msgid "Firmware a driver asked for: it loads it when it starts."
+msgstr "Micrologiciel demandé par un pilote : il le charge au démarrage."
+
+#: zypp_desk/pages/drivers.py:599
+msgid "For a device of this computer."
+msgstr "Pour un périphérique de cet ordinateur."
+
+#: zypp_desk/pages/drivers.py:600 zypp_desk/pages/findrepo.py:436
 #: zypp_desk/pages/repotools.py:671 zypp_desk/txqueue.py:272
 #, python-brace-format
 msgctxt "change"
 msgid "Install {name}"
 msgstr "Installer {name}"
 
-#: zypp_desk/pages/drivers.py:596
+#: zypp_desk/pages/drivers.py:603
 #, python-brace-format
 msgid "Install {name}?"
-msgstr ""
+msgstr "Installer {name} ?"
 
-#: zypp_desk/pages/drivers.py:597
+#: zypp_desk/pages/drivers.py:604
 #, python-brace-format
 msgid "Install these {n} packages?"
 msgid_plural "Install these {n} packages?"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Installer ces {n} paquets ?"
+msgstr[1] "Installer ces {n} paquets ?"
 
-#: zypp_desk/pages/drivers.py:599 zypp_desk/pages/repotools.py:653
+#: zypp_desk/pages/drivers.py:606 zypp_desk/pages/repotools.py:653
 msgid "Zypp Desk will put this in the queue:"
 msgid_plural "Zypp Desk will put this in the queue, in this order:"
 msgstr[0] "Zypp Desk ajoutera ceci à la file d'attente :"
 msgstr[1] "Zypp Desk ajoutera ceci à la file d'attente, dans cet ordre :"
 
-#: zypp_desk/pages/drivers.py:601
+#: zypp_desk/pages/drivers.py:608
 msgid "after the next restart (or when you plug the device in again), its driver finds what it needs. It comes from your repositories. It goes to the queue: nothing changes until you apply it."
-msgstr ""
+msgstr "après le prochain redémarrage (ou quand vous rebranchez le périphérique), son pilote trouve ce dont il a besoin. Cela vient de vos dépôts. Cela va dans la file d'attente : rien ne change tant que vous ne l'appliquez pas."
 
-#: zypp_desk/pages/drivers.py:607
+#: zypp_desk/pages/drivers.py:614
 #, python-brace-format
 msgid "Added to the queue: install {names}."
 msgid_plural "Added to the queue: install {names}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Ajouté à la file d'attente : installer {names}."
+msgstr[1] "Ajouté à la file d'attente : installer {names}."
 
 #: zypp_desk/pages/expert.py:76 zypp_desk/pages/expert.py:89
 #: zypp_desk/pages/history.py:616 zypp_desk/pages/packages.py:18
@@ -7833,6 +7842,9 @@ msgstr ""
 "Enregistré dans {file}.\n"
 "\n"
 "Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk (Paramètres → Changer d'ordinateur, ou ouvrez le fichier)."
+"Enregistré dans {file}.\n"
+"\n"
+"Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk (Paramètres → Changer d'ordinateur, ou ouvrez le fichier)."
 
 #: zypp_desk/pages/migrate.py:221
 msgid "Filter…"
@@ -10628,7 +10640,7 @@ msgid "After the routine, check what must be restarted (zypper ps)"
 msgstr "Après la routine, vérifier ce qui doit être redémarré (zypper ps)"
 
 #: zypp_desk/pages/system.py:823
-msgid "Save in a file the repositories, programs and settings of this computer. On the other computer, open the file with Zypp Desk: everything goes to the queue, for you to look at before applying it. The file has no passwords nor documents."
+msgid "Save in a file the repositories, programs and settings of this computer. On the other computer, open the file with Zypp Desk: everything goes to the queue, for you to look at before applying it. The file has no passwords or documents."
 msgstr "Enregistrez dans un fichier les dépôts, les programmes et les réglages de cet ordinateur. Sur l'autre ordinateur, ouvrez le fichier avec Zypp Desk : tout va dans la file d'attente, pour que vous le vérifiiez avant de l'appliquer. Le fichier ne contient ni mots de passe ni documents."
 
 #: zypp_desk/pages/system.py:927
@@ -14447,6 +14459,12 @@ msgstr "sudo n'est pas nécessaire : Zypp Desk demande lui-même le mot de pass
 #, python-brace-format
 msgid "Only zypper runs here: “{word}” is not a zypper command."
 msgstr "Seul zypper s'exécute ici : « {word} » n'est pas une commande zypper."
+
+#~ msgid "Keep only what is needed…"
+#~ msgstr "Ne garder que le nécessaire…"
+
+#~ msgid "Save in a file the repositories, programs and settings of this computer. On the other computer, open the file with Zypp Desk: everything goes to the queue, for you to look at before applying it. The file has no passwords nor documents."
+#~ msgstr "Enregistrez dans un fichier les dépôts, les programmes et les réglages de cet ordinateur. Sur l'autre ordinateur, ouvrez le fichier avec Zypp Desk : tout va dans la file d'attente, pour que vous le vérifiiez avant de l'appliquer. Le fichier ne contient ni mots de passe ni documents."
 
 #~ msgid "Change zypper's settings (zypp.conf)"
 #~ msgstr "Changer les réglages de zypper (zypp.conf)"

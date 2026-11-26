@@ -1235,7 +1235,7 @@ def check_firmware(facts):
                + [_("Keep {name}: {why}").format(name=n, why=w) for n, w in plan["unsure"]]
                + [_("Remove {name} ({size}): {why}").format(name=n, size=size_text(plan["sizes"].get(n, 0)), why=w)
                   for n, w in plan["remove"]])
-    return [finding(sev, title, text, "firmware", _("Keep only what is needed…"), details, dict(plan=plan),
+    return [finding(sev, title, text, "firmware", _("Show it in Drivers"), details, dict(plan=plan),
                     weight=freed, check="firmware")]
 
 

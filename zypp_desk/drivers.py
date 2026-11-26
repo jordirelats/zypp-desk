@@ -1391,8 +1391,9 @@ def _nvidia_card(d, hw, title):
                      + plan["why"], status, devices=[d], aliases=aliases)
     sb = hw.get("secure_boot")
     if series == "G07":
-        detail = now + " " + _("Proposed: NVIDIA's driver (series {series}, its kernel part is open source) from "
-                               "NVIDIA's repository, signed to start with Secure Boot.").format(series=series)
+        detail = now + " " + _("Proposed: NVIDIA's driver (series {series}). Its kernel part is open source and "
+                               "signed by openSUSE, so it starts with Secure Boot; the rest comes from NVIDIA's "
+                               "repository.").format(series=series)
         status = "better"
     elif not plan["legacy"]:
         detail = now + " " + _("Proposed: NVIDIA's driver for older cards (series {series}), from NVIDIA's "
