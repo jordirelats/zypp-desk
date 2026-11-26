@@ -1,4 +1,25 @@
 -------------------------------------------------------------------
+Thu Nov 26 18:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.4: every button says what it acts on
+  * Labels name their object: everything, the one item, the n ticked,
+    or the queue ("Update everything (97)…", "Simulate only digikam",
+    "Put digikam in the queue", "Apply the queue…")
+  * Green only for what changes the computer now (after a question);
+    buttons and answers that only fill the queue are never green and
+    stand behind "To the queue:"
+  * Updates: "Update everything (n)…" asks first when some rows are
+    unticked, and offers to update only the ticked ones; the tray and
+    the command line go through the same question
+  * "Stop after this step" shows that it will stop, and the terminal
+    says at once what will not run
+  * No repeated labels: each Maintenance task says its own action
+  * Every button has a tooltip with what it does and its command
+  * The queue bar and the terminal say "the queue" / "the terminal";
+    in a narrow window the queue bar's labels get short
+  * Help and translations updated
+
+-------------------------------------------------------------------
 Thu Nov 26 13:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.3:

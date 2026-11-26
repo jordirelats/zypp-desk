@@ -60,6 +60,13 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.4" date="2026-11-26">
+      <description>
+        <p>Every button says what it acts on (everything, the item, the ticked ones or the queue); green only for
+          what changes the computer now; buttons that only fill the queue say so; Updates asks before updating
+          everything when some rows are unticked; and every button has a tooltip with its command.</p>
+      </description>
+    </release>
     <release version="0.5.3" date="2026-11-26">
       <description>
         <p>A Drivers page with the driver of each device, proprietary drivers when they work better and what the
