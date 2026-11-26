@@ -237,6 +237,20 @@ def rpm_query(args):
     return p.stdout if p.returncode == 0 else ""
 
 
+def installed_among(names):
+    """The names, among these package names, of the packages that are installed (one rpm call)."""
+    names = [n for n in names if n and not n.startswith("-")]
+    if not names:
+        return set()
+    try:
+        p = subprocess.run(["rpm", "-q", "--qf", "%{NAME}\n", "--", *names], capture_output=True, text=True,
+                           errors="replace", env=ENV_C, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return set(names)  # it cannot be told: as if they were all there
+    # an installed package prints its name; one that is not prints "package X is not installed"
+    return {line.strip() for line in p.stdout.splitlines()} & set(names)
+
+
 def files_of(name):
     return rpm_query(["-ql", name])
 

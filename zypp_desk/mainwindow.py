@@ -814,7 +814,34 @@ class MainWindow(QMainWindow):
         if want and len(self.queue):
             self.apply_queue()
 
+    def _drop_stale_removals(self):
+        """Removals of packages that are no longer installed leave the queue, and the terminal says so: zypper
+        would stop on them (code 104, "No provider found"). It happens when a page still showed a package an
+        earlier Apply removed."""
+        from .txqueue import SOLVABLE_KINDS
+        by_name = {}
+        for a in self.queue.actions:
+            if a.kind != "remove" or a.opts.get("type", "package") != "package":
+                continue
+            target = a.opts.get("package") or a.target
+            head, _sep, rest = target.partition(":")
+            if rest and head in SOLVABLE_KINDS and head != "package":
+                continue  # a pattern, a product…: not an rpm package
+            name = (rest or head).split("=", 1)[0].strip()
+            if name and not any(c in name for c in "*?[<>"):
+                by_name.setdefault(name, []).append(a)
+        if not by_name:
+            return
+        have = backend.installed_among(list(by_name))
+        gone = [n for n in by_name if n not in have]
+        if gone:
+            self.queue.discard_actions([a for n in gone for a in by_name[n]])
+            self.terminal.view.note(ngettext("{names} is no longer installed: it left the queue.",
+                                             "{names} are no longer installed: they left the queue.",
+                                             len(gone)).format(names=", ".join(gone)), "info")
+
     def simulate_queue(self):
+        self._drop_stale_removals()
         # what is simulated and shown is what will be applied: a snapshot of the queue at this moment
         snapshot = list(self.queue.actions)
         preview = self.queue.preview()
@@ -908,6 +935,7 @@ class MainWindow(QMainWindow):
     def apply_queue(self, confirm=True, expected=None, why=None):
         """Apply the queue, after the Apply question (confirm=False: the simulation window already asked, for the
         queue it simulated: expected). why: why the question is asked again ("simulation", "question")."""
+        self._drop_stale_removals()
         actions = list(self.queue.actions)
         steps = self.queue.steps()
         if not steps:

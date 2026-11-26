@@ -31,6 +31,8 @@ Thu Nov 26 13:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.g
   * Languages asked for are shown again (newer zypper says "Requested")
   * Packages: after Apply, a list such as Orphaned is shown again as it
     is now (a removed package no longer stays in it, ticked)
+  * Simulate and Apply take out of the queue the removal of a package that
+    is no longer installed, and say so, instead of stopping with code 104
   * Recommends squashfs and python3-solv
 
 -------------------------------------------------------------------
