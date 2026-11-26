@@ -514,6 +514,9 @@ class RoutineEditorDialog(QDialog):
         self.hand_btn = tool(_("Write it by hand"), "document-edit", self.toggle_hand, self)
         self.hand_btn.setStyleSheet("color: palette(link);")
         foot.addWidget(self.hand_btn)
+        proposed = tool(_("Proposed routines…"), "view-list-details", self.open_proposals, self)
+        proposed.setStyleSheet("color: palette(link);")
+        foot.addWidget(proposed)
         foot.addStretch(1)
         usual = button(_("Back to the usual one"), None, self.back_to_usual)
         usual.setToolTip(routine.DEFAULT_ROUTINE)
@@ -637,6 +640,24 @@ class RoutineEditorDialog(QDialog):
             self.text_edit.setPlainText(routine.DEFAULT_ROUTINE)
         else:
             self.items = routine.to_items(routine.DEFAULT_ROUTINE)
+            self.rebuild()
+
+    def open_proposals(self):
+        """Ready routines, the first one made for this computer; the chosen one replaces the steps (not saved
+        until Save)."""
+        from .routine_proposals import ProposalsDialog
+        current = join_lines(self.text_edit.toPlainText()) if self.in_hand_mode() else routine.from_items(self.items)
+        dlg = ProposalsDialog(current, self)
+        try:
+            if not dlg.exec() or not dlg.chosen:
+                return
+            text = dlg.chosen
+        finally:
+            dlg.deleteLater()
+        if self.in_hand_mode():
+            self.text_edit.setPlainText(text)
+        else:
+            self.items = routine.to_items(text)
             self.rebuild()
 
     def save(self):

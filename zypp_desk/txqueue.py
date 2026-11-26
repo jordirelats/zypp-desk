@@ -670,6 +670,8 @@ OPPOSITE = {"install": "remove", "remove": "install", "lock": "unlock", "unlock"
 
 class TxQueue(QObject):
     changed = Signal()
+    # a change the queue did not take, and why (the removal of a protected app): the window says so
+    refused = Signal(str)
 
     def __init__(self, settings, parent=None):
         super().__init__(parent)
@@ -735,6 +737,12 @@ class TxQueue(QObject):
 
     # ---------------------------------------------------------- editing
     def add(self, action):
+        from . import protect
+        target = protect.action_target(action)
+        if target and self.settings is not None and protect.is_protected(self.settings, *target):
+            self.refused.emit(_("{name} is protected, so it is not removed. To remove it, first choose “Stop "
+                                "protecting it” on its card in Applications.").format(name=target[1]))
+            return
         idx = self._idx()
         key = _key(action)
         if action.kind == "repo-modify":

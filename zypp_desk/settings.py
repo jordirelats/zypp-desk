@@ -34,6 +34,8 @@ DEFAULTS = {
     "temp_locks": [],
     # 2 once the tray's autostart entry was moved to the package's /etc/xdg/autostart one (tray.migrate_autostart)
     "autostart_scheme": 0,
+    # apps never removed through Zypp Desk until unprotected: "flatpak:<app id>" or "rpm:<package>" (protect.py)
+    "protected_apps": [],
     # repositories for Fedora (/etc/yum.repos.d) whose banner was answered "Not now": "<file>#<section>"
     "yum_dismissed": [],
 }

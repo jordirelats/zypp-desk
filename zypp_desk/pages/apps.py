@@ -9,6 +9,7 @@ Two tabs:
 """
 
 import html
+import os
 import re
 from pathlib import Path
 
@@ -26,6 +27,9 @@ from ..txqueue import Action
 from ..ui import Chip, FlowLayout, Page, button, heading, icon, muted
 from .home import Tile
 from .markbar import MarkBar, check_rect, is_checked, paint_check
+
+MARK_ROLE = Qt.ItemDataRole.UserRole + 7  # True on the rows that can be marked (Discover); QListWidgetItem is
+#                                           user-checkable by default, so its flags cannot tell them apart
 
 TEAL = "#16a085"
 PINK = "#e93a9a"
@@ -163,7 +167,7 @@ class AppDelegate(QStyledItemDelegate):
             p.setBrush(QColor(39, 174, 96, 24))
             p.drawRoundedRect(r, 10, 10)
         shift = 0
-        if index.flags() & Qt.ItemFlag.ItemIsUserCheckable:  # Discover: mark several (mockup multiple-v1-B)
+        if index.data(MARK_ROLE):  # Discover: mark several (mockup multiple-v1-B)
             paint_check(p, check_rect(r), is_checked(index.data(Qt.ItemDataRole.CheckStateRole)), option.palette)
             shift = 28
         self.page.app_icon(a).paint(p, QRect(r.left() + 10 + shift, r.top() + (r.height() - 38) // 2, 38, 38))
@@ -220,7 +224,7 @@ class AppDelegate(QStyledItemDelegate):
 
     def editorEvent(self, event, model, option, index):
         """A click on the box (or Space on the row) ticks it; a click elsewhere still opens the program's card."""
-        if not (index.flags() & Qt.ItemFlag.ItemIsUserCheckable):
+        if not index.data(MARK_ROLE):
             return False
         toggle = False
         if event.type() == QEvent.Type.MouseButtonRelease and check_rect(option.rect.adjusted(4, 2, -4, -2)) \
@@ -648,6 +652,20 @@ class AppsPage(Page):
             f = appicons.flatpak_icon_file(a["package"])
             if f:
                 ic = QIcon(f)
+        if ic.isNull() and a["kind"] == "flatpak":
+            # the icon the installed app exported (QBZ is no longer in Flathub's catalogue)
+            for base in ("/var/lib/flatpak/exports/share/icons/hicolor",
+                         os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor")):
+                for size in ("scalable", "256x256", "128x128", "64x64", "48x48"):
+                    for ext in ("svg", "png"):
+                        f = os.path.join(base, size, "apps", f"{a['package']}.{ext}")
+                        if os.path.isfile(f):
+                            ic = QIcon(f)
+                            break
+                    if not ic.isNull():
+                        break
+                if not ic.isNull():
+                    break
         if ic.isNull():
             ic = icon("application-x-executable", "package-x-generic")
         self._icons[key] = ic
@@ -694,9 +712,49 @@ class AppsPage(Page):
                 out.append((_("installed"), GREEN, False))
         elif self.update_of(a):
             out.append((_("update"), GREEN, True))
+        if not a.get("catalogue") and self.is_protected(a):
+            out.append((_("protected"), PURPLE, True))
         text, color = self.origin_badge(a)
         out.append((text if len(text) <= 34 else text[:32] + "…", color, False))
         return out
+
+    # ------------------------------------------------------------ protected apps (protect.py)
+    def is_protected(self, a):
+        from .. import protect
+        return protect.is_protected(self.ctx.settings, a["kind"], a["package"])
+
+    def toggle_protect(self, a):
+        from .. import protect, question
+        on = not self.is_protected(a)
+        if on:
+            ok = question.confirm(
+                self, _("Protect {name}?").format(name=a["name"]), _("Yes, protect it"),
+                icon_name="security-high",
+                items=[("security-high", _("Never remove it by mistake"),
+                        _("Zypp Desk refuses to remove it, from any page, until you stop protecting it."))],
+                means=_("nothing changes now: it is only a mark in Zypp Desk. Updates still come, unless it is "
+                        "masked in Flatpak."), password=False, help_topic="programs")
+            if not ok:
+                return
+        protect.set_protected(self.ctx.settings, a["kind"], a["package"], on)
+        self.mine_list.viewport().update()
+        self._show_installed(self.mine_list.currentItem())
+
+    def save_bundle(self, a):
+        """A copy of an installed Flatpak app as one file: it can be installed again when the remote no longer
+        has it (QBZ: "no longer maintained or distributed")."""
+        from PySide6.QtWidgets import QFileDialog
+        from .. import protect
+        folder = os.path.expanduser("~/MEGA/0-RPM/flatpak")
+        if not os.path.isdir(folder):
+            folder = os.path.expanduser("~")
+        name = f"{a['package']}-{a.get('version') or 'stable'}.flatpak"
+        path, _f = QFileDialog.getSaveFileName(self, _("Save a copy of {name}").format(name=a["name"]),
+                                               os.path.join(folder, name), "Flatpak (*.flatpak)")
+        if not path:
+            return
+        self.ctx.run([protect.bundle_step(a["package"], path, a.get("installation") or "system")],
+                     _("Save a copy of {name}").format(name=a["name"]))
 
     def _queue_changed(self):
         self.mine_list.viewport().update()
@@ -774,6 +832,9 @@ class AppsPage(Page):
                      "published.")
         elif a["origin"] == "web":
             note = _("Web sources looks for new versions of this program.")
+        if self.is_protected(a):
+            note = (note + "\n\n" if note else "") + _("Protected: Zypp Desk does not remove it until you stop "
+                                                       "protecting it.")
         if state:
             note = (note + "\n\n" if note else "") + _("In the queue: {change}.").format(change=self._state_text(state))
         self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "", rows, note)
@@ -785,11 +846,20 @@ class AppsPage(Page):
                                primary=True))
         elif new and not state:
             btns.append(button(_("Update"), "system-software-update", lambda: self._queue_update(a), primary=True))
+        guarded = self.is_protected(a)
         if state:
             btns.append(button(_("Drop from the queue"), "edit-undo", lambda: self._drop(a)))
         else:
-            btns.append(button(_("Remove") if a["kind"] == "rpm" else _("Uninstall"), "edit-delete",
-                               lambda: self._queue_remove(a)))
+            rm = button(_("Remove") if a["kind"] == "rpm" else _("Uninstall"), "edit-delete",
+                        lambda: self._queue_remove(a))
+            if guarded:
+                rm.setEnabled(False)
+                rm.setToolTip(_("It is protected: stop protecting it first."))
+            btns.append(rm)
+        btns.append(button(_("Stop protecting it") if guarded else _("Protect it"),
+                           "security-low" if guarded else "security-high", lambda: self.toggle_protect(a)))
+        if a["kind"] == "flatpak":
+            btns.append(button(_("Save a copy…"), "document-save", lambda: self.save_bundle(a)))
         if a["origin"] == "web":
             btns.append(button(_("Open Web sources"), "internet-web-browser", lambda: self.ctx.go("websources")))
         if a["kind"] == "flatpak":
@@ -948,7 +1018,7 @@ class AppsPage(Page):
             it.setData(Qt.ItemDataRole.UserRole, a)
             it.setToolTip(a["package"])
             if not self.is_installed(a):  # only what you can install can be marked
-                it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
+                it.setData(MARK_ROLE, True)
                 it.setCheckState(Qt.CheckState.Checked if (a["kind"], a["package"]) in self.disc_marked
                                  else Qt.CheckState.Unchecked)
             n += 1
@@ -961,7 +1031,7 @@ class AppsPage(Page):
     # ------------------------------------------------ marking several in Discover
     def _disc_item_changed(self, item):
         a = item.data(Qt.ItemDataRole.UserRole)
-        if not a or not (item.flags() & Qt.ItemFlag.ItemIsUserCheckable):
+        if not a or not item.data(MARK_ROLE):
             return
         key = (a["kind"], a["package"])
         if is_checked(item.checkState()):
@@ -984,7 +1054,7 @@ class AppsPage(Page):
         try:
             for i in range(self.disc_list.count()):
                 it = self.disc_list.item(i)
-                if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                if it.data(MARK_ROLE):
                     it.setCheckState(Qt.CheckState.Unchecked)
         finally:
             self.disc_list.blockSignals(False)

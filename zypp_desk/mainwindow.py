@@ -439,6 +439,7 @@ class MainWindow(QMainWindow):
         self.resize(1360, 860)
         self.settings = Settings()
         self.queue = TxQueue(self.settings, self)
+        self.queue.refused.connect(lambda text: info_box(self, APP_NAME, text))
         self.runner = Runner(self)
         self._on_done = None
         self._starting = False  # inside self.runner.run(): a run that ends at once is answered a moment later

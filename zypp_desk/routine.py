@@ -17,6 +17,7 @@ the previous one ('always' = ';', 'success' = '&&'; ignored for the first) and '
 written. A command that is not one of the known kinds is kept as it is, as kind "custom".
 """
 
+import os
 import shlex
 
 from .i18n import _
@@ -465,3 +466,90 @@ def item_error(item):
     except RoutineError as e:
         return str(e)
     return None
+
+
+# ------------------------------------------------------------------ proposed routines
+# (Jordi, 26/11/2026: "podem proposar rutines?"; mockup maquetes/rutines-v1-A-proposades.png). The first one is
+# made for this computer from what it has (machine_facts); the others are fixed.
+LOW_SPACE = 10 * 1024 ** 3  # less free space than this on / : the proposal also cleans
+
+
+def machine_facts():
+    """What the proposal for this computer depends on (in a thread: it runs flatpak and statvfs)."""
+    import shutil
+    import subprocess
+    facts = dict(flatpak_apps=[], firmware=bool(shutil.which("fwupdmgr")), free=None)
+    if shutil.which("flatpak"):
+        try:
+            p = subprocess.run(["flatpak", "list", "--app", "--columns=name"], capture_output=True, text=True,
+                               timeout=30)
+            facts["flatpak_apps"] = [x.strip() for x in p.stdout.splitlines() if x.strip()]
+        except (OSError, subprocess.SubprocessError):
+            pass
+    try:
+        st = os.statvfs("/")
+        facts["free"] = st.f_bavail * st.f_frsize
+    except OSError:
+        pass
+    return facts
+
+
+def proposals(current, facts):
+    """[dict(key, title, what, why: [str], text, tag)] — the routine for this computer first, then yours, then the
+    fixed ones. 'tag' is "suggested", "yours" or ""."""
+    from .i18n import ngettext
+    usual = "zypper -v ref ; zypper -v dup -d -l && zypper -v dup"
+    steps, why = [usual], []
+    apps = facts.get("flatpak_apps") or []
+    if apps:
+        steps.append("flatpak update -y")
+        why.append(ngettext("You have {n} Flatpak app ({names}) and nothing else updates it",
+                            "You have {n} Flatpak apps ({names}) and nothing else updates them", len(apps)).format(
+            n=len(apps), names=", ".join(apps[:4])))
+    if facts.get("firmware"):
+        steps.append("fwupdmgr update")
+        why.append(_("fwupd is installed: the firmware can have new versions too"))
+    free = facts.get("free")
+    clean = free is not None and free < LOW_SPACE
+    if clean:
+        steps += ["zypper purge-kernels", "zypper clean"]
+        why.append(_("Only {size} free on the system disk: old kernels and downloaded packages are worth "
+                     "removing").format(size=_gib(free)))
+    steps.append("zypper ps -s")
+    why.append(_("It tells you at the end which programs need a restart"))
+    full = " ; ".join(steps)
+    out = [dict(key="suggested", title=_("Complete, with cleaning") if clean else _("Complete"),
+                what=_("Updates the system, the Flatpak apps and the firmware, removes what is no longer needed and "
+                       "tells you what needs a restart.") if clean else
+                _("Updates the system, the Flatpak apps and the firmware, and tells you what needs a restart."),
+                why=why, text=full, tag="suggested")]
+    if (current or "").strip() and current.strip() != full:
+        out.append(dict(key="yours", title=_("Yours now"), what=_("The routine you have saved."), why=[],
+                        text=current.strip(), tag="yours"))
+    elif (current or "").strip() == full:
+        out[0]["tag"] = "suggested-yours"
+    out.append(dict(key="usual", title=_("The usual one"),
+                    what=_("Refreshes, downloads everything and installs it only if everything was downloaded."),
+                    why=[_("If a download fails, nothing is installed")], text=usual, tag=""))
+    out.append(dict(key="download", title=_("Only download it"),
+                    what=_("Leaves everything downloaded without installing anything. When you want, the routine or "
+                           "the dup only install, much faster."),
+                    why=[_("Good before you stop working, to update the next day")],
+                    text="zypper -v ref ; zypper -v dup -d -l", tag=""))
+    out.append(dict(key="quick", title=_("Quick"),
+                    what=_("Refreshes and updates the system in one go, without downloading first."),
+                    why=[_("Fewer steps; if the connection fails halfway, the update stops halfway")],
+                    text="zypper -v ref && zypper -v dup", tag=""))
+    # no two cards with the same routine
+    seen, uniq = set(), []
+    for p in out:
+        if p["text"] in seen:
+            continue
+        seen.add(p["text"])
+        uniq.append(p)
+    return uniq
+
+
+def _gib(n):
+    from PySide6.QtCore import QLocale
+    return QLocale().toString(n / 1024 ** 3, "f", 1) + " GiB"
