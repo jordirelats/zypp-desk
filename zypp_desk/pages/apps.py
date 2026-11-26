@@ -653,7 +653,7 @@ class AppsPage(Page):
             if f:
                 ic = QIcon(f)
         if ic.isNull() and a["kind"] == "flatpak":
-            # the icon the installed app exported (QBZ is no longer in Flathub's catalogue)
+            # the icon the installed app exported (an app that left Flathub's catalogue has none there)
             for base in ("/var/lib/flatpak/exports/share/icons/hicolor",
                          os.path.expanduser("~/.local/share/flatpak/exports/share/icons/hicolor")):
                 for size in ("scalable", "256x256", "128x128", "64x64", "48x48"):
@@ -742,17 +742,22 @@ class AppsPage(Page):
 
     def save_bundle(self, a):
         """A copy of an installed Flatpak app as one file: it can be installed again when the remote no longer
-        has it (QBZ: "no longer maintained or distributed")."""
+        has it (an app marked "no longer maintained or distributed")."""
         from PySide6.QtWidgets import QFileDialog
         from .. import protect
-        folder = os.path.expanduser("~/MEGA/0-RPM/flatpak")
-        if not os.path.isdir(folder):
-            folder = os.path.expanduser("~")
+        # the folder used last time, else the user's Documents (never a folder of one particular computer)
+        from PySide6.QtCore import QStandardPaths
+        folder = self.ctx.settings.get("bundle_folder") or ""
+        if not folder or not os.path.isdir(folder):
+            folder = (QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation)
+                      or os.path.expanduser("~"))
         name = f"{a['package']}-{a.get('version') or 'stable'}.flatpak"
         path, _f = QFileDialog.getSaveFileName(self, _("Save a copy of {name}").format(name=a["name"]),
                                                os.path.join(folder, name), "Flatpak (*.flatpak)")
         if not path:
             return
+        self.ctx.settings["bundle_folder"] = os.path.dirname(path)
+        self.ctx.settings.save()
         self.ctx.run([protect.bundle_step(a["package"], path, a.get("installation") or "system")],
                      _("Save a copy of {name}").format(name=a["name"]))
 
