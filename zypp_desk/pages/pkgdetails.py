@@ -15,7 +15,7 @@ import re
 import subprocess
 from functools import cmp_to_key
 
-from PySide6.QtCore import QLocale, Qt
+from PySide6.QtCore import QLocale, Qt, QTimer
 from PySide6.QtGui import QTextOption
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPlainTextEdit, QStackedWidget, QTabWidget, QTextBrowser,
                                QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
@@ -24,7 +24,7 @@ from .. import backend
 from ..i18n import _
 from ..style import GREEN, ORANGE
 from ..tasks import run_async
-from ..txqueue import Action
+from ..txqueue import Action, TxQueue
 from ..ui import FlowLayout, button, heading, mono, muted
 
 DEP_LABELS = {"Provides": _("Provides"), "Requires": _("Requires"), "Recommends": _("Recommends"),
@@ -173,13 +173,33 @@ class PackageDetails(QWidget):
         self.b_custom.hide()
         self._custom_slot = None
         self.b_custom.clicked.connect(lambda: self._custom_slot and self._custom_slot())
+        # Every button after this label only changes the queue: nothing happens to the computer until the queue
+        # is applied. They are never green (the green ones change the system now).
+        self.to_queue = QLabel(_("To the queue:"), self)
+        self.to_queue.setToolTip(_("These buttons only change the queue. Nothing happens to the computer until you "
+                                   "apply the queue."))
+        self.to_queue.setStyleSheet(f"color: {ORANGE}; font-weight: bold;")
+        self.to_queue.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+        # a host's own button that only queues (the firmware's Update), after the label
+        self.b_qcustom = button("", "system-software-update", None)
+        self.b_qcustom.hide()
+        self.b_qcustom.clicked.connect(self._qcustom_clicked)
+        self._custom_queue = False
+        self._flash = QTimer(self)  # "In the queue ✓" for a moment on the host's queue button
+        self._flash.setSingleShot(True)
+        self._flash.setInterval(1600)
+        self._flash.timeout.connect(lambda: self.b_qcustom.setText(self._custom_label))
+        self._custom_label = ""
         self.b_install = button(_("Install"), "list-add", lambda: self.queue_current("install"))
         self.b_update = button(_("Update"), "system-software-update", lambda: self.queue_current("install"))
         self.b_remove = button(_("Remove…"), "edit-delete", self.remove_current)
         self.b_keep = button(_("Leave as it is"), "edit-undo", self.unqueue_current)
         self.b_lock = button(_("Lock"), "object-locked", self.lock_current)
-        for b in (self.b_custom, self.b_install, self.b_update, self.b_remove, self.b_keep, self.b_lock):
+        self.to_queue.setMinimumHeight(self.b_update.sizeHint().height())  # in line with the buttons
+        for b in (self.b_custom, self.to_queue, self.b_qcustom, self.b_install, self.b_update, self.b_remove,
+                  self.b_keep, self.b_lock):
             btns.addWidget(b)
+        self._queue_btns = (self.b_qcustom, self.b_install, self.b_update, self.b_remove, self.b_keep, self.b_lock)
         v.addWidget(btn_box)
         self.tabs = QTabWidget(self)
         self.tabs.setUsesScrollButtons(True)
@@ -231,18 +251,68 @@ class PackageDetails(QWidget):
             return _("Installed"), None, "checkmark"
         return _("Not installed"), None, ""
 
-    def set_custom(self, label=None, slot=None):
-        """A main button of the host page (for example 'Download the new version'); None hides it."""
+    def set_custom(self, label=None, slot=None, tip=None, queue=False):
+        """A main button of the host page (for example 'Download the new version'); None hides it. queue=True: a
+        button that only puts something in the queue (the firmware's 'Update'): it goes after "To the queue:" and
+        is never green. tip: its tooltip (what it does, on what, and the command)."""
         self._custom_slot = slot
-        self.b_custom.setText(label or "")
-        self.b_custom.setVisible(bool(label))
+        self._custom_queue = bool(queue and label)
+        self._custom_label = label or ""
+        self._flash.stop()
+        main, other = (self.b_qcustom, self.b_custom) if self._custom_queue else (self.b_custom, self.b_qcustom)
+        main.setText(label or "")
+        main.setToolTip(tip or "")
+        main.setVisible(bool(label))
+        other.setText("")
+        other.setToolTip("")
+        other.hide()
         self.set_buttons(self.current)
+
+    def _qcustom_clicked(self):
+        if self._custom_slot:
+            self._custom_slot()
+            # the card of a firmware shows no state: the button says it happened
+            self.b_qcustom.setText(_("In the queue ✓"))
+            self._flash.start()
+
+    def _queue_commands(self, action):
+        """The command the queue runs for this change alone (the queue's own code and the user's settings)."""
+        try:
+            q = TxQueue(getattr(self.ctx.queue, "settings", None) or {})
+            q.add(action)
+            return "\n".join(st.display() for st in q.steps())
+        except Exception:  # only a tooltip
+            return ""
+
+    def _tips(self, d):
+        """What each button does to this package, and the exact command the queue will run."""
+        name = d["name"]
+        target = name if d["kind"] == "package" else f"{d['kind']}:{name}"
+        after = _("Nothing changes until you apply the queue, which runs:")
+
+        def tip(text, action):
+            cmd = self._queue_commands(action)
+            return text + ("\n" + after + "\n" + cmd if cmd else "")
+
+        self.b_install.setToolTip(tip(_("Puts {name} in the queue, to be installed.").format(name=name),
+                                      Action("install", target, package=name)))
+        self.b_update.setToolTip(tip(_("Puts {name} in the queue, to be updated.").format(name=name),
+                                     Action("install", target, package=name)))
+        self.b_remove.setToolTip(_("Asks first whether what only {name} needed goes too, then puts the removal in "
+                                   "the queue (zypper remove, with --clean-deps if you choose it).").format(name=name))
+        self.b_keep.setToolTip(_("Takes {name} out of the queue: nothing will be done to it.").format(name=name))
+        if name in self.host.locked_names:
+            self.b_lock.setToolTip(tip(_("Puts the unlocking of {name} in the queue: zypper may then install, "
+                                         "update or remove it again.").format(name=name), Action("unlock", name)))
+        else:
+            self.b_lock.setToolTip(tip(_("Puts a lock on {name} in the queue: zypper will then leave it as it is "
+                                         "(no install, update or removal).").format(name=name), Action("lock", name)))
 
     def set_buttons(self, d):
         state = self.ctx.queue.state_of(d["name"]) if d else None
         installed = bool(d and d["installed"])
         is_pkg = bool(d and d["kind"] == "package")
-        custom = self.b_custom.isVisibleTo(self) or bool(self._custom_slot)
+        custom = (self.b_custom.isVisibleTo(self) or self.b_qcustom.isVisibleTo(self) or bool(self._custom_slot))
         self.b_install.setVisible(bool(d) and not installed and state is None and d["kind"] != "srcpackage")
         self.b_update.setVisible(bool(d) and self.updatable(d) and state is None and not custom)
         self.b_remove.setVisible(installed and state is None and is_pkg)
@@ -251,6 +321,9 @@ class PackageDetails(QWidget):
         if d:
             locked = d["name"] in self.host.locked_names
             self.b_lock.setText(_("Unlock") if locked else _("Lock"))
+            self._tips(d)
+        # "To the queue:" only in front of buttons that are there
+        self.to_queue.setVisible(any(not b.isHidden() for b in self._queue_btns))
 
     def show_state(self, d):
         """One short word under the name (the versions and where they come from are in the table)."""

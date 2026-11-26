@@ -13,7 +13,7 @@ from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from .. import zyppconf
-from ..i18n import _
+from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
@@ -357,7 +357,10 @@ class ZyppConfCard(Card):
         self.pending_text = QLabel(self.pending_box)
         self.pending_text.setWordWrap(True)
         pb.addWidget(self.pending_text, 1)
-        pb.addWidget(button(_("Take out of the queue"), "edit-undo", self._discard, parent=self.pending_box), 0)
+        self.discard_btn = button(_("Take the values out of the queue"), "edit-undo", self._discard,
+                                  parent=self.pending_box)
+        self.discard_btn.setToolTip(_("Takes this change out of the queue, now: the file stays as it is."))
+        pb.addWidget(self.discard_btn, 0)
         self.pending_box.hide()
         self.lay.addWidget(self.pending_box)
         foot = muted(_("Saved in {dropin}. openSUSE's file ({vendor}) is not touched.").format(
@@ -371,7 +374,10 @@ class ZyppConfCard(Card):
         btns.setContentsMargins(0, 6, 0, 0)
         btns.addStretch(1)
         self.defaults_btn = button(_("Back to the defaults"), "edit-reset", self._defaults, parent=self)
-        self.add_btn = button(_("Add the changes to the queue"), "list-add", self._add, primary=True, parent=self)
+        # it only puts the change in the queue: never the green button (that one changes the computer now)
+        self.add_btn = button(_("Put the changes in the queue"), "list-add", self._add, parent=self)
+        self.add_btn.setToolTip(_("Puts the values you changed here in the queue. They are written to {file} when "
+                                  "you apply the queue.").format(file=zyppconf.DROPIN))
         btns.addWidget(self.defaults_btn)
         btns.addWidget(self.add_btn)
         self.lay.addLayout(btns)
@@ -467,17 +473,31 @@ class ZyppConfCard(Card):
             return
         pending = self._pending_settings()
         shown, disk = self._shown(), self.snap.effective()
-        dirty = False
+        edited = 0
         for key, row in self.rows.items():
             row.show_state(shown[key], disk[key], pending is not None)
-            dirty |= row.value() != shown[key]["value"]
+            edited += row.value() != shown[key]["value"]
+        dirty = bool(edited)
         self.add_btn.setEnabled(dirty)
+        self.add_btn.setText(ngettext("Put the change in the queue", "Put the {n} changes in the queue",
+                                      edited).format(n=edited) if edited else _("Put the changes in the queue"))
         # nothing to do when the deletion is already queued, or when there is no file and nothing queued
         self.defaults_btn.setEnabled(dirty or bool(pending) or (pending is None and self.snap.ours_exists))
+        if self.snap.ours_exists:  # a question follows; the file is deleted when the queue is applied
+            self.defaults_btn.setText(_("Put the defaults in the queue…"))
+            self.defaults_btn.setToolTip(_("Asks first, then puts the deletion of {file} in the queue: openSUSE's "
+                                           "values apply again.").format(file=zyppconf.DROPIN) + "\n"
+                                         + "rm " + zyppconf.DROPIN)
+        else:  # no file of Zypp Desk: the controls go back and what waits in the queue comes out, now
+            self.defaults_btn.setText(_("Back to the defaults"))
+            self.defaults_btn.setToolTip(_("Shows openSUSE's values again and takes Zypp Desk's values out of the "
+                                           "queue, now. Nothing on the disk changes."))
         if pending is not None:
             self.pending_text.setText(
                 _("Zypp Desk's file will be deleted when you apply the queue.") if not pending else
                 _("These values are in the queue: they are written when you apply it."))
+            self.discard_btn.setText(_("Take the deletion out of the queue") if not pending else
+                                     _("Take the values out of the queue"))
         self.pending_box.setVisible(pending is not None)
 
     def _edited(self):

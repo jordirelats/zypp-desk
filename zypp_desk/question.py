@@ -227,12 +227,14 @@ def commands(cmds, title=None):
 
 
 class Question(QDialog):
-    """The question. buttons: a list of (key, text, primary); exec() returns the key of the button pressed (None
-    when the window is closed). The default (Enter) is the first button that is not primary."""
+    """The question. buttons: a list of (key, text, primary) or (key, text, primary, tooltip); exec() returns the key
+    of the button pressed (None when the window is closed). The default (Enter) is the first button that is not
+    primary. queue=True: the answer only puts changes in the queue, so it is not green (green is kept for what
+    changes the computer now); Enter still goes to the first button that is not primary."""
 
     def __init__(self, parent, title, *, window_title=None, icon_name="system-software-update", lead=None,
                  items=(), means=None, warning=None, extra=(), commands_=None, commands_title=None, password=True,
-                 buttons=None, width=660, help_topic=None):
+                 buttons=None, width=660, help_topic=None, queue=False):
         super().__init__(parent)
         self.setWindowTitle(window_title or title)
         self.setModal(True)
@@ -303,10 +305,13 @@ class Question(QDialog):
         buttons = buttons or [("no", _("Not yet"), False), ("yes", _("Yes"), True)]
         default_set = False
         self.buttons = {}
-        for key, text, primary in buttons:
+        for key, text, primary, *tip in buttons:
             b = QPushButton(text)
+            if tip and tip[0]:
+                b.setToolTip(tip[0])
             if primary:
-                b.setProperty("primary", True)
+                if not queue:
+                    b.setProperty("primary", True)
                 b.setAutoDefault(False)  # Enter never starts a change
             elif not default_set:
                 b.setDefault(True)
@@ -411,6 +416,7 @@ def ask_change(parent, title, **kw):
 
 
 def confirm(parent, title, yes, **kw):
-    """The common case: 'Not yet' and one primary button. True when the primary one is pressed."""
+    """The common case: 'Not yet' and one primary button. True when the primary one is pressed. queue=True when
+    the answer only puts changes in the queue (it is then not green)."""
     kw.setdefault("buttons", [("no", _("Not yet"), False), ("yes", yes, True)])
     return ask_change(parent, title, **kw) == "yes"

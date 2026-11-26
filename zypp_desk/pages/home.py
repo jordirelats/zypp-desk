@@ -3,7 +3,7 @@
 
 import html
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QLocale, Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
 
 from .. import backend, flatpak, langcheck, websources
@@ -12,6 +12,7 @@ from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Page, button, heading, icon, muted
+from .markbar import queue_label
 
 
 class Tile(QFrame):
@@ -107,7 +108,10 @@ class HomePage(Page):
         self.lang_text.setWordWrap(True)
         self.lang_text.setTextFormat(Qt.TextFormat.PlainText)
         ln.addWidget(self.lang_text, 1)
-        self.lang_btn = button("", "list-add", self._add_language, primary=True)
+        # it only puts the language in the queue: it says so, and it is not the green button
+        self.lang_queue = queue_label(self.lang_note)
+        ln.addWidget(self.lang_queue, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.lang_btn = button("", "list-add", self._add_language)
         ln.addWidget(self.lang_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         self.lang_note.hide()
         self._lang_code = None
@@ -131,20 +135,30 @@ class HomePage(Page):
         grid.setSpacing(12)
         self.t_updates = Tile("system-software-update", _("System updates"), GREEN)
         self.t_updates.clicked.connect(lambda: ctx.go("updates"))
-        run = button(_("Run my routine"), "media-playback-start",
-                     lambda: ctx.go("updates", run_routine=True), primary=True)
-        self.t_updates.extra.addWidget(run)
+        self.t_updates.setToolTip(_("Opens Updates, to choose what to update."))
+        # the routine updates everything (as Updates' "Update everything…", which asks first when some rows are
+        # unticked there): the one green button of this page
+        self.run_btn = button(_("Update everything…"), "media-playback-start", self._update_everything,
+                              primary=True)
+        self._routine_tip()
+        self.t_updates.extra.addWidget(self.run_btn)
         self.t_updates.extra.addStretch(1)
         self.t_flatpak = Tile("flatpak-discover", _("Flatpak apps"), BLUE)
         self.t_flatpak.clicked.connect(lambda: ctx.go("flatpak"))
+        self.t_flatpak.setToolTip(_("Opens Flatpak."))
         self.t_web = Tile("internet-web-browser", _("Programs from the web"), ORANGE)
         self.t_web.clicked.connect(lambda: ctx.go("websources"))
+        self.t_web.setToolTip(_("Opens Programs from the web."))
         self.t_restart = Tile("system-reboot", _("Restart"), PURPLE)
         self.t_restart.clicked.connect(lambda: ctx.go("maintenance"))
+        self.t_restart.setToolTip(_("Opens Maintenance, where “Find the programs to restart” and “Ask if a restart "
+                                    "is needed” say more."))
         self.t_repos = Tile("repository", _("Repositories"), BLUE)
         self.t_repos.clicked.connect(lambda: ctx.go("repos"))
+        self.t_repos.setToolTip(_("Opens Repositories."))
         self.t_maint = Tile("tools", _("Maintenance"), GREEN)
         self.t_maint.clicked.connect(lambda: ctx.go("maintenance"))
+        self.t_maint.setToolTip(_("Opens Maintenance: the health check and the maintenance tasks."))
         self.t_maint.set(_("Keep it tidy"), _("Old kernels, cache, broken dependencies…"))
         tiles = [self.t_updates, self.t_flatpak, self.t_web, self.t_restart, self.t_repos, self.t_maint]
         for i, t in enumerate(tiles):
@@ -158,7 +172,7 @@ class HomePage(Page):
         move.setTextFormat(Qt.TextFormat.RichText)
         move.setText(html.escape(_("Moving to another computer?")) + " " + " · ".join(
             f'<a href="{key}">{html.escape(text)}</a>' for key, text in
-            (("export", _("Save this computer's software…")), ("import", _("Import it from a file…")))))
+            (("export", _("Save this computer's software…")), ("import", _("Open another computer's file…")))))
         move.linkActivated.connect(self._move)
         lay.addWidget(move)
         lay.addWidget(muted(_("Every change waits in the queue at the bottom until you apply it. You can always see "
@@ -185,13 +199,34 @@ class HomePage(Page):
             self.lang_text.setText(_("{language} is in the queue: apply it to install the translations of your "
                                      "programs.").format(language=name))
             self.lang_btn.hide()
+            self.lang_queue.hide()
         else:
             self.lang_text.setText(_("This computer is in {language}, but zypper was never asked for it, so the "
                                      "translations of your programs into {language} are not installed and parts of "
                                      "them show in English.").format(language=name))
             self.lang_btn.setText(_("Add {language}").format(language=name))
+            self.lang_btn.setToolTip(_("Puts {language} in the queue. When you apply it, zypper installs the "
+                                       "translations of your programs.").format(language=name) + "\n"
+                                     + f"zypper -n addlocale -- {code}")
             self.lang_btn.show()
+            self.lang_queue.show()
         self.lang_note.show()
+
+    def _routine_tip(self, n=None):
+        """The routine's button: everything, with the number of updates when it is known (as Updates says it)."""
+        self.run_btn.setText(_("Update everything ({n})…").format(n=QLocale().toString(int(n))) if n
+                             else _("Update everything…"))
+        self.run_btn.setToolTip(_("Runs your update routine on the Updates page: it updates everything, also what is "
+                                  "unticked there.") + "\n" + str(self.ctx.settings.get("routine") or ""))
+
+    def _update_everything(self):
+        """The same as Updates' "Update everything…": its question when rows are unticked there, then the
+        routine."""
+        self.ctx.go("updates")
+        page = self.ctx.pages.get("updates")
+        run = getattr(page, "update_everything", None) or getattr(page, "run_routine", None)
+        if run is not None:
+            run()
 
     def _add_language(self):
         if self._lang_code:
@@ -268,8 +303,9 @@ class HomePage(Page):
         if c.get("busy"):
             return  # the total shows once every part has answered
         n = c.get("total", 0)
+        self._routine_tip(n)
         since = _("Since the last refresh. Your routine refreshes first.")
-        self.t_updates.setToolTip(since)
+        self.t_updates.setToolTip(_("Opens Updates, to choose what to update.") + "\n" + since)
         if c.get("errors") and not n:
             self.t_updates.set("?", "; ".join(str(v) for v in c["errors"].values())[:80])
             return

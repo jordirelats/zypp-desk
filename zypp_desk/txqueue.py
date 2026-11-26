@@ -741,7 +741,7 @@ class TxQueue(QObject):
         target = protect.action_target(action)
         if target and self.settings is not None and protect.is_protected(self.settings, *target):
             self.refused.emit(_("{name} is protected, so it is not removed. To remove it, first choose “Stop "
-                                "protecting it” on its card in Applications.").format(name=target[1]))
+                                "protecting {name}” on its card in Applications.").format(name=target[1]))
             return
         idx = self._idx()
         key = _key(action)

@@ -509,7 +509,8 @@ def check_vendor(facts):
         + ("  " + _("(an older version)") if d["downgrade"] else "") for d in stuck]
     return [finding(LOW, ngettext("{n} package with a vendor different from its repository's",
                                   "{n} packages with a vendor different from their repository's", n).format(n=n),
-                    text, "vendor", _("Look at them"), details, dict(packages=stuck), weight=n, check="vendor")]
+                    text, "vendor", ngettext("Look at the package…", "Look at the {n} packages…", n).format(n=n),
+                    details, dict(packages=stuck), weight=n, check="vendor")]
 
 
 # ====================================================================== orphaned packages and dependencies
@@ -535,13 +536,14 @@ def check_orphans(facts):
         return [finding(OK, _("No orphaned packages"),
                         _("Every installed package comes from one of your repositories. Broken dependencies are "
                           "looked for by “Check dependencies”, which asks for the administrator password."),
-                        "verify", _("Check dependencies"), check="orphans")]
+                        "verify", _("Check the dependencies…"), check="orphans")]
     size = sum(p["size"] for p in orphans)
     return [finding(LOW, ngettext("{n} package that no repository has", "{n} packages that no repository has",
                                   n).format(n=n),
                     _("{names}. They get no updates any more; most are leftovers of programs that something else "
                       "replaced. Look before removing them.").format(names=_join(p["name"] for p in orphans)),
-                    "orphans", _("Show them"), [f"{p['name']} {p['evr']} ({size_text(p['size'])})" for p in orphans],
+                    "orphans", ngettext("Show the package", "Show the {n} packages", n).format(n=n),
+                    [f"{p['name']} {p['evr']} ({size_text(p['size'])})" for p in orphans],
                     dict(packages=[p["name"] for p in orphans]), weight=size, check="orphans")]
 
 
@@ -646,7 +648,8 @@ def check_repos(facts):
     details = [f"{w['name']}: {w['why']}." for w in weak]
     return [finding(sev, ngettext("{n} repository with weak signature checks",
                                   "{n} repositories with weak signature checks", n).format(n=n),
-                    text, "repos", _("Look at them"), details, dict(repos=[w["alias"] for w in weak]),
+                    text, "repos", ngettext("Look at the repository", "Look at the {n} repositories", n).format(n=n),
+                    details, dict(repos=[w["alias"] for w in weak]),
                     weight=n, check="repos")]
 
 
@@ -733,7 +736,7 @@ def check_keys(facts):
         out.append(finding(MEDIUM, title, _(
             "{repos} still sign with it. Usually the project renews it and zypper takes the new date when it "
             "refreshes; if refreshing shows a key error, import the new key in Signing keys.").format(
-            repos=_join(repos_, 3)), "keys", _("Signing keys"),
+            repos=_join(repos_, 3)), "keys", _("Open Signing keys"),
             [_("{name} ({key}): expired on {date}; used by {repos}").format(
                 name=k["name"], key=k["fpr"][-8:], date=_date(k.get("expires")), repos=", ".join(used))
              for k, used in items], dict(fingerprints=[k["fpr"] for k, _u in items]), weight=n, check="keys"))
@@ -745,7 +748,7 @@ def check_keys(facts):
                  ngettext("{n} signing key expires soon", "{n} signing keys expire soon", n).format(n=n))
         out.append(finding(LOW, title, _("On {date}. Projects usually renew their key in time: nothing to do "
                                          "unless refreshing shows a key error then.").format(date=_date(first)),
-                           "keys", _("Signing keys"),
+                           "keys", _("Open Signing keys"),
                            [_("{name} ({key}): until {date}; used by {repos}").format(
                                name=k["name"], key=k["fpr"][-8:], date=_date(k.get("expires")),
                                repos=", ".join(used)) for k, used in items],
@@ -757,7 +760,7 @@ def check_keys(facts):
                                          "{n} expired keys that no repository uses", n).format(n=n),
                            _("Keys of repositories you no longer have. Signing keys shows whether installed "
                              "packages still use them, and can remove the ones nothing uses."),
-                           "keys", _("Signing keys"),
+                           "keys", _("Open Signing keys"),
                            [_("{name} ({key}): expired on {date}").format(
                                name=k["name"], key=k["fpr"][-8:], date=_date(k.get("expires"))) for k, _u in items],
                            dict(fingerprints=[k["fpr"] for k, _u in items]), weight=n, check="keys"))
@@ -818,7 +821,8 @@ def eol_findings(apps, eol, settings):
             parts.append(_("Protect it and save a copy in Applications, so you do not lose it."))
         out.append(finding(LOW if prot and copy else MEDIUM,
                            _("An app that is no longer maintained: {name}").format(name=name), " ".join(parts),
-                           "show-app", _("Show it"), [message] if message else [],
+                           "show-app", _("Show {name} in Applications").format(name=name) if len(name) <= 18
+                           else _("Show the app in Applications"), [message] if message else [],
                            dict(app=app_id, name=name, protected=prot, copy=copy), weight=1, check="flatpak-eol"))
     return out
 
@@ -888,7 +892,8 @@ def check_duplicates(facts):
     return [finding(LOW, ngettext("{n} app installed twice", "{n} apps installed twice", n).format(n=n),
                     _("{names}: as a package and as a Flatpak app. Two copies take room and show twice in the "
                       "menu; keep the one you use.").format(names=_join(names)),
-                    "duplicates", _("Show them"),
+                    "duplicates", _("Show {name} in Applications").format(name=names[0]) if len(names[0]) <= 18
+                    else _("Show the app in Applications"),
                     [_("{name}: package {package}, Flatpak {app}").format(name=e["name"], package=e["package"],
                                                                          app=fp["application"]) for e, fp in pairs],
                     dict(names=names, pairs=[(e["package"], fp["application"]) for e, fp in pairs]),
@@ -1235,7 +1240,7 @@ def check_firmware(facts):
                + [_("Keep {name}: {why}").format(name=n, why=w) for n, w in plan["unsure"]]
                + [_("Remove {name} ({size}): {why}").format(name=n, size=size_text(plan["sizes"].get(n, 0)), why=w)
                   for n, w in plan["remove"]])
-    return [finding(sev, title, text, "firmware", _("Show it in Drivers"), details, dict(plan=plan),
+    return [finding(sev, title, text, "firmware", _("Show the firmware in Drivers"), details, dict(plan=plan),
                     weight=freed, check="firmware")]
 
 

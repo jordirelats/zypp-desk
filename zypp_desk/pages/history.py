@@ -634,18 +634,24 @@ class TxCard(QWidget):
         can = bool(pre and post and page.info is not None)
         if pre and page.info is not None:
             self.info.setText(_("If the computer does not start after a change, choose snapshot #{pre} in the boot "
-                                "menu. Once it has started, “Keep this one” will appear here.").format(pre=pre))
+                                "menu. Once it has started, “Keep snapshot #{pre}…” will appear here.").format(pre=pre))
             self.info.show()
         else:
             self.info.hide()
         self.undo_cmd.setText(Step("snapper-undo", [str(pre), str(post)]).display() if can else "")
         for w in (self.undo_cmd, self.b_compare, self.b_undo):
             w.setVisible(can)
+        if can:
+            self.b_compare.setToolTip(_("Lists the files snapper saw change between #{pre} and #{post}, in a window. "
+                                        "It asks for the administrator password. Nothing changes.").format(
+                pre=pre, post=post) + "\n" + Step("snapper-status", [str(pre), str(post)]).display())
         # started from an older snapshot (read-only): nothing can be put back until it is kept or left
         booted_old = snapper.boot_state(page.info) is not None
         self.b_undo.setEnabled(not booted_old)
         self.b_undo.setToolTip(_("Not now: the computer is running from an older snapshot (see the band above).")
-                               if booted_old else "")
+                               if booted_old else
+                               _("Asks first, then puts the system files back as they were in snapshot #{pre}, "
+                                 "now.").format(pre=pre) + "\n" + self.undo_cmd.text() if can else "")
 
 
 # ------------------------------------------------------------------ the page
@@ -687,6 +693,7 @@ class HistoryPage(Page):
         bv.addWidget(self.banner_title)
         bv.addWidget(self.banner_text)
         bh.addLayout(bv, 1)
+        # it changes the computer now (snapper rollback), after its question: the green button of the band
         self.b_keep = button(_("Keep this one…"), "dialog-ok-apply", self.keep_snapshot, primary=True)
         bh.addWidget(self.b_keep, 0, Qt.AlignmentFlag.AlignVCenter)
         self.banner.hide()
@@ -717,7 +724,12 @@ class HistoryPage(Page):
         self.empty_error.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.empty_error.hide()
         ev.addWidget(self.empty_error)
+        # reading only (the password is asked once): the most common action of this page, nothing changes
         self.b_load_big = button(_("Load the history"), "view-refresh", self.load, primary=True)
+        self.b_load_big.setToolTip(self._load_tip())
+        # the header's button lives as long as the page (the window takes it away and puts it back)
+        self.b_load = button(_("Load the history"), "view-refresh", self.load)
+        self.b_load.setToolTip(self._load_tip())
         ev.addWidget(self.b_load_big, 0, Qt.AlignmentFlag.AlignHCenter)
         middle = QHBoxLayout()
         middle.addStretch(1)
@@ -775,7 +787,15 @@ class HistoryPage(Page):
         f.setToolTip(_("Shows only the changes that touch a package, a repository or a word"))
         f.setText(self._filter_text)
         f.textChanged.connect(self._set_filter)
-        return [f, button(_("Load"), "view-refresh", self.load)]
+        return [f, self.b_load]
+
+    @staticmethod
+    def _load_tip():
+        text = _("Reads what zypper changed (/var/log/zypp/history). It asks for the administrator password. "
+                 "Nothing changes.")
+        if snapper.snapper_installed():
+            text += " " + _("The list of snapshots is read at the same time.")
+        return text
 
     def _empty_explanation(self):
         text = _("zypper writes what it changes to /var/log/zypp/history, which only root can read. Nothing is "
@@ -839,6 +859,7 @@ class HistoryPage(Page):
         self._icons = {}
         self.empty_error.hide()
         self.stack.setCurrentIndex(1)
+        self.b_load.setText(_("Load the history again"))
         self._update_banner()
         self._fill()
 
@@ -1051,6 +1072,10 @@ class HistoryPage(Page):
             self.banner_text.setText(_("The computer was started from an older snapshot chosen in the boot menu. "
                                        "If everything works as it should, keep it; if not, just restart and the "
                                        "computer starts as usual."))
+            self.b_keep.setText(_("Keep snapshot #{n}…").format(n=active.number))
+            self.b_keep.setToolTip(_("Asks first, then makes snapshot #{n} the one the computer starts from (snapper "
+                                     "rollback). Restart afterwards.").format(n=active.number) + "\n"
+                                   + Step("snapper-rollback", []).display())
             self.b_keep.show()
         else:
             self.banner_title.setText(_("Snapshot #{n} will be used from the next start").format(n=active.number))

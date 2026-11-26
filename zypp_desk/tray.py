@@ -864,8 +864,11 @@ class Popup(QWidget):
         self.errors.hide()
         lay.addWidget(self.errors)
 
-        self.run_btn = button(_("Run the routine"), "view-refresh", lambda: self._emit(self.run_routine),
+        # the routine updates the whole system: the button says so, as the green button of Updates does
+        self.run_btn = button(_("Update everything…"), "view-refresh", lambda: self._emit(self.run_routine),
                               primary=True, parent=card)
+        self.run_btn.setToolTip(_("Opens Zypp Desk and runs your routine, which updates the whole system (with the "
+                                  "administrator password)."))
         self.run_btn.setMinimumHeight(38)
         lay.addWidget(self.run_btn)
         row = QHBoxLayout()
@@ -994,7 +997,7 @@ class Tray(QObject):
         self.icon.setIcon(self.base_icon)
         self.menu = QMenu()
         self.menu.addAction(self.base_icon, _("Open Zypp Desk"), self.open_app)
-        self.menu.addAction(icon("view-refresh"), _("Run the routine"), self.run_routine)
+        self.menu.addAction(icon("view-refresh"), _("Update everything…"), self.run_routine)
         self.check_action = self.menu.addAction(icon("view-refresh"), _("Check now"), self.check_now)
         self.menu.addSeparator()
         self.menu.addAction(icon("configure"), _("Settings…"), self.open_settings)
@@ -1241,7 +1244,7 @@ class Tray(QObject):
         if not should_notify(state, c["total"], today, bool(self.settings.get("notify_enabled", True))):
             return
         summary, body = notification_text(self.last)
-        nid = self.notifier.send(summary, body, [("default", ""), ("routine", _("Run the routine")),
+        nid = self.notifier.send(summary, body, [("default", ""), ("routine", _("Update everything")),
                                                  ("updates", _("Open Updates"))],
                                  notify_icon_name(), {"desktop-entry": APP_ID})
         if nid is None:

@@ -10,7 +10,8 @@ openSUSE. Everything Zypp Desk does, it does by running zypper, and it always sh
 <p>Three ideas make it safe to use:</p>
 <ul>
 <li><b>Nothing changes until you apply it.</b> What you choose goes to the <b>queue</b> at the bottom of the
-window. You can look at it (<b>Review</b>), try it (<b>Simulate</b>) and only then make it real (<b>Apply</b>).</li>
+window. You can look at it (<b>Review the queue…</b>), try it (<b>Simulate the queue</b>) and only then make it
+real (<b>Apply the queue…</b>).</li>
 <li><b>Every question says what will happen in plain words</b>, what it means for you, and the exact command
 underneath. Pressing Enter never starts a change: you have to choose the button that does it.</li>
 <li><b>You can always see what zypper says.</b> The terminal at the bottom (<b>Show the terminal</b>, in the
@@ -22,24 +23,28 @@ computer remembers it for five minutes, so several steps in a row ask only once.
 <p>Start on the <a href="page:home">Home</a> page: a big search field and cards that tell you whether there are
 updates, how your repositories are and what needs a look.</p>
 
-<!-- topic: queue | The queue: Review, Simulate and Apply -->
-<h2>The queue: Review, Simulate and Apply</h2>
+<!-- topic: queue | The queue: review, simulate and apply -->
+<h2>The queue: review, simulate and apply</h2>
 <p>Installing, removing, locking a package, adding a repository or importing a key: each of these is a
 <b>change</b>, and it waits in the queue until you apply it. The bar at the bottom shows how many there are and
 the commands they will run.</p>
+<p>The colour of a button tells you what it does. A green button changes the computer now, always after a
+question; a button that only adds to the queue is never green, and it has <b>To the queue:</b> in front of it or
+says so in its label. Nothing in the queue changes the computer until you press <b>Apply the queue…</b>.</p>
 <ul>
-<li><b>Review</b> lists the changes in the order they will run, in words. Each one has its own button to take
-it out of the queue. When a change needs another one (a program needs the repository it comes from, and the
+<li><b>Review the queue…</b> lists the changes in the order they will run, in words. Each one has its own button to
+take it out of the queue. When a change needs another one (a program needs the repository it comes from, and the
 repository needs its key), the list says so, and Zypp Desk asks before you take out something others need.</li>
-<li><b>Simulate</b> asks zypper what it would really do, without changing anything: what else it would install
-or remove, how much it would download, and whether there is a problem. If there is one, you can choose a
+<li><b>Simulate the queue</b> asks zypper what it would really do, without changing anything: what else it would
+install or remove, how much it would download, and whether there is a problem. If there is one, you can choose a
 solution in plain words.</li>
-<li><b>Apply</b> shows the changes once more and runs them. If a step fails, Zypp Desk stops there: what was done
-stays done, and the rest stays in the queue to try again.</li>
-<li><b>Clear</b> empties the queue. It undoes nothing, because nothing has changed yet.</li>
+<li><b>Apply the queue…</b> shows the changes once more and runs them. If a step fails, Zypp Desk stops there:
+what was done stays done, and the rest stays in the queue to try again.</li>
+<li><b>Empty the queue</b> takes every change out of the queue. It undoes nothing, because nothing has changed
+yet.</li>
 </ul>
-<p><b>Simulate</b> only tries the package changes: changes to repositories, locks, languages and Flatpak apps have
-no dry run, and they run only when you apply.</p>
+<p><b>Simulate the queue</b> only tries the package changes: changes to repositories, locks, languages and Flatpak
+apps have no dry run, and they run only when you apply.</p>
 
 <!-- topic: update | Keeping the system up to date -->
 <h2>Keeping the system up to date</h2>
@@ -47,18 +52,26 @@ no dry run, and they run only when you apply.</p>
 find:</p>
 <ul>
 <li><b>Your routine</b>: the steps you usually run to update, for example refresh the repositories, download
-the updates, then install them. <b>Run the routine</b> runs them one after the other and shows each step.
-<b>Edit the routine…</b> changes it with buttons, or as text, as you would
-type it in a terminal.</li>
+the updates, then install them. <b>Update everything…</b>, with the number of updates (for example <b>Update
+everything (97)…</b>), runs them one after the other and shows each step. While it runs, <b>Stop after this
+step</b> lets the current step finish and runs none of the rest: the button then says <b>Will stop after this
+step</b>, and the terminal tells you what will not run. <b>Edit the routine…</b> changes the routine with
+buttons, or as text, as you would type it in a terminal.</li>
 <li><b>What there is to update</b>: packages from the repositories, Flatpak apps, programs from the web and
 firmware, with a box to tick each one. <b>Mark all</b> and <b>Unmark all</b>, under the list, tick or untick them
-all at once. The card on the right tells you about the package you choose.</li>
+all at once. The card on the right tells you about the package you choose. The buttons under the list act only on
+what you ticked, and their label says it: for example <b>Simulate only digikam</b> or <b>Put digikam in the
+queue</b>.</li>
 <li>The list shows what the computer knew the last time the repositories were refreshed: <b>Look again</b> reads
 it again. <b>Refresh the repositories</b> first asks every repository for what is new (with the administrator
 password), then looks again.</li>
-<li><b>Simulate the dup…</b>: the full upgrade of Tumbleweed (<code>zypper dup</code>) in its own window, with
-its options.</li>
+<li><b>Simulate updating everything…</b>: the full upgrade of Tumbleweed (<code>zypper dup</code>) in its own
+window, with its options.</li>
 </ul>
+<p>Your routine updates the whole system: it does not look at the ticks. So when you have ticked some rows and left
+others unticked, <b>Update everything…</b> first asks <b>Update the whole system?</b> There, <b>Not yet</b> changes
+nothing; the button with the name of what you ticked, such as <b>Only digikam</b>, puts only that in the queue and
+asks you before applying it; and <b>Yes, update everything</b> runs the routine.</p>
 <h3>Proposed routines</h3>
 <p>In the routine editor, <b>Proposed routines…</b> shows a few ready routines, each with what it does, why, and
 the line it makes in a terminal. The first one is made for this computer: besides updating the system, it updates
@@ -66,12 +79,12 @@ the Flatpak apps if you have any and the firmware if fwupd is installed, removes
 packages if the disk is short of room, and tells you at the end which programs need a restart. The others are the
 usual one (download everything, then install only if everything was downloaded), one that only downloads, and a
 quick one. The one you choose goes into the editor, where you can still change it; nothing is saved until you
-press <b>Save</b>.</p>
+press <b>Save the routine</b>.</p>
 <h3>A big update</h3>
 <p>When an update is big, or the new Tumbleweed came out less than a day ago, Zypp Desk asks whether it is worth
 waiting. It tells you how big it is, how new the version is and whether the computer is on battery. You can
-update now, <b>only download it now</b> (installing it later is much faster), or <b>be reminded tomorrow</b>:
-the icon next to the clock will tell you.</p>
+update now (<b>Update everything now</b>), <b>Only download the update</b> (installing it later is much faster),
+or choose <b>Remind me tomorrow</b>: the icon next to the clock will tell you.</p>
 <h3>Little room on the disk</h3>
 <p>If the update does not fit on the disk with room to spare, Zypp Desk offers to free space first (packages kept
 from earlier downloads, old kernels) and to update <b>in parts</b>. Each part is a normal zypper update of some
@@ -108,9 +121,11 @@ entry does not work any more, and Zypp Desk can move it to the trash.</li>
 <p>If the program is not in your repositories, <b>Search online…</b> looks for it in the openSUSE Build Service,
 Fedora COPR and Flathub, and explains how much you can trust each source.</p>
 <h3>Protecting an app</h3>
-<p><b>Protect it</b>, on the card of an application in Applications, is for a program you never want to lose by
-mistake: while it is protected, the queue refuses to remove it, from any page. Nothing else changes, and it still
-gets its updates. <b>Stop protecting it</b> takes the mark away.</p>
+<p>The buttons of a card in Applications say the program's name when there is room for it, for example
+<b>Protect digikam…</b>; otherwise they say <b>Protect it…</b>, the form used here.</p>
+<p><b>Protect it…</b>, on the card of an application in Applications, is for a program you never want to lose by
+mistake: Zypp Desk asks first, and while the app is protected, the queue refuses to remove it, from any page.
+Nothing else changes, and it still gets its updates. <b>Stop protecting it</b> takes the mark away.</p>
 <p>A Flatpak app can disappear from its remote when nobody maintains or distributes it any more. <b>Save a
 copy…</b> saves the installed app as one <code>.flatpak</code> file (<code>flatpak build-bundle</code>), so that
 you can install it again from that file even when the remote no longer has it. What it needs to run (its runtime)
@@ -138,7 +153,7 @@ it: with the SHA-256 that GitHub publishes, when there is one, and that it reall
 asks before it takes the old one's place, with the same name, so that the menu entry keeps working.</li>
 <li>The old version stays beside it as a <code>.old</code> file until the new one has opened once from Zypp Desk;
 then it goes to the trash. Until then, <b>Back to the previous version…</b> puts the old one back.</li>
-<li><b>Protect it</b> works as for any other app, and <b>Remove it…</b> moves the file, its old version, its
+<li><b>Protect it…</b> works as for any other app, and <b>Remove it…</b> moves the file, its old version, its
 menu entry and its icons to the trash. Its settings and data in your home folder stay.</li>
 <li><b>Add an AppImage…</b>, at the top of the page, takes a file you downloaded, moves or copies it to
 <code>~/Applications</code>, makes it executable and puts it in the menu.</li>
@@ -207,11 +222,11 @@ lets you unlock it. Locking and unlocking go to the queue, like any other change
 <ul>
 <li><b>Lock a package…</b> searches for packages: tick several and lock them at once. A name with wildcards,
 like <code>vlc-*</code>, locks every package whose name matches, also the ones that come later.</li>
-<li><b>Clean useless locks</b> removes the locks that no package matches any more.</li>
+<li><b>Clean the useless locks…</b> removes the locks that no package matches any more, after a question.</li>
 <li>When you choose to update the rest and leave some packages as they are (see When something goes wrong),
 Zypp Desk locks them. Those locks are marked as temporary, with their date. A band at the top tells you when their
-repository has published again, so that you can probably unlock them, and <b>Unlock them</b> unlocks them all at
-once.</li>
+repository has published again, so that you can probably unlock them, and its button (for example <b>Put the 3
+unlocks in the queue</b>) puts the unlocking of them all in the queue at once.</li>
 </ul>
 
 <!-- topic: move | Moving to another computer -->
@@ -242,11 +257,12 @@ from a local folder that Programs from the web does not follow.</li>
 </ul>
 <h3>On the other computer</h3>
 <p>Copy the file to the other computer and double-click it: it opens with Zypp Desk. You can also choose
-<b>Import it from a file…</b>, in the same places. Zypp Desk compares the file with this computer and shows what
-it would do: the repositories to add, with their keys and fingerprints, the packages and Flatpak apps to install,
-the locks and languages to add, and how much is here already. <b>Choose…</b> lets you untick some of them.
-<b>Put it in the queue</b> adds everything to the queue, where you review, simulate and apply it like any other
-change. Until you apply it, nothing changes.</p>
+<b>Open another computer's file…</b>, in the same places. Zypp Desk compares the file with this computer and
+shows what it would do: the repositories to add, with their keys and fingerprints, the packages and Flatpak apps to
+install, the locks and languages to add, and how much is here already. <b>Choose the repositories…</b>,
+<b>Choose the packages…</b> and <b>Choose the apps…</b> let you untick some of them. The button that says how
+many changes there are, for example <b>Put the 312 changes in the queue</b>, adds everything to the queue, where
+you review, simulate and apply it like any other change. Until you apply it, nothing changes.</p>
 <ul>
 <li>Your routine, zypper's settings (<code>zypp.conf</code>), the protected apps and the programs from the web
 only change if you say so. Before anything goes to the queue, a question shows each of them as it is now and as
@@ -272,8 +288,8 @@ pass, before it shows you anything.</p>
 <p>At the top of <a href="page:maintenance">Maintenance</a>, Zypp Desk looks at the software of this computer and
 tells you what is worth a look, the most important first. Each finding has a sentence that explains it and, under
 <b>Details</b>, the names. Looking changes nothing: a finding's button opens the right page, or asks a question and
-puts the changes in the queue, which shows you the exact commands. <b>Check again</b> looks again, for example
-after you have installed or removed something.</p>
+puts the changes in the queue, which shows you the exact commands. <b>Check the computer again</b> looks again,
+for example after you have installed or removed something.</p>
 <p>What it can find:</p>
 <ul>
 <li><b>Firmware for hardware you do not have.</b> openSUSE installs the firmware of every possible device, often
@@ -318,7 +334,8 @@ NVIDIA cards.</li>
 <p>The button of a card only puts changes in the queue, after a question that says what each package is, where it
 comes from, whether it is proprietary and what happens with Secure Boot, with the exact commands. Nothing changes
 until you apply the queue, and the driver starts working after the next restart. If you plug in a dock or an
-adapter, the page looks at the hardware again when you come back to it; <b>Look again</b> does it at once.</p>
+adapter, the page looks at the hardware again when you come back to it; <b>Look at the hardware again</b> does it
+at once.</p>
 <h3>NVIDIA</h3>
 <p>With an NVIDIA card, Linux starts with nouveau, a free driver that is slow with most cards. Zypp Desk proposes
 the NVIDIA driver made for your card:</p>
@@ -361,8 +378,8 @@ firmware of devices that are often plugged in later (docks, USB network adapters
 <ul>
 <li>A group is ticked when removing it is safe. Printer drivers, and drivers for USB devices that may simply not be
 plugged in now, are unticked: keep them if you might use one.</li>
-<li><b>Remove the packages…</b> shows what goes and the exact commands, and puts the removals in the queue.
-<b>Look first (simulate)</b> puts them in the queue and simulates it at once.</li>
+<li><b>Remove the packages…</b> shows what goes and the exact commands. <b>Put it in the queue</b> puts the
+removals in the queue; <b>Put it in the queue and simulate</b> also simulates the queue at once.</li>
 <li>openSUSE installs all the firmware through one package, <code>kernel-firmware-all</code>, which the kernel
 recommends. When it goes, Zypp Desk also locks it: otherwise every new kernel would install it again, and all the
 firmware with it. The lock is in <a href="page:locks">Locks</a>, where you can remove it.</li>
@@ -411,13 +428,14 @@ them, so nobody updates them. <a href="page:scripts">Own installers</a> finds th
 <code>/opt</code> and <code>/usr/local</code>, and among the menu entries that belong to no package, and tells you
 where each one is and how much room it takes. Nothing on this page runs as administrator.</p>
 <ul>
-<li><b>Uninstall…</b> runs the program's own uninstaller, if it has one, as you, in a terminal window where you
-can answer its questions. If it has none and it is in your folder, Zypp Desk moves its folder, menu entries and
-icons to the trash, and you can bring them back from there.</li>
+<li><b>Uninstall it…</b> runs the program's own uninstaller, if it has one, as you, in a terminal window where
+you can answer its questions. If it has none and it is in your folder, the button says <b>Move it to the
+trash…</b>: Zypp Desk moves its folder, menu entries and icons to the trash, and you can bring them back from
+there.</li>
 <li>A program installed for the whole computer (in <code>/opt</code> or <code>/usr/local</code>) needs the
-administrator password to be removed. Zypp Desk does not do it: it explains why and gives you the commands to run
-in a terminal.</li>
-<li><b>Install from a folder…</b> runs the installer of a program you downloaded (a <code>.sh</code>, a
+administrator password to be removed. Zypp Desk does not do it: <b>How to remove it…</b> explains why and gives
+you the commands to run in a terminal.</li>
+<li><b>Run an installer…</b> runs the installer of a program you downloaded (a <code>.sh</code>, a
 <code>.run</code>, or a <code>.tgz</code> or <code>.zip</code> with an installer inside; an archive is unpacked
 into a folder of Zypp Desk's own). Zypp Desk asks before running it, and runs it as you, without the administrator
 password, in a terminal window. When it ends, Zypp Desk notes what it created, so that it can remove the program later even without an
@@ -435,8 +453,8 @@ a terminal, for example <code>zypper se vlc</code>; you do not need <code>sudo</
 without the password, and show their output in the terminal.</li>
 <li>Commands that change the system ask first, in words, and then ask for the administrator password. They always
 run with <code>-n</code>: nobody can answer zypper here, so it takes its default answers. When a command has a dry
-run, <b>Simulate</b> shows what it would do. Installs, removals, locks, languages and repository changes can also
-go to the queue.</li>
+run, <b>Simulate this command</b> shows what it would do. Installs, removals, locks, languages and repository
+changes can also go to the queue, with <b>Put this command in the queue</b>.</li>
 <li>Some lines are refused before anything runs, and the message says why: more than one command at a time
 (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), anything that is not zypper,
 commands that wait for you to type (<code>zypper shell</code>), commands the administrator helper does not run,

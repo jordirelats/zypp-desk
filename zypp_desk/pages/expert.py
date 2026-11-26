@@ -13,7 +13,7 @@ question of question.py (Enter never starts a change), and always with -n: nobod
 import os
 import shlex
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QGuiApplication, QPalette
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QScrollArea, QSizePolicy, QToolButton, QVBoxLayout, QWidget)
@@ -193,6 +193,7 @@ class _Fold(QToolButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet("QToolButton { border: none; padding: 2px 0px; color: palette(placeholder-text); }"
                            "QToolButton:focus { background: rgba(29, 153, 243, 0.18); border-radius: 4px; }")
+        self.setToolTip(_("Show or hide these options"))
         self.toggled.connect(self._toggle)
         target.setVisible(False)
         self._toggle(False)
@@ -241,6 +242,8 @@ class ExpertPage(Page):
         self.show_all = False
         self.arg_edit = self.repo_combo = None
         self.opt_widgets, self.glob_widgets = [], []
+        # the area used last ("line" or "form"): its Run button is the green one, never both at once
+        self._focus = "form"
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(14, 12, 14, 12)
@@ -277,15 +280,16 @@ class ExpertPage(Page):
         self.line.setPlaceholderText("zypper se vlc")
         self.line.setClearButtonEnabled(True)
         self.line.returnPressed.connect(self.run_typed)  # a change still asks first, and there Enter is "Not yet"
-        self.line.textEdited.connect(lambda _t: self._line_note())
+        self.line.textEdited.connect(lambda _t: self._line_edited())
         row.addWidget(self.line, 1)
-        self.line_run = button(_("Run"), "system-run", self.run_typed, primary=True)
+        self.line_run = button(_("Run this line"), "system-run", self.run_typed)
         self.line_run.setAutoDefault(False)
         row.addWidget(self.line_run)
         tc.lay.addLayout(row)
         self.line_info = _plain("", muted=True, small=True)
         tc.lay.addWidget(self.line_info)
         self._line_note()
+        self._update_line_button()
         right.addWidget(tc)
 
         # ---------------------------------------------- the form of the command
@@ -316,11 +320,11 @@ class ExpertPage(Page):
         self.cmd_info = _plain("", muted=True, small=True)
         cc.lay.addWidget(self.cmd_info)
         brow = QHBoxLayout()
-        self.b_copy = button(_("Copy it"), "edit-copy", self.copy_command)
+        self.b_copy = button(_("Copy this command"), "edit-copy", self.copy_command)
         self.copied = _plain("", muted=True, small=True, wrap=False)
-        self.b_sim = button(_("Simulate"), "media-playback-start", self.simulate)
-        self.b_queue = button(_("Put in the queue"), "list-add", self.put_in_queue)
-        self.b_run = button(_("Run…"), "system-run", self.run_form, primary=True)
+        self.b_sim = button(_("Simulate this command"), "media-playback-start", self.simulate)
+        self.b_queue = button(_("Put this command in the queue"), "list-add", self.put_in_queue)  # never green
+        self.b_run = button(_("Run this command"), "system-run", self.run_form, primary=True)
         for b in (self.b_copy, self.b_sim, self.b_queue, self.b_run):
             b.setAutoDefault(False)
         brow.addWidget(self.b_copy)
@@ -361,6 +365,7 @@ class ExpertPage(Page):
         self._fill_list()
         self.select(name)
         self._line_note()
+        self._update_line_button()  # the line can be read now: its button names the command
 
     def _repos_loaded(self, repos, err):
         if err is not None or not repos:
@@ -685,15 +690,108 @@ class ExpertPage(Page):
             self.cmd_info.setStyleSheet("color: palette(placeholder-text);")
             self.cmd_info.setText(self._command_note(cmd))
         ok = self.parsed is not None and cmd is not None and cmd.mode != "none" and not missing
+        shown = self._step(self.parsed).display() if self.parsed is not None else ""
         self.b_copy.setEnabled(self.parsed is not None)
+        self.b_copy.setToolTip(_("Copy the command to the clipboard: {command}").format(command=shown) if shown else
+                               _("Fill in the form first."))
         self.b_run.setEnabled(ok)
-        self.b_run.setText(_("Run…") if cmd is None or cmd.mode != "user" else _("Run"))
-        self.b_run.setToolTip(zyppcmds.reason_text(cmd) if cmd is not None and cmd.mode == "none" else "")
+        # it names the command it runs; "…" when the question comes first (a change)
+        change = cmd is not None and cmd.mode == "root" and not (self.parsed is not None and self.parsed.dry_run)
+        if cmd is None:
+            self.b_run.setText(_("Run this command"))
+        elif change:
+            self.b_run.setText(_("Run “zypper {command}”…").format(command=cmd.name))
+        else:
+            self.b_run.setText(_("Run “zypper {command}”").format(command=cmd.name))
+        if cmd is not None and cmd.mode == "none":
+            self.b_run.setToolTip(zyppcmds.reason_text(cmd))
+        elif missing:
+            self.b_run.setToolTip(_("Write first what it works on ({what}).").format(
+                what=in_sentence(arg_label(cmd.args_kind))))
+        elif change:
+            self.b_run.setToolTip(_("Asks first, then runs it at once as administrator, with the password (not "
+                                    "through the queue): {command}").format(command=shown or "zypper " + cmd.name))
+        elif cmd is not None:
+            self.b_run.setToolTip(_("Runs it at once, as you, without the password: {command}. The output goes to "
+                                    "the terminal below.").format(command=shown or "zypper " + cmd.name))
+        else:
+            self.b_run.setToolTip(_("Choose a command in the list first."))
         self.b_sim.setVisible(cmd is not None and cmd.has_dry_run)
         self.b_sim.setEnabled(ok)
+        self.b_sim.setToolTip(_("Runs it with --dry-run at once: zypper shows what it would do and changes nothing. "
+                                "It still asks for the administrator password when the command needs it."))
         plan, why = self.queue_plan() if ok else (None, None)
+        self.b_queue.setText(_("Put this command in the queue"))
         self.b_queue.setEnabled(bool(plan))
-        self.b_queue.setToolTip("" if plan else (why or ""))
+        self.b_queue.setToolTip(ngettext(
+            "Puts its change in the queue, to review, simulate and apply with the rest. Nothing changes now.",
+            "Puts its {n} changes in the queue, to review, simulate and apply with the rest. Nothing changes now.",
+            len(plan)).format(n=len(plan)) if plan else (why or ""))
+        self._focus = "form"
+        self._update_primary()
+
+    # ------------------------------------------------------------------ one green button at a time
+    def _update_primary(self):
+        """The Run button of the area used last is the green one: the typed line's when you are typing a command
+        there, the form's otherwise."""
+        if not hasattr(self, "b_run"):
+            return  # still building the page
+        line_on = self._focus == "line" and bool(self.line.text().strip())
+        for b, on in ((self.line_run, line_on), (self.b_run, not line_on)):
+            if bool(b.property("primary")) != on:
+                b.setProperty("primary", on)
+                b.style().unpolish(b)
+                b.style().polish(b)
+
+    def _line_edited(self):
+        self._focus = "line"
+        self._line_note()
+        self._update_line_button()
+
+    @staticmethod
+    def _typed_words(text):
+        """The typed line as it would be shown in a button: 'zypper se vlc' (sudo left out), or None."""
+        try:
+            tokens = shlex.split(text)
+        except ValueError:
+            return None
+        if tokens and tokens[0] == "sudo":
+            tokens = tokens[1:]
+        if tokens and tokens[0] in ("zypper", zyppcmds.ZYPPER):
+            tokens = tokens[1:]
+        return tokens or None
+
+    def _update_line_button(self):
+        """“Run “zypper se vlc””: the button names what was typed (only the command, when the line is long), with
+        “…” when a question comes first."""
+        text = self.line.text().strip()
+        parsed = None
+        if text and self.catalog is not None:
+            try:
+                parsed = zyppcmds.parse_line(text, self.catalog)
+            except ValueError:  # LineError: the button stays generic; pressing it says what is wrong
+                parsed = None
+        if not text:
+            label, tip = _("Run this line"), _("Type a zypper command first, for example: zypper se vlc")
+        elif parsed is None or parsed.command is None:
+            label, tip = _("Run this line"), _("Runs the typed line, or says what is wrong with it.")
+        else:
+            words = self._typed_words(text) or []
+            shown = "zypper " + " ".join(words)
+            if len(shown) > 24 and parsed.at is not None:
+                shown = "zypper " + parsed.args[parsed.at]
+            change = parsed.root and not parsed.dry_run
+            label = (_("Run “{command}”…") if change else _("Run “{command}”")).format(command=shown)
+            if change:
+                tip = _("Asks first, then runs it at once as administrator, with the password (not through the "
+                        "queue): {command}").format(command=parsed.display())
+            else:
+                tip = _("Runs it at once, as you, without the password: {command}. The output goes to the terminal "
+                        "below.").format(command=parsed.display())
+        self.line_run.setText(label)
+        self.line_run.setToolTip(tip)
+        self.line_run.setEnabled(bool(text))
+        self._update_primary()
 
     def _missing_arguments(self):
         """zypper's usage asks for an argument (<…>) and the field is empty, and no option takes its place ('--all',
@@ -730,7 +828,7 @@ class ExpertPage(Page):
         cmd = self.cmd
         if cmd is None or not cmd.queue_kind:
             return None, _("The queue carries installs, removals, locks, languages and repository changes. Use "
-                           "“Run…” for this one.")
+                           "“Run” for this one.")
         try:
             globs, opts, args, repo = self.form_state()
         except ValueError as e:
@@ -738,12 +836,12 @@ class ExpertPage(Page):
         extra = [o.label for o, _v in globs if not (set(o.flags) & QUEUE_IGNORES_GLOBALS)]
         if extra:
             return None, _("The queue runs its own commands: these global options do not go with it: {opts}. Use "
-                           "“Run…”.").format(opts=", ".join(extra))
+                           "“Run”.").format(opts=", ".join(extra))
         carried = QUEUE_CARRIES[cmd.name]
         names = {}
         for o, val in opts:
             if (o.long or o.short) not in carried:
-                return None, _("The queue cannot carry {option}. Use “Run…”, or leave it out.").format(
+                return None, _("The queue cannot carry {option}. Use “Run”, or leave it out.").format(
                     option=o.cli)
             names[o.long or o.short] = val
         for a, b in OPPOSITES:
@@ -759,11 +857,11 @@ class ExpertPage(Page):
             for n in args:
                 if is_file_target(n):
                     return None, _("A downloaded file goes to the queue from the file itself (open it with Zypp "
-                                   "Desk), which checks it first. Use “Run…” to install it as it is.")
+                                   "Desk), which checks it first. Use “Run” to install it as it is.")
                 t = n if typ == "package" else f"{typ}:{n}"
                 if k == "install":
                     if where and typ != "package":
-                        return None, _("The queue installs only packages from one repository. Use “Run…”.")
+                        return None, _("The queue installs only packages from one repository. Use “Run”.")
                     if where:
                         t = f"{where}:{t}"
                     out.append(Action("install", t, oldpackage=bool(names.get("--oldpackage"))))
@@ -784,7 +882,7 @@ class ExpertPage(Page):
         if k == "repo-add":
             if len(args) != 2:
                 return None, _("The queue adds a repository from its address and an alias (two words). A .repo file "
-                               "goes through “Run…” or the Repositories page.")
+                               "goes through “Run” or the Repositories page.")
             url, alias = args
             o = dict(url=url, name=names.get("--name") or alias, autorefresh=bool(names.get("--refresh")))
             if names.get("--disable"):
@@ -830,6 +928,9 @@ class ExpertPage(Page):
                 self.ctx.queue.add(a)
         self.copied.setText(ngettext("{n} change in the queue.", "{n} changes in the queue.", len(plan)).format(
             n=len(plan)))
+        # the button shows it too, for a moment
+        self.b_queue.setText(_("In the queue ✓"))
+        QTimer.singleShot(2500, lambda: self.b_queue.setText(_("Put this command in the queue")))
 
     # ------------------------------------------------------------------ copy, simulate, run
     def copy_command(self):

@@ -162,7 +162,7 @@ class NotifyCard(Card):
         self.sw_fw, row = self._switch_row(_("Tell me about firmware too"), s.get("notify_firmware", True))
         self.lay.addWidget(row)
         self.sw_ahead, row = self._switch_row(_("Download them ahead, without installing"), AHEAD_FLAG.exists(),
-                                              _("“Run the routine” will go faster."))
+                                              _("“Update everything” will go faster."))
         self.lay.addWidget(row)
 
         line = QFrame(self)
@@ -285,9 +285,9 @@ class NotifyCard(Card):
             title = _("Download the updates ahead?")
             items = [("folder-download|download", _("Download the next upgrade ahead, without installing it"),
                       _("Each time the system timer refreshes the repositories, it also downloads the packages of "
-                        "the next upgrade. They wait in zypper's cache (/var/cache/zypp/packages) until “Run the "
-                        "routine” installs them."))]
-            means = _("“Run the routine” will go faster, and a big upgrade can take a few gigabytes on the disk "
+                        "the next upgrade. They wait in zypper's cache (/var/cache/zypp/packages) until “Update "
+                        "everything” installs them."))]
+            means = _("“Update everything” will go faster, and a big upgrade can take a few gigabytes on the disk "
                       "until then. It only downloads when the computer is plugged in and the connection is not "
                       "metered (a phone hotspot). While it downloads, the computer does not go to sleep, also when "
                       "you close the lid: for {minutes} minutes at most, then it goes on at the next run.").format(

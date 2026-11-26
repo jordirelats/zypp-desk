@@ -61,12 +61,35 @@ class ServicesPage(Page):
                               "own repositories come from one).")))
         lay.addWidget(self.tree, 1)
         self.repos = []
+        # the header buttons live as long as the page (the window takes them away and puts them back); the second
+        # one names the chosen service and what it would do with it
+        args = ["-n", "-v", "refresh-services"]
+        self.b_refresh = tool(_("Refresh the services"), "view-refresh",
+                              lambda: self.ctx.run([Step("zypper", list(args))], _("Refresh services"),
+                                                   on_done=lambda ok: self.ctx.after_change()))
+        self.b_refresh.setToolTip(_("Asks every service for its list of repositories again, now. It asks for the "
+                                    "administrator password.") + "\n" + Step("zypper", args).display())
+        self.b_toggle = tool(_("Enable or disable…"), "system-run", self.toggle)
+        self.tree.currentItemChanged.connect(lambda _cur, _prev: self._toggle_label())
+        self._toggle_label()
 
     def header_actions(self):
-        return [tool(_("Refresh services"), "view-refresh",
-                     lambda: self.ctx.run([Step("zypper", ["-n", "-v", "refresh-services"])], _("Refresh services"),
-                                          on_done=lambda ok: self.ctx.after_change())),
-                tool(_("Enable / disable"), "system-run", self.toggle)]
+        return [self.b_refresh, self.b_toggle]
+
+    def _toggle_label(self):
+        """The second header button: 'Disable openSUSE…' or 'Enable openSUSE…' for the chosen service."""
+        it = self.tree.currentItem()
+        s = it.data(0, Qt.ItemDataRole.UserRole) if it is not None else None
+        if not s:
+            self.b_toggle.setText(_("Enable or disable…"))
+            self.b_toggle.setEnabled(False)
+            self.b_toggle.setToolTip(_("Choose a service in the list first."))
+            return
+        name = s["name"].replace("&", "&&") if len(s["name"]) <= 20 else _("the service")
+        self.b_toggle.setText((_("Disable {name}…") if s["enabled"] else _("Enable {name}…")).format(name=name))
+        self.b_toggle.setEnabled(True)
+        st = Step("zypper", ["modifyservice", "--disable" if s["enabled"] else "--enable", "--", s["alias"]])
+        self.b_toggle.setToolTip(_("Asks first, then changes it now (with its repositories).") + "\n" + st.display())
 
     def reload(self):
         run_async(self._load_all, on_done=self._loaded)
@@ -93,6 +116,7 @@ class ServicesPage(Page):
             it.setData(0, Qt.ItemDataRole.UserRole, s)
         for c in range(5):
             self.tree.resizeColumnToContents(c)
+        self._toggle_label()
 
     def toggle(self):
         it = self.tree.currentItem()
@@ -160,6 +184,33 @@ MAINTENANCE = [
     ("licenses", _("Licenses report"),
      _("Lists the licenses of the installed packages."), None, ["licenses"]),
 ]
+
+
+# The two buttons of each task card: (Simulate, Run) labels and what the Run one does. Each says its own action;
+# "…" when a question follows (the ones that change the system ask first; the ones that only read run at once).
+MAINTENANCE_BUTTONS = {
+    "verify": (_("Simulate the check"), _("Check the dependencies…"),
+               _("Asks first. If something is missing or in conflict, zypper installs or removes packages to fix it.")),
+    "inr": (_("Simulate installing them"), _("Install the new recommended…"),
+            _("Asks first, then installs what your programs started to recommend after you installed them.")),
+    "purge": (_("Simulate removing old kernels"), _("Remove the old kernels…"),
+              _("Shows which kernels stay and which go, and asks first.")),
+    "clean": (None, _("Clean the cache…"),
+              _("Shows how much room it frees, and asks first. Nothing installed changes.")),
+    "cleanlocks": (None, _("Clean the useless locks…"),
+                   _("Asks first, then removes the locks that match no package.")),
+    "ps": (None, _("Find the programs to restart"),
+           _("Lists them in the terminal, now. Nothing changes.")),
+    "reboot": (None, _("Ask if a restart is needed"),
+               _("zypper answers in the terminal, now. Nothing changes.")),
+    "licenses": (None, _("List the licenses"),
+                 _("Lists the licenses of the installed packages in the terminal, now. Nothing changes.")),
+}
+
+
+def maintenance_step(args):
+    """The command a task card's Run button runs (MaintenancePage._run)."""
+    return Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])
 
 
 def keep_by_rule(rule, editions, running=None):
@@ -277,11 +328,17 @@ class MaintenancePage(Page):
             cmd.setStyleSheet("color: palette(link); font-family: monospace;")
             card.lay.addWidget(cmd)
             row = QHBoxLayout()
+            sim_label, run_label, run_tip = MAINTENANCE_BUTTONS[key]
             if sim:
-                row.addWidget(button(_("Simulate"), "media-playback-start",
-                                     lambda _c=False, a=sim, t=title: self.ctx.run([Step("zypper", ["-n", "-v", *a])], t)))
-            row.addWidget(button(_("Run"), "system-run",
-                                 lambda _c=False, k=key, a=run, t=title: self._run(k, a, t)))
+                sim_step = Step("zypper", ["-n", "-v", *sim])
+                b = button(sim_label, "media-playback-start",
+                           lambda _c=False, st=sim_step, t=title: self.ctx.run([Step(st.program, list(st.args))], t))
+                b.setToolTip(_("Shows in the terminal what it would do, without changing anything. It asks for the "
+                               "administrator password.") + "\n" + sim_step.display())
+                row.addWidget(b)
+            b = button(run_label, "system-run", lambda _c=False, k=key, a=run, t=title: self._run(k, a, t))
+            b.setToolTip(run_tip + "\n" + maintenance_step(run).display())
+            row.addWidget(b)
             row.addStretch(1)
             card.lay.addLayout(row)
             grid.addWidget(card, i // 2, i % 2)
@@ -295,7 +352,7 @@ class MaintenancePage(Page):
     def _run(self, key, args, title):
         """The commands that change the system ask first, in words; the ones that only
         read (ps, needs-rebooting, licenses) run at once."""
-        st = Step("zypper", ["-v", *(["-n"] if args[0] != "-n" else []), *args])
+        st = maintenance_step(args)
         if key == "purge":  # real numbers first: rpm's database, zypp.conf and snapper, read in the background
             def asked(res, err):
                 plan, snapshots = res if not err and res else (None, False)
@@ -328,8 +385,8 @@ class MaintenancePage(Page):
                         items=[("tools", _("Check that every installed package has what it needs"),
                                 _("If something is missing or in conflict, zypper installs or removes packages to "
                                   "fix it, without asking again."))],
-                        means=_("most of the time there is nothing to fix. “Simulate” shows first what it would "
-                                "change."), commands_=cmds)
+                        means=_("most of the time there is nothing to fix. “Simulate the check” shows first what "
+                                "it would change."), commands_=cmds)
         if key == "inr":
             return dict(title=_("Install the new recommended packages?"), yes=_("Yes, install them"),
                         icon_name="tools",
@@ -337,7 +394,8 @@ class MaintenancePage(Page):
                                 _("Install what your programs recommend now"),
                                 _("Only what they started to recommend after you installed them: translations, "
                                   "plugins…"))],
-                        means=_("“Simulate” shows first which packages and how much space they take."),
+                        means=_("“Simulate installing them” shows first which packages and how much space they "
+                                "take."),
                         commands_=cmds)
         return None
 
@@ -386,8 +444,9 @@ class MaintenancePage(Page):
 
     # ------------------------------------------------------------ health check (health.py)
     def header_actions(self):
-        b = button(_("Check again"), "view-refresh", lambda: self.check_health(refresh=True))
-        b.setToolTip(_("Look at the computer again: what was installed, removed or changed since."))
+        b = button(_("Check the computer again"), "view-refresh", lambda: self.check_health(refresh=True))
+        b.setToolTip(_("Look at the computer again: what was installed, removed or changed since. Nothing "
+                       "changes."))
         self._check_buttons = [b]
         self._busy_buttons(self._health_busy)
         return [b]
@@ -396,7 +455,7 @@ class MaintenancePage(Page):
         for b in self._check_buttons:
             try:
                 b.setEnabled(not busy)
-                b.setText(_("Checking…") if busy else _("Check again"))
+                b.setText(_("Checking…") if busy else _("Check the computer again"))
             except RuntimeError:  # the button of a header that is gone
                 pass
 
@@ -433,8 +492,8 @@ class MaintenancePage(Page):
         for f in res["findings"]:
             self.health_box.addWidget(health_row(
                 f["severity"], f["title"], f["text"], f["details"],
-                (f["button"], lambda _c=False, f=f: self._health_act(f)) if f.get("action") and f.get("button")
-                else None, parent=self))
+                (f["button"], lambda _c=False, f=f: self._health_act(f), self._health_tip(f))
+                if f.get("action") and f.get("button") else None, parent=self))
         if res["clean"]:
             self.health_box.addWidget(health_row(
                 "ok", _("Nothing to look at in: {checks}").format(
@@ -523,6 +582,30 @@ class MaintenancePage(Page):
             page._switch(0)
         if getattr(page, "mine_search", None) is not None:
             page.mine_search.setText(name)
+
+    def _health_tip(self, f):
+        """The tooltip of a finding's button: where it goes, or what it asks."""
+        action, data = f.get("action"), f.get("data") or {}
+        if action == "firmware":
+            if "drivers" in getattr(self.ctx, "pages", {}):
+                return _("Opens Drivers: under “Not needed for this computer”, the firmware no device here uses, to "
+                         "put in the queue for removal.")
+            return _("Asks first, then puts the firmware this computer does not use in the queue.")
+        if action in ("show-app", "duplicates"):
+            return _("Opens Applications, searched for {name}.").format(
+                name=data.get("name") or (data.get("names") or [""])[0])
+        if action == "vendor":
+            return _("Shows which packages can go back to their repository's vendor, and asks before putting them "
+                     "in the queue.")
+        if action == "repos":
+            return _("Opens Repositories, where each repository says how its signatures are checked.")
+        if action == "keys":
+            return _("Opens Signing keys, where each key says which repositories use it.")
+        if action == "orphans":
+            return _("Opens Packages with the packages that no repository has (zypper packages --orphaned).")
+        if action == "verify":
+            return MAINTENANCE_BUTTONS["verify"][2] + "\n" + maintenance_step(["-n", "verify"]).display()
+        return ""
 
     def _health_act(self, f):
         """A finding's button: it opens the right place, or asks and puts the changes in the queue."""
@@ -683,6 +766,8 @@ class RpmFilesCard(Card):
         self.lay.addWidget(self.state)
         row = QHBoxLayout()
         self.btn = button(_("Open .rpm files with Zypp Desk"), "document-open", self._set, parent=self)
+        self.btn.setToolTip(_("Makes Zypp Desk the program that opens .rpm files, for your user only, now.") + "\n"
+                            + f"xdg-mime default {DESKTOP_ID} {RPM_MIME}")
         self.btn.setEnabled(False)
         row.addWidget(self.btn)
         row.addStretch(1)
@@ -824,9 +909,14 @@ class SettingsPage(Page):
                                    "other computer, open the file with Zypp Desk: everything goes to the queue, for "
                                    "you to look at before applying it. The file has no passwords or documents.")))
         row = QHBoxLayout()
-        row.addWidget(button(_("Save this computer's software…"), "document-export",
-                             lambda: open_export(self.ctx, self)))
-        row.addWidget(button(_("Import it from a file…"), "document-import", lambda: open_import(self.ctx, self)))
+        b = button(_("Save this computer's software…"), "document-export", lambda: open_export(self.ctx, self))
+        b.setToolTip(_("Opens a window to choose what goes in the file and where to save it. Nothing changes on this "
+                       "computer."))
+        row.addWidget(b)
+        b = button(_("Open another computer's file…"), "document-import", lambda: open_import(self.ctx, self))
+        b.setToolTip(_("Choose a file saved on another computer: Zypp Desk shows what it has, and what you choose "
+                       "goes to the queue."))
+        row.addWidget(b)
         row.addStretch(1)
         card.lay.addLayout(row)
         return card
@@ -881,8 +971,8 @@ def clear_layout(lay):
 
 def health_row(severity, title, text="", details=(), action=None, parent=None):
     """One finding: a coloured dot (its importance), the title, one plain sentence, "▸ Details" when there are
-    some, and a button on the right. action: (text, slot) or None. Every text is plain text (package and
-    repository names come from outside)."""
+    some, and a button on the right. action: (text, slot) or (text, slot, tooltip), or None. Every text is plain
+    text (package and repository names come from outside)."""
     from PySide6.QtWidgets import QFrame
     from ..style import GREEN, ORANGE, RED
     row = QFrame(parent)
@@ -935,8 +1025,10 @@ def health_row(severity, title, text="", details=(), action=None, parent=None):
         v.addWidget(body)
     h.addLayout(v, 1)
     if action:
-        label, slot = action
-        b = button(label, None, slot, parent=row)
+        label, slot = action[0], action[1]
+        b = button(label.replace("&", "&&"), None, slot, parent=row)  # '&' in a name: not a mnemonic
+        if len(action) > 2 and action[2]:
+            b.setToolTip(action[2])
         # beside the title and its sentence, also when the details are open
         h.addWidget(b, 0, Qt.AlignmentFlag.AlignTop if details else Qt.AlignmentFlag.AlignVCenter)
     return row
@@ -977,7 +1069,8 @@ def firmware_question(plan, changes):
                 items=items, warning=warning, password=False, help_topic="drivers",
                 means=_("the devices of this computer keep working. A device you plug in later may need firmware "
                         "that is gone: each firmware package says which devices it is for, so “Install new "
-                        "recommended packages” (zypper inr) puts the right one back once the device is plugged in."))
+                        "recommended packages” (zypper inr) puts the right one back once the device is plugged in."),
+                queue=True)
 
 
 def vendor_line(p):
@@ -1010,4 +1103,4 @@ def vendor_question(packages):
                 icon_name="system-software-update", items=items, password=False, help_topic="health",
                 lead=_("Nothing changes yet: Simulate shows what else would change with them."),
                 means=_("the programs stay; only the place their updates come from changes. The version of the "
-                        "repository may be built differently (with other codecs, for example)."))
+                        "repository may be built differently (with other codecs, for example)."), queue=True)

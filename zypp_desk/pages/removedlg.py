@@ -99,11 +99,23 @@ class RemoveDialog(QDialog):
 
         btns = QHBoxLayout()
         btns.addStretch(1)
-        btns.addWidget(button(_("Cancel"), None, self.reject))
-        btns.addWidget(button(_("Simulate"), "media-playback-start", lambda: self._queue(simulate=True)))
-        ok = button(_("Add to the queue"), "list-add", lambda: self._queue(), primary=True)
-        ok.setDefault(True)
-        btns.addWidget(ok)
+        cancel = button(_("Cancel"), None, self.reject)
+        cancel.setAutoDefault(False)
+        cancel.setToolTip(_("Close this window: nothing goes to the queue."))
+        btns.addWidget(cancel)
+        # the name when it is short; a long one would make the button too wide (the title says it)
+        self.sim_btn = button(_("Simulate removing {name}").format(name=d["name"]) if len(d["name"]) <= 20
+                              else _("Simulate the removal"), "media-playback-start",
+                              lambda: self._queue(simulate=True))
+        self.sim_btn.setAutoDefault(False)
+        self.sim_btn.setToolTip(_("Puts the removal of {name} in the queue and simulates the queue (zypper "
+                                  "--dry-run): the exact list of what would be removed. Nothing changes.").format(
+            name=d["name"]))
+        btns.addWidget(self.sim_btn)
+        # it only goes to the queue: never green; Enter takes it (nothing changes on the computer)
+        self.ok_btn = button(_("Put the removal in the queue"), "list-add", lambda: self._queue())
+        self.ok_btn.setDefault(True)
+        btns.addWidget(self.ok_btn)
         lay.addLayout(btns)
 
         self.deps, self.own = None, 0
@@ -185,7 +197,10 @@ class RemoveDialog(QDialog):
         q = TxQueue(getattr(self.ctx.queue, "settings", None) or {})  # the queue's own command for this removal
         for a in self._actions():
             q.add(a)
-        self.cmd.setText("\n".join(st.display() for st in q.steps()))
+        commands = "\n".join(st.display() for st in q.steps())
+        self.cmd.setText(commands)
+        self.ok_btn.setToolTip(_("Puts the removal of {name} in the queue. Nothing changes until you apply the "
+                                 "queue, which runs:").format(name=self.d["name"]) + "\n" + commands)
         if self.deps is None:
             self.total.setText("")
             return

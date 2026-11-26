@@ -20,6 +20,7 @@ from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action, TxQueue, nice_fpr
 from ..ui import Page, button, error_box, heading, icon, mono, muted
+from .markbar import amp, queue_label
 
 STATUS = {  # status → (pill text, colour)
     "ok": (lambda: _("All good"), GREEN),
@@ -89,21 +90,26 @@ class DeviceCard(QFrame):
         if card.get("proposal"):
             self.button = QPushButton(self._button_text())
             self.button.setAutoDefault(False)
+            self.button.setToolTip(_("Says what it is, where it comes from and what happens with Secure Boot, and "
+                                     "asks before putting it in the queue. Nothing changes until you apply the "
+                                     "queue."))
             self.button.clicked.connect(lambda: on_click(self.card))
             right.addWidget(self.button, 0, Qt.AlignmentFlag.AlignRight)
         right.addStretch(1)
         h.addLayout(right)
 
     def _button_text(self):
+        """What the button puts in the queue (after its question): the driver, or the package by name."""
         p = self.card["proposal"]
         if p["kind"] == "nvidia":
-            return _("Install NVIDIA's driver…")
+            return _("Put NVIDIA's driver in the queue…")
         if p["kind"] == "broadcom":
-            return _("Install Broadcom's driver…")
+            return _("Put Broadcom's driver in the queue…")
         names = p.get("packages") or []
-        if len(names) == 1:
-            return _("Install {name}…").format(name=names[0])
-        return _("Install them…")
+        if len(names) == 1 and len(names[0]) <= 26:
+            return _("Put {name} in the queue…").format(name=amp(names[0]))
+        return ngettext("Put the package in the queue…", "Put the {n} packages in the queue…",
+                        len(names)).format(n=len(names))
 
     def set_queued(self, queued):
         if self.button is None:
@@ -112,7 +118,7 @@ class DeviceCard(QFrame):
             self.pill.setText(_("In the queue"))
             self.pill.setStyleSheet(f"color: {GREEN}; background: {_tint(GREEN)}; border-radius: 9px; "
                                     "padding: 1px 9px;")
-            self.button.setText(_("In the queue"))
+            self.button.setText(_("In the queue ✓"))
             self.button.setEnabled(False)
         else:
             text, color = STATUS.get(self.card["status"], STATUS["info"])
@@ -242,15 +248,21 @@ class DriversPage(Page):
         foot = QHBoxLayout()
         self.total = label("", small=True, muted=True)
         foot.addWidget(self.total, 1)
-        self.b_remove = button(_("Remove the packages…"), primary=True, slot=lambda: self.remove_ticked())
+        # the removal only goes to the queue (after its question): "To the queue:" says so, and it is not green
+        foot.addWidget(queue_label(self.section), 0, Qt.AlignmentFlag.AlignVCenter)
+        self.b_remove = button(_("Remove the packages…"), slot=lambda: self.remove_ticked())
         self.b_remove.setAutoDefault(False)
+        self.b_remove.setToolTip(_("Asks first, then puts the removal of the ticked packages in the queue. Nothing "
+                                   "changes until you apply the queue."))
         foot.addWidget(self.b_remove, 0, Qt.AlignmentFlag.AlignVCenter)
         sv.addLayout(foot)
         self.section.hide()
         v.addWidget(self.section)
         v.addStretch(1)
 
-        self.b_again = button(_("Look again"), "view-refresh", lambda: self.reload())
+        self.b_again = button(_("Look at the hardware again"), "view-refresh", lambda: self.reload())
+        self.b_again.setToolTip(_("Reads the hardware of this computer again: a dock or a device plugged in since. "
+                                  "Nothing changes."))
         ctx.queue.changed.connect(self._queue_changed)
 
     def header_actions(self):
@@ -425,8 +437,9 @@ class DriversPage(Page):
             self, _("Remove what this computer doesn't need?"), window_title=_("Not needed for this computer"),
             icon_name="cpu|computer", lead=_("Zypp Desk will do this, in this order:"), items=items,
             means=means, commands_=self._commands(actions),
-            help_topic="drivers", buttons=[("no", _("Not yet"), False), ("simulate", _("Look first (simulate)"), False),
-                     ("yes", _("Yes, remove them"), True)])
+            help_topic="drivers", buttons=[("no", _("Not yet"), False),
+                                           ("simulate", _("Put it in the queue and simulate"), False),
+                                           ("yes", _("Put it in the queue"), True)], queue=True)
         if answer not in ("yes", "simulate"):
             return
         self._queue(actions, ngettext("Added to the queue: remove {n} package.", "Added to the queue: remove {n} "
@@ -551,7 +564,8 @@ class DriversPage(Page):
                                                                                  "queue, in this order:"),
             items=items, extra=[self._secure_boot_box(not plan["compiled"], p.get("secure_boot"))], means=means,
             warning=warning, commands_=self._commands(actions),
-            help_topic="drivers", buttons=[("no", _("Not yet"), False), ("yes", _("Add to the queue"), True)])
+            help_topic="drivers", password=False,  # it only goes to the queue: Apply asks for the password
+            buttons=[("no", _("Not yet"), False), ("yes", _("Put it in the queue"), True)], queue=True)
         if answer != "yes":
             return
         self._queue(actions, _("Added to the queue: NVIDIA's driver, series {series} ({flavor} kernel).").format(
@@ -576,7 +590,8 @@ class DriversPage(Page):
             icon_name="network-wireless", lead=_("Zypp Desk will put this in the queue, in this order:"), items=items,
             extra=[self._secure_boot_box(True, p.get("secure_boot"))], means=means,
             commands_=self._commands(actions),
-            help_topic="drivers", buttons=[("no", _("Not yet"), False), ("yes", _("Add to the queue"), True)])
+            help_topic="drivers", password=False,  # it only goes to the queue: Apply asks for the password
+            buttons=[("no", _("Not yet"), False), ("yes", _("Put it in the queue"), True)], queue=True)
         if answer != "yes":
             return
         self._queue(actions, _("Added to the queue: Broadcom's driver wl."))
@@ -608,7 +623,8 @@ class DriversPage(Page):
             means=_("after the next restart (or when you plug the device in again), its driver finds what it needs. "
                     "It comes from your repositories. It goes to the queue: nothing changes until you apply it."),
             commands_=self._commands(actions),
-            help_topic="drivers", buttons=[("no", _("Not yet"), False), ("yes", _("Add to the queue"), True)])
+            help_topic="drivers", password=False,  # it only goes to the queue: Apply asks for the password
+            buttons=[("no", _("Not yet"), False), ("yes", _("Put it in the queue"), True)], queue=True)
         if answer != "yes":
             return
         self._queue(actions, ngettext("Added to the queue: install {names}.", "Added to the queue: install {names}.",

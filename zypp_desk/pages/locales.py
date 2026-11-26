@@ -29,7 +29,7 @@ from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Card, Page, RoomSplitter, button, heading, hline, icon, muted
 from .history import INFO_BOX, command_label, plain_label
-from .markbar import check_rect, paint_check
+from .markbar import amp, check_rect, paint_check, queue_label
 
 LOCALE_CONF = Path("/etc/locale.conf")
 ENGLISH = "en"  # the programs are written in it: always there, it needs no translation packages
@@ -397,6 +397,9 @@ class LocalesPage(Page):
         self.filters.setExclusive(True)
         self.b_have = self._filter_button(_("The ones you have"), "have", bar)
         self.b_all = self._filter_button(pgettext("languages", "All"), "all", bar)
+        self.b_have.setToolTip(_("Shows the languages zypper installs translations for, and the changes in the "
+                                 "queue."))
+        self.b_all.setToolTip(_("Shows every language zypper knows, to add one."))
         self.b_have.setChecked(True)
         bh.addWidget(self.b_have)
         bh.addWidget(self.b_all)
@@ -450,7 +453,10 @@ class LocalesPage(Page):
         self.c_means.setStyleSheet(INFO_BOX)
         right.lay.addWidget(self.c_means)
         brow = QHBoxLayout()
-        self.c_button = button("", "list-add", self._card_button, primary=True)
+        # adding or removing a language only puts it in the queue: "To the queue:" says so, and it is never green
+        self.c_queue = queue_label(right)
+        brow.addWidget(self.c_queue)
+        self.c_button = button("", "list-add", self._card_button)
         brow.addWidget(self.c_button)
         brow.addStretch(1)
         right.lay.addLayout(brow)
@@ -763,7 +769,7 @@ class LocalesPage(Page):
 
     def _show_card(self, code=""):
         e = self.entries.get(code) if code else None
-        card = (self.c_title, self.c_sub, self.c_means, self.c_button, self.c_command)
+        card = (self.c_title, self.c_sub, self.c_means, self.c_button, self.c_command, self.c_queue)
         if e is None:
             for w in card:
                 w.hide()
@@ -802,25 +808,36 @@ class LocalesPage(Page):
         if locked:
             self.c_button.hide()
             self.c_command.hide()
+            self.c_queue.hide()
         else:
-            if kind:
-                self.c_button.setText(_("Take out of the queue"))
+            name = amp(e["native"]) if len(e["native"]) <= 22 else ""
+            if kind:  # it acts on the queue itself: no "To the queue:" in front
+                self.c_button.setText(_("Take {language} out of the queue").format(language=name) if name else
+                                      _("Take it out of the queue"))
                 self.c_button.setIcon(icon("edit-undo"))
-                self.c_button.setProperty("primary", False)
+                self.c_button.setToolTip(_("Nothing changes for this language: the change comes out of the queue, "
+                                           "now."))
                 cmd_kind = kind
             elif requested:
-                self.c_button.setText(pgettext("language", "Remove it"))
+                self.c_button.setText(pgettext("language", "Remove {language}").format(language=name) if name else
+                                      pgettext("language", "Remove it"))
                 self.c_button.setIcon(icon("list-remove"))
-                self.c_button.setProperty("primary", False)
+                self.c_button.setToolTip(_("Puts its removal in the queue: zypper no longer installs its "
+                                           "translations once you apply it.") + "\n"
+                                         + self.command("locale-remove", code))
                 cmd_kind = "locale-remove"
             else:
-                self.c_button.setText(pgettext("language", "Add it"))
+                self.c_button.setText(pgettext("language", "Add {language}").format(language=name) if name else
+                                      pgettext("language", "Add it"))
                 self.c_button.setIcon(icon("list-add"))
-                self.c_button.setProperty("primary", True)
+                self.c_button.setToolTip(_("Puts it in the queue: zypper installs its translations when you apply "
+                                           "it.") + "\n" + self.command("locale-add", code))
                 cmd_kind = "locale-add"
+            self.c_button.setProperty("primary", False)  # it only changes the queue: never the green button
             self.c_button.style().unpolish(self.c_button)
             self.c_button.style().polish(self.c_button)
             self.c_button.show()
+            self.c_queue.setVisible(not kind)
             self.c_command.setText(self.command(cmd_kind, code))
             self.c_command.show()
         self.c_title.show()

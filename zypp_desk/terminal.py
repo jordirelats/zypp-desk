@@ -297,9 +297,17 @@ class TerminalPanel(QWidget):
         self.only = self._button(_("Only warnings and errors"), checkable=True)
         self.only.toggled.connect(self.view.set_only_problems)
         hb.addWidget(self.only)
-        for text, slot in ((_("Copy"), self.copy_all), (_("Save…"), self.save), (_("Clear"), self.view.clear_all),
-                           (_("Hide"), self.hide_requested.emit)):
+        self.only.setToolTip(_("Show only the lines with a warning or an error."))
+        # each says it acts on the terminal: the queue bar under it has its own "Empty the queue"
+        for text, slot, tip in (
+                (_("Copy the output"), self.copy_all, _("Copy everything the terminal shows.")),
+                (_("Save the output…"), self.save, _("Save everything the terminal shows in a text file.")),
+                (_("Clear the terminal"), self.view.clear_all, _("Clear what the terminal shows. Nothing else "
+                                                                  "changes.")),
+                (_("Hide the terminal"), self.hide_requested.emit, _("Hide the terminal; “Show the terminal” "
+                                                                     "brings it back."))):
             b = self._button(text)
+            b.setToolTip(tip)
             b.clicked.connect(slot)
             hb.addWidget(b)
         self.notes = QTextBrowser(self)

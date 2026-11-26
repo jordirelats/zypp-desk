@@ -7,8 +7,9 @@
 openSUSE. Tot el que fa Zypp Desk, ho fa amb zypper, i sempre t'ensenya l'ordre exacta.</p>
 <p>Tres idees fan que sigui segur:</p>
 <ul>
-<li><b>No canvia res fins que no ho apliques.</b> El que tries va a la <b>cua</b>, a la part de baix de la finestra. Ho pots mirar (<b>Revisa</b>), provar
-(<b>Simula</b>) i només llavors fer-ho de debò (<b>Aplica</b>).</li>
+<li><b>No canvia res fins que no ho apliques.</b> El que tries va a la <b>cua</b>, a la part de baix de la
+finestra. Ho pots mirar (<b>Revisa la cua…</b>), provar (<b>Simula la cua</b>) i només llavors fer-ho de debò
+(<b>Aplica la cua…</b>).</li>
 <li><b>Cada pregunta diu en paraules què passarà</b>, què vol dir per a tu i, a sota, l'ordre exacta. Prémer
 Enter no comença mai un canvi: has de triar el botó que el fa.</li>
 <li><b>Sempre pots veure què diu zypper.</b> El terminal de baix (<b>Mostra el terminal</b>, a la barra lateral)
@@ -20,23 +21,26 @@ recorda cinc minuts: si hi ha uns quants passos seguits, només la demana una ve
 <p>Comença per l'<a href="page:home">Inici</a>: un cercador gran i unes targetes que et diuen si hi ha
 actualitzacions, com estan els repositoris i què cal mirar.</p>
 
-<!-- topic: queue | La cua: Revisa, Simula i Aplica -->
-<h2>La cua: Revisa, Simula i Aplica</h2>
+<!-- topic: queue | La cua: revisar, simular i aplicar -->
+<h2>La cua: revisar, simular i aplicar</h2>
 <p>Instal·lar, treure o bloquejar un paquet, afegir un repositori o importar una clau: cadascuna d'aquestes
 coses és un <b>canvi</b>, i espera a la cua fins que l'apliques. La barra de baix diu quants n'hi ha i les ordres
 que faran servir.</p>
+<p>El color d'un botó et diu què fa. Un botó verd canvia l'ordinador ara mateix, sempre després d'una pregunta; un
+botó que només afegeix a la cua no és mai verd, i porta davant <b>A la cua:</b> o ja ho diu ell mateix. Res del que
+hi ha a la cua no canvia l'ordinador fins que prems <b>Aplica la cua…</b>.</p>
 <ul>
-<li><b>Revisa</b> fa la llista dels canvis en l'ordre en què es faran, en paraules. Cadascun té el seu botó per
-treure'l de la cua. Quan un canvi en necessita un altre (un programa necessita el repositori d'on ve, i el
+<li><b>Revisa la cua…</b> fa la llista dels canvis en l'ordre en què es faran, en paraules. Cadascun té el seu botó
+per treure'l de la cua. Quan un canvi en necessita un altre (un programa necessita el repositori d'on ve, i el
 repositori necessita la seva clau), la llista ho diu, i Zypp Desk pregunta abans que treguis un canvi que en necessiten d'altres.</li>
-<li><b>Simula</b> pregunta a zypper què faria de debò, sense canviar res: què més instal·laria o trauria, quant
-baixaria i si hi ha algun problema. Si n'hi ha, pots triar una solució explicada en paraules.</li>
-<li><b>Aplica</b> t'ensenya els canvis un cop més i els fa. Si un pas falla, Zypp Desk s'atura allà: el que
-s'ha fet queda fet, i la resta es queda a la cua per tornar-ho a provar.</li>
-<li><b>Buida</b> deixa la cua buida. No desfà res, perquè encara no ha canviat res.</li>
+<li><b>Simula la cua</b> pregunta a zypper què faria de debò, sense canviar res: què més instal·laria o
+trauria, quant baixaria i si hi ha algun problema. Si n'hi ha, pots triar una solució explicada en paraules.</li>
+<li><b>Aplica la cua…</b> t'ensenya els canvis un cop més i els fa. Si un pas falla, Zypp Desk s'atura allà: el
+que s'ha fet queda fet, i la resta es queda a la cua per tornar-ho a provar.</li>
+<li><b>Buida la cua</b> treu tots els canvis de la cua. No desfà res, perquè encara no ha canviat res.</li>
 </ul>
-<p><b>Simula</b> només prova els canvis de paquets: els canvis de repositoris, els bloquejos, les llengües i les
-aplicacions Flatpak no es poden simular, i només es fan quan apliques la cua.</p>
+<p><b>Simula la cua</b> només prova els canvis de paquets: els canvis de repositoris, els bloquejos, les llengües i
+les aplicacions Flatpak no es poden simular, i només es fan quan apliques la cua.</p>
 
 <!-- topic: update | Mantenir el sistema al dia -->
 <h2>Mantenir el sistema al dia</h2>
@@ -44,30 +48,39 @@ aplicacions Flatpak no es poden simular, i només es fan quan apliques la cua.</
 trobaràs:</p>
 <ul>
 <li><b>La teva rutina</b>: els passos que fas sempre per actualitzar, per exemple refrescar els repositoris,
-baixar les actualitzacions i després instal·lar-les. <b>Executa la rutina</b> els fa un darrere l'altre i
-t'ensenya cada pas. <b>Edita la rutina…</b> la canvia amb botons, o escrivint-la com en un terminal.</li>
+baixar les actualitzacions i després instal·lar-les. <b>Actualitza-ho tot…</b>, amb el nombre
+d'actualitzacions (per exemple <b>Actualitza-ho tot (97)…</b>), els fa un darrere l'altre i t'ensenya cada pas.
+Mentre s'executa, <b>Atura després d'aquest pas</b> deixa acabar el pas d'ara i ja no fa els que venen: el botó
+passa a dir <b>S'aturarà després d'aquest pas</b>, i el terminal et diu què no s'executarà. <b>Edita la
+rutina…</b> canvia la rutina amb botons, o escrivint-la com en un terminal.</li>
 <li><b>Què hi ha per actualitzar</b>: paquets dels repositoris, aplicacions Flatpak, programes de la web i
 firmware, amb una casella per marcar cadascun. <b>Marca-ho tot</b> i <b>Desmarca-ho tot</b>, a sota de la llista,
-els marquen o els desmarquen tots d'un cop. La fitxa de la dreta t'explica el paquet que tries.</li>
+els marquen o els desmarquen tots d'un cop. La fitxa de la dreta t'explica el paquet que tries. Els botons de sota
+la llista només actuen sobre el que has marcat, i el seu nom ho diu: per exemple <b>Simula només digikam</b> o
+<b>Posa digikam a la cua</b>.</li>
 <li>La llista ensenya el que sabia l'ordinador l'última vegada que es van refrescar els repositoris: <b>Torna a
 mirar</b> la torna a llegir. <b>Refresca els repositoris</b> primer pregunta a cada repositori què hi ha de nou
 (amb la contrasenya d'administrador) i després torna a mirar.</li>
-<li><b>Simula el dup…</b>: l'actualització completa de Tumbleweed (<code>zypper dup</code>) en una finestra
-pròpia, amb les seves opcions.</li>
+<li><b>Simula actualitzar-ho tot…</b>: l'actualització completa de Tumbleweed (<code>zypper dup</code>) en una
+finestra pròpia, amb les seves opcions.</li>
 </ul>
+<p>La rutina actualitza tot el sistema: no mira les caselles. Per això, si has marcat unes files i n'has deixat
+d'altres sense marcar, <b>Actualitza-ho tot…</b> primer et pregunta <b>Actualitzar tot el sistema?</b> Allà,
+<b>Encara no</b> no canvia res; el botó amb el nom del que has marcat, com <b>Només digikam</b>, posa només això a
+la cua i et pregunta abans d'aplicar-ho; i <b>Sí, actualitza-ho tot</b> executa la rutina.</p>
 <h3>Rutines proposades</h3>
 <p>A l'editor de la rutina, <b>Rutines proposades…</b> t'ensenya unes quantes rutines ja fetes, cadascuna amb què
 fa, per què i la línia que seria en un terminal. La primera està feta per a aquest ordinador: a més d'actualitzar
 el sistema, actualitza les aplicacions Flatpak si en tens i el firmware si hi ha fwupd, treu els nuclis antics i
 els paquets baixats si queda poc espai al disc, i al final et diu quins programes cal reiniciar. Les altres són la
 de sempre (ho baixa tot i només ho instal·la si s'ha pogut baixar tot), una que només baixa i una de ràpida. La
-que triïs va a l'editor, on encara la pots canviar; no es desa res fins que no prems <b>Desa</b>.</p>
+que triïs va a l'editor, on encara la pots canviar; no es desa res fins que no prems <b>Desa la rutina</b>.</p>
 <h3>Una actualització gran</h3>
 <p>Quan una actualització és gran, o fa menys d'un dia que ha sortit la versió nova de
 Tumbleweed, Zypp Desk et
 pregunta si val la pena esperar. Et diu com és de gran, de quan és la versió i si l'ordinador va amb bateria.
-Pots actualitzar ara, <b>només baixar-ho ara</b> (després s'instal·la molt més de pressa) o <b>que t'ho
-recordi demà</b>: t'avisarà la icona del costat del rellotge.</p>
+Pots actualitzar ara (<b>Actualitza-ho tot ara</b>), triar <b>Només baixa l'actualització</b> (després
+s'instal·la molt més de pressa) o <b>Recorda-m'ho demà</b>: t'avisarà la icona del costat del rellotge.</p>
 <h3>Poc espai al disc</h3>
 <p>Si l'actualització no hi cap amb marge, Zypp Desk et proposa alliberar espai abans (paquets que s'havien
 baixat altres vegades, nuclis antics) i actualitzar <b>a trossos</b>. Cada tros és una actualització normal de
@@ -104,9 +117,11 @@ navegador ja no hi és, l'entrada del menú ja no funciona, i Zypp Desk la pot m
 <p>Si el programa no és als teus repositoris, <b>Cerca a Internet…</b> el busca a l'openSUSE Build Service, a
 Fedora COPR i a Flathub, i t'explica quant et pots refiar de cada lloc.</p>
 <h3>Protegir una aplicació</h3>
-<p><b>Protegeix-la</b>, a la fitxa d'una aplicació a Aplicacions, és per a un programa que no vols perdre mai per
-error: mentre està protegida, la cua no la deixa treure, des de cap pàgina. No canvia res més, i les
-actualitzacions continuen arribant. <b>Deixa de protegir-la</b> treu la marca.</p>
+<p>Els botons d'una fitxa d'Aplicacions diuen el nom del programa quan hi cap, per exemple <b>Protegeix
+digikam…</b>; si no, diuen <b>Protegeix-la…</b>, que és la forma que fa servir aquesta ajuda.</p>
+<p><b>Protegeix-la…</b>, a la fitxa d'una aplicació a Aplicacions, és per a un programa que no vols perdre mai per
+error: Zypp Desk primer t'ho pregunta, i mentre està protegida, la cua no la deixa treure, des de cap pàgina. No
+canvia res més, i les actualitzacions continuen arribant. <b>Deixa de protegir-la</b> treu la marca.</p>
 <p>Una aplicació Flatpak pot desaparèixer del seu remot quan ningú no la manté ni la distribueix. <b>Desa'n una
 còpia…</b> desa l'aplicació instal·lada en un sol fitxer <code>.flatpak</code> (<code>flatpak build-bundle</code>),
 perquè la puguis tornar a instal·lar des d'aquest fitxer encara que el remot ja no la tingui. El que necessita per
@@ -135,7 +150,7 @@ funcionant.</li>
 <li>La versió vella es queda al costat com a fitxer <code>.old</code> fins que la nova s'ha obert una vegada des
 de Zypp Desk; llavors va a la paperera. Fins aquell moment, <b>Torna a la versió anterior…</b> torna a posar la
 vella.</li>
-<li><b>Protegeix-la</b> funciona com amb qualsevol altra aplicació, i <b>Treu-la…</b> mou a la paperera el
+<li><b>Protegeix-la…</b> funciona com amb qualsevol altra aplicació, i <b>Treu-la…</b> mou a la paperera el
 fitxer, la versió vella, l'entrada del menú i les icones. La configuració i les dades que té a la teva carpeta es
 queden.</li>
 <li><b>Afegeix una AppImage…</b>, a dalt de la pàgina, agafa un fitxer que hagis baixat, el mou o el copia a
@@ -209,11 +224,12 @@ canvi.</p>
 <li><b>Bloqueja un paquet…</b> busca paquets: en pots marcar uns quants i bloquejar-los d'un cop. Un nom amb
 comodins, com <code>vlc-*</code>, bloqueja tots els paquets amb un nom que hi encaixi, també els que vinguin més
 endavant.</li>
-<li><b>Treu els bloquejos inútils</b> treu els bloquejos que ja no encaixen amb cap paquet.</li>
+<li><b>Treu els bloquejos inútils…</b> treu, després d'una pregunta, els bloquejos que ja no encaixen amb cap
+paquet.</li>
 <li>Quan tries actualitzar la resta i deixar uns quants paquets com estan (mira «Quan alguna cosa va malament»),
 Zypp Desk els bloqueja. Aquests bloquejos surten marcats com a temporals, amb la data. Una franja a dalt t'avisa
-quan el seu repositori ha tornat a publicar, de manera que probablement ja els pots desbloquejar, i
-<b>Desbloqueja'ls</b> els desbloqueja tots d'un cop.</li>
+quan el seu repositori ha tornat a publicar, de manera que probablement ja els pots desbloquejar, i el seu botó
+(per exemple <b>Posa els 3 desbloquejos a la cua</b>) posa a la cua el desbloqueig de tots d'un cop.</li>
 </ul>
 
 <!-- topic: move | Canviar d'ordinador -->
@@ -245,11 +261,13 @@ els paquets d'una carpeta local que Programes de la web no segueix.</li>
 </ul>
 <h3>A l'altre ordinador</h3>
 <p>Copia el fitxer a l'altre ordinador i fes-hi doble clic: s'obre amb Zypp Desk. També pots triar
-<b>Importa'l d'un fitxer…</b>, als mateixos llocs. Zypp Desk compara el fitxer amb aquest ordinador i
-t'ensenya què faria: els repositoris que afegiria, amb les claus i les empremtes, els paquets i les aplicacions
-Flatpak que instal·laria, els bloquejos i les llengües que afegiria, i quantes coses ja hi són. <b>Tria…</b> et
-deixa desmarcar-ne algunes. Després, <b>Posa-ho a la cua</b> ho afegeix tot a la cua, on ho revises, ho simules
-i ho apliques com qualsevol altre canvi. Fins que no l'apliques, no canvia res.</p>
+<b>Obre el fitxer d'un altre ordinador…</b>, als mateixos llocs. Zypp Desk compara el fitxer amb aquest
+ordinador i t'ensenya què faria: els repositoris que afegiria, amb les claus i les empremtes, els paquets i les
+aplicacions Flatpak que instal·laria, els bloquejos i les llengües que afegiria, i quantes coses ja hi són.
+<b>Tria els repositoris…</b>, <b>Tria els paquets…</b> i <b>Tria les aplicacions…</b> et deixen desmarcar-ne
+algunes. Després, el botó que diu quants canvis hi ha, per exemple <b>Posa els 312 canvis a la cua</b>, ho afegeix
+tot a la cua, on ho revises, ho simules i ho apliques com qualsevol altre canvi. Fins que no l'apliques, no canvia
+res.</p>
 <ul>
 <li>La rutina, les opcions de zypper (<code>zypp.conf</code>), les aplicacions protegides i els programes de la
 web només canvien si tu ho dius. Abans que res vagi a la cua, una pregunta t'ensenya cadascuna com és ara i com
@@ -275,8 +293,8 @@ deixa fora el que no passa, abans d'ensenyar-te res.</p>
 <p>A dalt de <a href="page:maintenance">Manteniment</a>, Zypp Desk mira el programari d'aquest ordinador i et diu
 què val la pena mirar, primer el més important. Cada troballa té una frase que l'explica i, a
 <b>Detalls</b>, els noms. Mirar no canvia res: el botó de cada troballa obre la pàgina que toca, o et fa una pregunta i posa
-els canvis a la cua, que t'ensenya les ordres exactes. <b>Torna a comprovar</b> torna a mirar, per exemple
-després d'instal·lar o treure alguna cosa.</p>
+els canvis a la cua, que t'ensenya les ordres exactes. <b>Torna a revisar l'ordinador</b> torna a mirar, per
+exemple després d'instal·lar o treure alguna cosa.</p>
 <p>Què pot trobar:</p>
 <ul>
 <li><b>Firmware per a maquinari que no tens.</b> openSUSE instal·la el firmware de tots els dispositius
@@ -323,7 +341,7 @@ el microcodi del processador, la descodificació de vídeo a la targeta);</li>
 <p>El botó d'una targeta només posa canvis a la cua, després d'una pregunta que diu què és cada paquet, d'on ve,
 si és privatiu i què passa amb el Secure Boot, amb les ordres exactes. No canvia res fins que no apliques la cua, i
 el controlador comença a funcionar després de reiniciar. Si connectes una base d'acoblament o un adaptador, la
-pàgina torna a mirar el maquinari quan hi tornes; <b>Torna a mirar</b> ho fa de seguida.</p>
+pàgina torna a mirar el maquinari quan hi tornes; <b>Torna a revisar el maquinari</b> ho fa de seguida.</p>
 <h3>NVIDIA</h3>
 <p>Amb una targeta NVIDIA, Linux arrenca amb nouveau, un controlador lliure que va lent amb la majoria de
 targetes. Zypp Desk et proposa el controlador d'NVIDIA fet per a la teva targeta:</p>
@@ -368,8 +386,8 @@ connecten més endavant (bases d'acoblament, adaptadors de xarxa USB, càmeres).
 <ul>
 <li>Un grup surt marcat quan treure'l és segur. Els controladors d'impressora, i els de dispositius USB que potser
 ara simplement no estan connectats, surten desmarcats: guarda'ls si és possible que en facis servir algun.</li>
-<li>El botó per treure els paquets t'ensenya què marxa i les ordres exactes, i posa les desinstal·lacions a la
-cua. També els pots posar a la cua i simular-la de seguida.</li>
+<li><b>Treu els paquets…</b> t'ensenya què marxa i les ordres exactes. <b>Posa-ho a la cua</b> posa les
+desinstal·lacions a la cua; <b>Posa-ho a la cua i simula</b> també simula la cua de seguida.</li>
 <li>openSUSE instal·la tot el firmware a través d'un sol paquet, <code>kernel-firmware-all</code>, que el nucli
 recomana. Quan el treus, Zypp Desk també el bloqueja: si no, cada nucli nou el tornaria a instal·lar, i tot el
 firmware amb ell. El bloqueig és a <a href="page:locks">Bloquejos</a>, on el pots treure.</li>
@@ -419,13 +437,14 @@ coneix, i per això ningú no els actualitza. <a href="page:scripts">Amb instal�
 carpeta, a <code>/opt</code> i a <code>/usr/local</code>, i entre les entrades del menú que no són de cap paquet,
 i et diu on és cadascun i quant espai ocupa. En aquesta pàgina no s'executa res com a administrador.</p>
 <ul>
-<li><b>Desinstal·la…</b> executa el desinstal·lador del mateix programa, si en té, amb el teu usuari, en una finestra de
-terminal on pots respondre el que et pregunti. Si no en té i és a la teva carpeta, Zypp Desk mou a la paperera la
-seva carpeta, les entrades del menú i les icones, i les pots recuperar d'allà.</li>
+<li><b>Desinstal·la'l…</b> executa el desinstal·lador del mateix programa, si en té, amb el teu usuari, en una
+finestra de terminal on pots respondre el que et pregunti. Si no en té i és a la teva carpeta, el botó diu
+<b>Mou-lo a la paperera…</b>: Zypp Desk mou a la paperera la seva carpeta, les entrades del menú i les icones, i
+les pots recuperar d'allà.</li>
 <li>Un programa instal·lat per a tot l'ordinador (a <code>/opt</code> o a <code>/usr/local</code>) necessita la
-contrasenya d'administrador per treure'l. Zypp Desk no ho fa: t'explica per què i et dona les ordres per executar
-en un terminal.</li>
-<li><b>Instal·la des d'una carpeta…</b> executa l'instal·lador d'un programa que hagis baixat (un
+contrasenya d'administrador per treure'l. Zypp Desk no ho fa: <b>Com treure-ho…</b> t'explica per què i et dona
+les ordres per executar en un terminal.</li>
+<li><b>Executa un instal·lador…</b> engega l'instal·lador d'un programa que hagis baixat (un
 <code>.sh</code>, un <code>.run</code>, o un <code>.tgz</code> o un <code>.zip</code> amb un instal·lador a dins;
 un arxiu comprimit es desempaqueta en una carpeta pròpia de Zypp Desk). Zypp Desk et pregunta abans d'executar-lo,
 i l'executa amb el teu usuari, sense la contrasenya d'administrador, en una finestra de terminal. Quan acaba, Zypp Desk
@@ -445,8 +464,9 @@ També pots escriure una línia com en un terminal, per exemple <code>zypper se 
 bloquejos…) s'executen amb el teu usuari, sense contrasenya, i la sortida surt al terminal.</li>
 <li>Les ordres que canvien el sistema primer et pregunten, en paraules, i després demanen la contrasenya
 d'administrador. Sempre s'executen amb <code>-n</code>: aquí ningú no pot respondre a zypper, i per això agafa les
-respostes per defecte. Quan una ordre es pot simular, <b>Simula</b> ensenya què faria. Les instal·lacions, les
-desinstal·lacions, els bloquejos, les llengües i els canvis de repositoris també poden anar a la cua.</li>
+respostes per defecte. Quan una ordre es pot simular, <b>Simula aquesta ordre</b> ensenya què faria. Les
+instal·lacions, les desinstal·lacions, els bloquejos, les llengües i els canvis de repositoris també poden anar a
+la cua, amb <b>Posa aquesta ordre a la cua</b>.</li>
 <li>Algunes línies es rebutgen abans que s'executi res, i el missatge diu per què: més d'una ordre alhora
 (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), qualsevol cosa que no sigui zypper,
 les ordres que esperen que escriguis (<code>zypper shell</code>), les ordres que l'ajudant que executa zypper com

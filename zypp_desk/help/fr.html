@@ -9,8 +9,9 @@ exacte.</p>
 <p>Trois idées le rendent sûr à utiliser :</p>
 <ul>
 <li><b>Rien ne change tant que vous ne l'appliquez pas.</b> Ce que vous choisissez va dans la <b>file
-d'attente</b>, en bas de la fenêtre. Vous pouvez le regarder (<b>Revoir</b>), l'essayer (<b>Simuler</b>) et
-seulement ensuite le rendre réel (<b>Appliquer</b>).</li>
+d'attente</b>, en bas de la fenêtre. Vous pouvez le regarder (<b>Revoir la file d'attente…</b>), l'essayer
+(<b>Simuler la file d'attente</b>) et seulement ensuite le rendre réel (<b>Appliquer la file
+d'attente…</b>).</li>
 <li><b>Chaque question dit en termes simples ce qui va se passer</b>, ce que cela signifie pour vous, et, en
 dessous, la commande exacte. Appuyer sur Entrée ne lance jamais une modification : vous devez choisir le bouton
 qui la fait.</li>
@@ -23,26 +24,32 @@ l'ordinateur s'en souvient pendant cinq minutes : plusieurs étapes à la suite
 <p>Commencez par la page <a href="page:home">Accueil</a> : un grand champ de recherche et des cartes qui vous
 disent s'il y a des mises à jour, dans quel état sont vos dépôts et ce qui mérite un coup d'œil.</p>
 
-<!-- topic: queue | La file d'attente : Revoir, Simuler et Appliquer -->
-<h2>La file d'attente : Revoir, Simuler et Appliquer</h2>
+<!-- topic: queue | La file d'attente : revoir, simuler et appliquer -->
+<h2>La file d'attente : revoir, simuler et appliquer</h2>
 <p>Installer, supprimer ou verrouiller un paquet, ajouter un dépôt ou importer une clé : chacune de ces actions est
 une <b>modification</b>, et elle attend dans la file d'attente jusqu'à ce que vous l'appliquiez. La barre du bas
 indique combien il y en a et les commandes qu'elles exécuteront.</p>
+<p>La couleur d'un bouton vous dit ce qu'il fait. Un bouton vert modifie l'ordinateur tout de suite, toujours après
+une question ; un bouton qui ne fait qu'ajouter à la file d'attente n'est jamais vert, et il est précédé de
+<b>Vers la file d'attente :</b> ou le dit lui-même. Rien de ce qui est dans la file d'attente ne modifie
+l'ordinateur tant que vous n'appuyez pas sur <b>Appliquer la file d'attente…</b>.</p>
 <ul>
-<li><b>Revoir</b> liste en clair les modifications, dans l'ordre où elles seront exécutées. Chacune a son propre
-bouton pour la retirer de la file d'attente. Quand une modification en nécessite une autre (un programme a besoin
-du dépôt d'où il vient, et le dépôt a besoin de sa clé), la liste l'indique, et Zypp Desk pose la question avant
-que vous ne retiriez quelque chose dont d'autres ont besoin.</li>
-<li><b>Simuler</b> demande à zypper ce qu'il ferait réellement, sans rien modifier : ce qu'il installerait ou
-supprimerait en plus, combien il téléchargerait et s'il y a un problème. S'il y en a un, vous pouvez choisir une
-solution expliquée en termes simples.</li>
-<li><b>Appliquer</b> vous montre les modifications encore une fois et les exécute. Si une étape échoue, Zypp Desk
-s'arrête là : ce qui a été fait reste fait, et le reste demeure dans la file d'attente pour que vous puissiez
-réessayer.</li>
-<li><b>Vider</b> vide la file d'attente. Cela n'annule rien, car rien n'a encore changé.</li>
+<li><b>Revoir la file d'attente…</b> liste en clair les modifications, dans l'ordre où elles seront exécutées.
+Chacune a son propre bouton pour la retirer de la file d'attente. Quand une modification en nécessite une autre (un
+programme a besoin du dépôt d'où il vient, et le dépôt a besoin de sa clé), la liste l'indique, et Zypp Desk pose
+la question avant que vous ne retiriez quelque chose dont d'autres ont besoin.</li>
+<li><b>Simuler la file d'attente</b> demande à zypper ce qu'il ferait réellement, sans rien modifier : ce qu'il
+installerait ou supprimerait en plus, combien il téléchargerait et s'il y a un problème. S'il y en a un, vous
+pouvez choisir une solution expliquée en termes simples.</li>
+<li><b>Appliquer la file d'attente…</b> vous montre les modifications encore une fois et les exécute. Si une étape
+échoue, Zypp Desk s'arrête là : ce qui a été fait reste fait, et le reste demeure dans la file d'attente pour que
+vous puissiez réessayer.</li>
+<li><b>Vider la file d'attente</b> retire toutes les modifications de la file d'attente. Cela n'annule rien,
+car rien n'a encore changé.</li>
 </ul>
-<p><b>Simuler</b> n'essaie que les modifications de paquets : les modifications de dépôts, de verrous, de langues et
-d'applications Flatpak ne peuvent pas être simulées, et elles ne s'exécutent que lorsque vous les appliquez.</p>
+<p><b>Simuler la file d'attente</b> n'essaie que les modifications de paquets : les modifications de dépôts, de
+verrous, de langues et d'applications Flatpak ne peuvent pas être simulées, et elles ne s'exécutent que lorsque
+vous les appliquez.</p>
 
 <!-- topic: update | Garder le système à jour -->
 <h2>Garder le système à jour</h2>
@@ -50,19 +57,28 @@ d'applications Flatpak ne peuvent pas être simulées, et elles ne s'exécutent 
 <a href="page:updates">Mises à jour</a>, vous trouverez :</p>
 <ul>
 <li><b>Votre routine</b> : les étapes que vous suivez d'habitude pour mettre à jour, par exemple actualiser les
-dépôts, télécharger les mises à jour, puis les installer. <b>Lancer la routine</b> les exécute l'une après l'autre
-et montre chaque étape. <b>Modifier la routine…</b> la change avec des boutons, ou sous forme de texte, comme vous
-la taperiez dans un terminal.</li>
+dépôts, télécharger les mises à jour, puis les installer. <b>Tout mettre à jour…</b>, avec le nombre de mises
+à jour (par exemple <b>Tout mettre à jour (97)…</b>), les exécute l'une après l'autre et montre chaque étape.
+Pendant qu'elle tourne, <b>Arrêter après cette étape</b> laisse finir l'étape en cours et n'exécute aucune des
+suivantes : le bouton affiche alors <b>S'arrêtera après cette étape</b>, et le terminal vous dit ce qui ne sera pas
+exécuté. <b>Modifier la routine…</b> change la routine avec des boutons, ou sous forme de texte, comme vous la
+taperiez dans un terminal.</li>
 <li><b>Ce qu'il y a à mettre à jour</b> : les paquets des dépôts, les applications Flatpak, les programmes du web
 et le micrologiciel, avec une case à cocher pour chacun. <b>Tout cocher</b> et <b>Tout décocher</b>, sous la
 liste, les cochent ou les décochent tous d'un coup. La carte de droite vous présente le paquet que vous
-choisissez.</li>
+choisissez. Les boutons sous la liste n'agissent que sur ce que vous avez coché, et leur libellé le dit : par
+exemple <b>Simuler seulement digikam</b> ou <b>Ajouter digikam à la file d'attente</b>.</li>
 <li>La liste montre ce que l'ordinateur savait lors de la dernière actualisation des dépôts : <b>Chercher à
 nouveau</b> la relit. <b>Actualiser les dépôts</b> demande d'abord à chaque dépôt ce qu'il y a de nouveau (avec le
 mot de passe administrateur), puis cherche à nouveau.</li>
-<li><b>Simuler le dup…</b> : la mise à niveau complète de Tumbleweed (<code>zypper dup</code>) dans sa propre
-fenêtre, avec ses options.</li>
+<li><b>Simuler la mise à jour complète…</b> : la mise à niveau complète de Tumbleweed (<code>zypper dup</code>)
+dans sa propre fenêtre, avec ses options.</li>
 </ul>
+<p>Votre routine met à jour tout le système : elle ne regarde pas les cases cochées. Donc, si vous avez coché
+certaines lignes et laissé d'autres décochées, <b>Tout mettre à jour…</b> demande d'abord <b>Mettre à jour tout le
+système ?</b> Là, <b>Pas encore</b> ne change rien ; le bouton au nom de ce que vous avez coché, comme
+<b>Seulement digikam</b>, met seulement cela dans la file d'attente et vous demande avant de l'appliquer ; et
+<b>Oui, tout mettre à jour</b> lance la routine.</p>
 <h3>Routines proposées</h3>
 <p>Dans l'éditeur de la routine, <b>Routines proposées…</b> montre quelques routines toutes prêtes, chacune avec ce
 qu'elle fait, pourquoi, et la ligne qu'elle donnerait dans un terminal. La première est faite pour cet ordinateur :
@@ -71,13 +87,13 @@ si fwupd est installé, supprime les anciens noyaux et les paquets téléchargé
 disque, et vous dit à la fin quels programmes doivent redémarrer. Les autres sont la routine habituelle (tout
 télécharger, puis n'installer que si tout a été téléchargé), une qui ne fait que télécharger et une rapide. Celle
 que vous choisissez va dans l'éditeur, où vous pouvez encore la modifier ; rien n'est enregistré tant que vous
-n'appuyez pas sur <b>Enregistrer</b>.</p>
+n'appuyez pas sur <b>Enregistrer la routine</b>.</p>
 <h3>Une grosse mise à jour</h3>
 <p>Quand une mise à jour est grosse, ou que le nouveau Tumbleweed est sorti il y a moins d'un jour, Zypp Desk vous
 demande s'il vaut la peine d'attendre. Il vous indique sa taille, à quel point la version est récente et si
-l'ordinateur est sur batterie. Vous pouvez mettre à jour maintenant, <b>seulement la télécharger maintenant</b>
-(l'installer plus tard est alors beaucoup plus rapide) ou <b>vous la faire rappeler demain</b> : l'icône à côté
-de l'horloge vous préviendra.</p>
+l'ordinateur est sur batterie. Vous pouvez mettre à jour maintenant (<b>Tout mettre à jour maintenant</b>),
+choisir <b>Télécharger seulement la mise à jour</b> (l'installer plus tard est alors beaucoup plus rapide) ou
+<b>Me le rappeler demain</b> : l'icône à côté de l'horloge vous préviendra.</p>
 <h3>Peu de place sur le disque</h3>
 <p>Si la mise à jour ne tient pas sur le disque avec une marge suffisante, Zypp Desk propose de libérer d'abord de
 la place (paquets conservés de téléchargements précédents, anciens noyaux) et de mettre à jour <b>par lots</b>.
@@ -117,10 +133,12 @@ Desk peut la mettre à la corbeille.</li>
 <p>Si le programme n'est pas dans vos dépôts, <b>Rechercher en ligne…</b> le cherche dans l'openSUSE Build
 Service, dans Fedora COPR et sur Flathub, et explique à quel point vous pouvez faire confiance à chaque source.</p>
 <h3>Protéger une application</h3>
-<p><b>Protéger</b>, sur la carte d'une application dans Applications, sert pour un programme que vous ne voulez
-jamais perdre par erreur : tant qu'elle est protégée, la file d'attente refuse de la supprimer, depuis n'importe
-quelle page. Rien d'autre ne change, et les mises à jour continuent d'arriver. <b>Ne plus protéger</b> retire
-la marque.</p>
+<p>Les boutons d'une carte dans Applications affichent le nom du programme quand il y a la place, par exemple
+<b>Protéger digikam…</b> ; sinon, ils disent <b>Protéger…</b>, la forme qu'utilise cette aide.</p>
+<p><b>Protéger…</b>, sur la carte d'une application dans Applications, sert pour un programme que vous ne voulez
+jamais perdre par erreur : Zypp Desk pose d'abord la question, et tant que l'application est protégée, la file
+d'attente refuse de la supprimer, depuis n'importe quelle page. Rien d'autre ne change, et les mises à jour
+continuent d'arriver. <b>Ne plus protéger</b> retire la marque.</p>
 <p>Une application Flatpak peut disparaître de son dépôt distant quand plus personne ne la maintient ni ne la
 distribue. <b>Enregistrer une copie…</b> enregistre l'application installée dans un seul fichier
 <code>.flatpak</code> (<code>flatpak build-bundle</code>), pour que vous puissiez la réinstaller depuis ce fichier
@@ -152,7 +170,7 @@ que l'entrée de menu continue de fonctionner.</li>
 <li>L'ancienne version reste à côté comme fichier <code>.old</code> jusqu'à ce que la nouvelle ait été ouverte une
 fois depuis Zypp Desk ; elle va alors à la corbeille. D'ici là, <b>Revenir à la version précédente…</b> remet
 l'ancienne.</li>
-<li><b>Protéger</b> fonctionne comme pour toute autre application, et <b>Supprimer…</b> met à la corbeille le
+<li><b>Protéger…</b> fonctionne comme pour toute autre application, et <b>Supprimer…</b> met à la corbeille le
 fichier, son ancienne version, son entrée de menu et ses icônes. Ses réglages et ses données dans votre dossier
 personnel restent.</li>
 <li><b>Ajouter une AppImage…</b>, en haut de la page, prend un fichier que vous avez téléchargé, le déplace
@@ -208,12 +226,12 @@ demandées. Si votre ordinateur est dans une langue qu'on n'a jamais demandée �
 jamais, et des parties de vos programmes s'affichent en anglais. Dans ce cas, la page
 <a href="page:home">Accueil</a> vous le dit et propose d'ajouter la langue de l'ordinateur d'un seul bouton : elle
 va dans la file d'attente.</p>
-<p><a href="page:locales">Langues</a> contient toutes les langues que zypper connaît. <b>Les vôtres</b> montre
-celles qu'on a demandées à zypper, <b>Toutes</b> les montre toutes, et le champ de recherche trouve une langue par son
-nom ou son code. Cochez une langue pour l'ajouter, ou décochez-la pour la retirer : la modification va dans la file
-d'attente (<code>zypper addlocale</code> ou <code>removelocale</code>), et rien ne se passe tant que vous ne
-l'appliquez pas. La carte de droite vous dit ce qu'elle apporterait : combien de paquets de traduction pour les
-programmes que vous avez, et quels dictionnaires.</p>
+<p><a href="page:locales">Langues</a> contient toutes les langues que zypper connaît. <b>Celles que vous avez</b>
+montre celles qu'on a demandées à zypper, <b>Toutes</b> les montre toutes, et le champ de recherche trouve une
+langue par son nom ou son code. Cochez une langue pour l'ajouter, ou décochez-la pour la retirer : la modification
+va dans la file d'attente (<code>zypper addlocale</code> ou <code>removelocale</code>), et rien ne se passe tant
+que vous ne l'appliquez pas. La carte de droite vous dit ce qu'elle apporterait : combien de paquets de traduction
+pour les programmes que vous avez, et quels dictionnaires.</p>
 <ul>
 <li>Quand une langue est ajoutée, zypper installe ses traductions pour les programmes que vous avez, puis pour ceux
 que vous installerez.</li>
@@ -232,11 +250,13 @@ modification.</p>
 <li><b>Verrouiller un paquet…</b> cherche des paquets : cochez-en plusieurs et verrouillez-les d'un coup. Un nom
 avec des jokers, comme <code>vlc-*</code>, verrouille tous les paquets dont le nom correspond, y compris ceux qui
 arriveront plus tard.</li>
-<li><b>Supprimer les verrous inutiles</b> supprime les verrous qui ne correspondent plus à aucun paquet.</li>
+<li><b>Supprimer les verrous inutiles…</b> supprime, après une question, les verrous qui ne correspondent plus
+à aucun paquet.</li>
 <li>Quand vous choisissez de mettre à jour le reste et de laisser certains paquets tels quels (voir « Quand quelque
 chose ne va pas »), Zypp Desk les verrouille. Ces verrous sont marqués comme temporaires, avec leur date. Une bande
 en haut vous indique quand leur dépôt a publié de nouveau, et que vous pouvez donc sans doute les déverrouiller, et
-<b>Les déverrouiller</b> les déverrouille tous d'un coup.</li>
+son bouton (par exemple <b>Ajouter les 3 déverrouillages à la file d'attente</b>) met d'un coup le déverrouillage
+de tous dans la file d'attente.</li>
 </ul>
 
 <!-- topic: move | Changer d'ordinateur -->
@@ -272,11 +292,13 @@ tels quels), et les paquets d'un dossier local que Programmes du web ne suit pas
 </ul>
 <h3>Sur l'autre ordinateur</h3>
 <p>Copiez le fichier sur l'autre ordinateur et double-cliquez dessus : il s'ouvre avec Zypp Desk. Vous pouvez aussi
-choisir <b>L'importer depuis un fichier…</b>, aux mêmes endroits. Zypp Desk compare le fichier avec cet ordinateur et montre ce
-qu'il ferait : les dépôts à ajouter, avec leurs clés et leurs empreintes, les paquets et les applications Flatpak
-à installer, les verrous et les langues à ajouter, et ce qui est déjà là. <b>Choisir…</b> vous permet d'en
-décocher. <b>Ajouter à la file d'attente</b> y met ensuite le tout : vous le revoyez, le simulez et l'appliquez
-comme toute autre modification. Tant que vous ne l'appliquez pas, rien ne change.</p>
+choisir <b>Ouvrir le fichier d'un autre ordinateur…</b>, aux mêmes endroits. Zypp Desk compare le fichier avec
+cet ordinateur et montre ce qu'il ferait : les dépôts à ajouter, avec leurs clés et leurs empreintes, les paquets
+et les applications Flatpak à installer, les verrous et les langues à ajouter, et ce qui est déjà là. <b>Choisir
+les dépôts…</b>, <b>Choisir les paquets…</b> et <b>Choisir les applications…</b> vous permettent d'en décocher.
+Le bouton qui indique le nombre de modifications, par exemple <b>Ajouter les 312 modifications à la file
+d'attente</b>, y met ensuite le tout : vous le revoyez, le simulez et l'appliquez comme toute autre modification.
+Tant que vous ne l'appliquez pas, rien ne change.</p>
 <ul>
 <li>Votre routine, les réglages de zypper (<code>zypp.conf</code>), les applications protégées et les programmes
 du web ne changent que si vous le dites. Avant que quoi que ce soit n'aille dans la file d'attente, une question
@@ -305,8 +327,8 @@ contient le fichier, et laisse de côté ce qui ne passe pas, avant de vous mont
 et vous dit ce qui mérite un coup d'œil, le plus important d'abord. Chaque constat a une phrase qui l'explique et,
 sous <b>Détails</b>, les noms. Regarder ne change rien : le bouton d'un constat ouvre la bonne page, ou
 pose une question et met les modifications dans la file d'attente, qui vous montre les commandes exactes.
-<b>Vérifier à nouveau</b> regarde de nouveau, par exemple après que vous avez installé ou supprimé quelque
-chose.</p>
+<b>Vérifier à nouveau l'ordinateur</b> regarde de nouveau, par exemple après que vous avez installé ou supprimé
+quelque chose.</p>
 <p>Ce qu'il peut trouver :</p>
 <ul>
 <li><b>Du micrologiciel pour du matériel que vous n'avez pas.</b> openSUSE installe le micrologiciel de tous les
@@ -355,7 +377,7 @@ cartes NVIDIA ;</li>
 qu'est chaque paquet, d'où il vient, s'il est propriétaire et ce qui se passe avec Secure Boot, avec les commandes
 exactes. Rien ne change tant que vous n'appliquez pas la file d'attente, et le pilote fonctionne après le prochain
 redémarrage. Si vous branchez une station d'accueil ou un adaptateur, la page réexamine le matériel quand vous y
-revenez ; <b>Chercher à nouveau</b> le fait tout de suite.</p>
+revenez ; <b>Examiner à nouveau le matériel</b> le fait tout de suite.</p>
 <h3>NVIDIA</h3>
 <p>Avec une carte NVIDIA, Linux démarre avec nouveau, un pilote libre qui est lent avec la plupart des cartes. Zypp
 Desk propose le pilote NVIDIA fait pour votre carte :</p>
@@ -403,8 +425,9 @@ d'accueil, adaptateurs réseau USB, caméras).</p>
 <li>Un groupe est coché quand le supprimer est sans risque. Les pilotes d'imprimante, et ceux d'appareils USB qui ne
 sont peut-être simplement pas branchés en ce moment, sont décochés : gardez-les si vous pourriez en utiliser
 un.</li>
-<li>Le bouton pour supprimer les paquets montre ce qui s'en va et les commandes exactes, et met les suppressions
-dans la file d'attente. Vous pouvez aussi les mettre dans la file d'attente et la simuler tout de suite.</li>
+<li><b>Supprimer les paquets…</b> montre ce qui s'en va et les commandes exactes. <b>Ajouter à la file
+d'attente</b> met les suppressions dans la file d'attente ; <b>Ajouter à la file d'attente et simuler</b> simule
+aussi la file d'attente tout de suite.</li>
 <li>openSUSE installe tout le micrologiciel par un seul paquet, <code>kernel-firmware-all</code>, que le noyau
 recommande. Quand il est supprimé, Zypp Desk le verrouille aussi : sinon, chaque nouveau noyau le réinstallerait,
 et tout le micrologiciel avec lui. Le verrou se trouve dans <a href="page:locks">Verrous</a>, où vous pouvez le
@@ -457,14 +480,14 @@ d'installation). zypper ne les connaît pas, donc personne ne les met à jour.
 <code>/usr/local</code>, et parmi les entrées de menu qui n'appartiennent à aucun paquet, et vous dit où se trouve
 chacun et combien de place il prend. Rien sur cette page ne s'exécute en tant qu'administrateur.</p>
 <ul>
-<li><b>Désinstaller…</b> lance le programme de désinstallation du programme lui-même, s'il en a un, avec votre
-utilisateur, dans une fenêtre de terminal où vous pouvez répondre à ses questions. S'il n'en a pas et qu'il se
-trouve dans votre dossier personnel, Zypp Desk met à la corbeille son dossier, ses entrées de menu et ses icônes,
-d'où vous pouvez les récupérer.</li>
+<li><b>Le désinstaller…</b> lance le programme de désinstallation du programme lui-même, s'il en a un, avec
+votre utilisateur, dans une fenêtre de terminal où vous pouvez répondre à ses questions. S'il n'en a pas et qu'il
+se trouve dans votre dossier personnel, le bouton dit <b>Le mettre à la corbeille…</b> : Zypp Desk met à la
+corbeille son dossier, ses entrées de menu et ses icônes, d'où vous pouvez les récupérer.</li>
 <li>Un programme installé pour tout l'ordinateur (dans <code>/opt</code> ou <code>/usr/local</code>) demande le
-mot de passe administrateur pour être supprimé. Zypp Desk ne le fait pas : il explique pourquoi et vous donne les
-commandes à lancer dans un terminal.</li>
-<li><b>Installer depuis un dossier…</b> lance l'installateur d'un programme que vous avez téléchargé (un
+mot de passe administrateur pour être supprimé. Zypp Desk ne le fait pas : <b>Comment le supprimer…</b> explique
+pourquoi et vous donne les commandes à lancer dans un terminal.</li>
+<li><b>Lancer un programme d'installation…</b> lance l'installateur d'un programme que vous avez téléchargé (un
 <code>.sh</code>, un <code>.run</code>, ou un <code>.tgz</code> ou un <code>.zip</code> contenant un installateur ;
 une archive est décompressée dans un dossier propre à Zypp Desk). Zypp Desk pose la question avant de le lancer,
 puis le lance avec votre utilisateur, sans le mot de passe administrateur, dans une fenêtre de terminal. Quand il a
@@ -485,9 +508,9 @@ exemple <code>zypper se vlc</code> ; <code>sudo</code> est inutile.</p>
 s'exécutent avec votre utilisateur, sans mot de passe, et leur sortie apparaît dans le terminal.</li>
 <li>Les commandes qui modifient le système posent d'abord la question, en termes simples, puis demandent le mot de
 passe administrateur. Elles s'exécutent toujours avec <code>-n</code> : ici, personne ne peut répondre à zypper, il
-prend donc ses réponses par défaut. Quand une commande a un essai à blanc, <b>Simuler</b> montre ce qu'elle ferait.
-Les installations, les suppressions, les verrous, les langues et les modifications de dépôts peuvent aussi aller
-dans la file d'attente.</li>
+prend donc ses réponses par défaut. Quand une commande a un essai à blanc, <b>Simuler cette commande</b> montre
+ce qu'elle ferait. Les installations, les suppressions, les verrous, les langues et les modifications de dépôts
+peuvent aussi aller dans la file d'attente, avec <b>Ajouter cette commande à la file d'attente</b>.</li>
 <li>Certaines lignes sont refusées avant que quoi que ce soit ne s'exécute, et le message dit pourquoi : plus d'une
 commande à la fois (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), tout ce qui n'est
 pas zypper, les commandes qui attendent que vous tapiez quelque chose (<code>zypper shell</code>), les commandes

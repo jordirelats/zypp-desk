@@ -12,7 +12,7 @@ from ..style import BLUE, GREEN, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted, tool
-from .markbar import MarkBar, is_checked
+from .markbar import MarkBar, amp, is_checked
 from .pkgdetails import PackageDetails
 
 KIND_LABELS = [("package", _("Packages")), ("pattern", _("Patterns")), ("patch", _("Patches")),
@@ -57,13 +57,16 @@ class PackagesPage(Page):
             combo.setMinimumContentsLength(6)
             combo.currentTextChanged.connect(lambda text, c=combo: c.setToolTip(text))
             combo.setToolTip(combo.currentText())
-        search_btn = button(_("Search"), "edit-find", self.search)
+        self.search_btn = button(_("Search"), "edit-find", self.search)
+        self.search_btn.setToolTip(_("Look for this text in your repositories, with the options below (zypper "
+                                     "search). It only shows: nothing is installed or removed."))
         self.online_btn = button(_("Search online…"), "internet-services", self.search_online)
         self.online_btn.setToolTip(_("Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"))
 
         top = QHBoxLayout()
         top.addWidget(self.term, 3)
-        for w, stretch in ((self.kind, 1), (self.status, 1), (self.repo, 2), (search_btn, 0), (self.online_btn, 0)):
+        for w, stretch in ((self.kind, 1), (self.status, 1), (self.repo, 2), (self.search_btn, 0),
+                           (self.online_btn, 0)):
             top.addWidget(w, stretch)
 
         self.chips = {
@@ -92,21 +95,30 @@ class PackagesPage(Page):
         lists_box = QWidget(self)
         lists = FlowLayout(lists_box)
         lists.addWidget(self._flow_label(_("Lists:")))
-        tips = {"orphaned": _("Orphaned packages (installed, but in no repository)"),
-                "unneeded": _("Unneeded packages (nothing requires them any more)"),
-                "recommended": _("Recommended packages that are not installed"),
-                "suggested": _("Suggested packages that are not installed")}
+        # a list is a view, like a filter: its chip stays lit while the list is shown (a search by name puts
+        # them all out), so that they do not look like buttons that change something
+        tips = {"orphaned": _("Show the orphaned packages: installed, but in no repository (zypper packages "
+                              "--orphaned). It only shows them."),
+                "unneeded": _("Show the unneeded packages: nothing requires them any more (zypper packages "
+                              "--unneeded). It only shows them."),
+                "recommended": _("Show the recommended packages that are not installed (zypper packages "
+                                 "--recommended). It only shows them."),
+                "suggested": _("Show the suggested packages that are not installed (zypper packages --suggested). "
+                               "It only shows them.")}
+        self.list_chips = {}
         for key, label in (("orphaned", _("Orphaned")), ("unneeded", _("Unneeded")),
                            ("recommended", _("Recommended")), ("suggested", _("Suggested"))):
             b = Chip(label)
             b.setToolTip(tips[key])
-            b.setCheckable(False)
             b.clicked.connect(lambda _c=False, k=key: self.search(special=k))
+            self.list_chips[key] = b
             lists.addWidget(b)
 
         self.info = muted("", self, wrap=False)
         # mark several and do the same with all of them
         self.mark_all_btn = tool(_("Mark all"), "edit-select-all", self.toggle_mark_all)
+        self.mark_all_btn.setToolTip(_("Tick every package in the list, to do the same with all of them. Nothing "
+                                       "changes until you choose what to do with them."))
         self.mark_all_btn.setVisible(False)
 
         self.tree = QTreeWidget(self)
@@ -124,7 +136,7 @@ class PackagesPage(Page):
         self.tree.setColumnWidth(3, 150)
 
         self.details = PackageDetails(self, ctx, self)
-        self.markbar = MarkBar(self.mark_action, self.unmark_all, self)
+        self.markbar = MarkBar(self.mark_action, self.unmark_all, self, to_queue=True)
         left = QWidget(self)
         lv = QVBoxLayout(left)
         lv.setContentsMargins(0, 0, 0, 0)
@@ -225,6 +237,8 @@ class PackagesPage(Page):
         if not term and not special:
             self.term.setFocus()
             return
+        for k, c in self.list_chips.items():  # the list shown is lit; a search by name puts them out
+            c.setChecked(k == special)
         self.search_id += 1
         sid = self.search_id
         self._last_special = special
@@ -406,14 +420,50 @@ class PackagesPage(Page):
             parts.append(ngettext("{n} to install", "{n} to install", len(to_install)).format(n=len(to_install)))
         if have:
             parts.append(ngettext("{n} you have", "{n} you have", len(have)).format(n=len(have)))
-        actions = [
-            ("lock", ngettext("Lock it", "Lock them", len(lockable)), bool(lockable), False),
-            ("remove", ngettext("Remove the one you have", "Remove the {n} you have", len(have)).format(n=len(have)),
-             bool(have), False),
-            ("install", ngettext("Install it", "Install the {n}", len(to_install)).format(n=len(to_install)),
-             bool(to_install), True),
-        ]
+        # only what applies to the ticked ones shows (never "Install the 0"); each says what it acts on, and
+        # none is green: they only add to the queue ("To the queue:" in front of them)
+        actions = []
+        for key, group, cmd in (("lock", lockable, "zypper addlock"), ("remove", have, "zypper remove"),
+                                ("install", to_install, "zypper install")):
+            if group:
+                actions.append((key, self._mark_label(key, group, n), True, False, self._mark_tip(key, group, cmd)))
         self.markbar.set_state(n, ngettext("{n} marked", "{n} marked", n).format(n=n), ", ".join(parts), actions)
+
+    @staticmethod
+    def _mark_label(key, group, n):
+        """'Install vlc' for one, 'Install the 3 ticked' when it is every ticked one, 'Install the 2 not installed'
+        when it is only some of them."""
+        k = len(group)
+        if k == 1 and len(group[0]["name"]) <= 24:
+            return {"install": _("Install {name}"), "remove": _("Remove {name}"),
+                    "lock": _("Lock {name}")}[key].format(name=amp(group[0]["name"]))
+        if k == n:
+            return {"install": ngettext("Install the ticked one", "Install the {n} ticked", k),
+                    "remove": ngettext("Remove the ticked one", "Remove the {n} ticked", k),
+                    "lock": ngettext("Lock the ticked one", "Lock the {n} ticked", k)}[key].format(n=k)
+        return {"install": ngettext("Install the one not installed", "Install the {n} not installed", k),
+                "remove": ngettext("Remove the one installed", "Remove the {n} installed", k),
+                "lock": ngettext("Lock the one not locked", "Lock the {n} not locked", k)}[key].format(n=k)
+
+    @staticmethod
+    def _mark_tip(key, group, cmd):
+        targets = [d["name"] if d["kind"] == "package" else f"{d['kind']}:{d['name']}" for d in group]
+        names = ", ".join(d["name"] for d in group[:3]) + (", …" if len(group) > 3 else "")
+        command = " ".join([cmd] + targets[:4]) + (" …" if len(targets) > 4 else "")
+        k = len(group)
+        if key == "install":
+            text = _("Puts {names} in the queue to be installed ({command}).")
+        elif key == "remove":
+            text = ngettext("Puts the removal of {names} in the queue ({command}). Simulate shows what else would "
+                            "go with it.",
+                            "Puts the removal of {names} in the queue ({command}). Simulate shows what else would "
+                            "go with them.", k)
+        else:
+            text = ngettext("Puts a lock on {names} in the queue ({command}): then zypper does not install, update "
+                            "or remove it until you unlock it.",
+                            "Puts a lock on {names} in the queue ({command}): then zypper does not install, update "
+                            "or remove them until you unlock them.", k)
+        return text.format(names=names, command=command) + " " + _("Nothing changes until you apply the queue.")
 
     def mark_action(self, key):
         """Every marked package to the queue: install the ones you do not have, remove or lock. Nothing changes until

@@ -18,6 +18,7 @@ from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Card, Page, button, error_box, heading, hline, mono, muted, plain
+from .markbar import queue_label
 
 GREY = "#7f8c8d"
 AMBER = "#f39c12"
@@ -260,12 +261,17 @@ class KeyDetails(QWidget):
         self.cmd.setFont(mono())
         self.cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         v.addWidget(self.cmd)
-        self.b_delete = QPushButton(_("Delete it"), self)
+        # “To the queue:” in front of Delete (it only puts the deletion in the queue); Keep takes it out again
+        brow = QHBoxLayout()
+        self.q_lbl = queue_label(self)
+        brow.addWidget(self.q_lbl)
+        self.b_delete = QPushButton(_("Delete this key"), self)
         self.b_delete.setStyleSheet(DANGER_CSS)
         self.b_delete.clicked.connect(self._delete)
-        self.b_keep = button(_("Keep it"), "edit-undo", self._keep)
-        v.addWidget(self.b_delete)
-        v.addWidget(self.b_keep)
+        self.b_keep = button(_("Keep this key"), "edit-undo", self._keep)
+        brow.addWidget(self.b_delete, 1)
+        brow.addWidget(self.b_keep, 1)
+        v.addLayout(brow)
         self.show_message(_("Loading…"))
 
     def show_message(self, text):
@@ -278,6 +284,7 @@ class KeyDetails(QWidget):
             val.hide()
         self.note.hide()
         self.cmd.setText("")
+        self.q_lbl.hide()
         self.b_delete.hide()
         self.b_keep.hide()
 
@@ -303,8 +310,11 @@ class KeyDetails(QWidget):
             self._note(_("It will be imported when you apply the queue. Until then, nothing changes."), "green")
             self.cmd.setText(_("rpm --import (key {keyid}, checked)").format(keyid=k.get("keyid", "")))
             self.cmd.show()
+            self.q_lbl.hide()
             self.b_delete.hide()
-            self.b_keep.setText(_("Do not import it"))
+            self.b_keep.setText(_("Do not import key {keyid}").format(keyid=k["keyid"]) if k.get("keyid") else
+                                _("Do not import this key"))
+            self.b_keep.setToolTip(_("Takes its import out of the queue. Nothing else changes."))
             self.b_keep.show()
             return
         self._row("created", fmt_date(k.get("created")))
@@ -325,16 +335,31 @@ class KeyDetails(QWidget):
         self._note(*self.page.delete_meaning(k, state))
         self.cmd.setText(k.get("remove_command") or "")
         self.cmd.setVisible(not k.get("shipped"))
+        keyid = k.get("keyid") or ""
         if state == "key-remove":
+            self.q_lbl.hide()
             self.b_delete.hide()
-            self.b_keep.setText(_("Keep it"))
+            self.b_keep.setText(_("Keep key {keyid}").format(keyid=keyid) if keyid else _("Keep this key"))
+            self.b_keep.setToolTip(_("Takes its deletion out of the queue: the key stays."))
             self.b_keep.show()
         else:
             self.b_keep.hide()
+            self.q_lbl.show()
             self.b_delete.show()
+            ask = k.get("group") == "vendor"  # probably still needed: a question comes first
+            self.b_delete.setText((_("Delete key {keyid}…") if ask else _("Delete key {keyid}")).format(keyid=keyid)
+                                  if keyid else (_("Delete this key…") if ask else _("Delete this key")))
             self.b_delete.setEnabled(not k.get("shipped") and bool(k.get("fpr")))
-            self.b_delete.setToolTip(_("openSUSE ships this key: it is never deleted from here.")
-                                     if k.get("shipped") else "")
+            if k.get("shipped"):
+                tip = _("openSUSE ships this key: it is never deleted from here.")
+            else:
+                tip = _("Puts the deletion of the key “{name}” in the queue. Nothing changes until you apply the "
+                        "queue.").format(name=key_title(k))
+                if ask:
+                    tip += " " + _("A vendor probably still needs it: you are asked first.")
+                if k.get("remove_command"):
+                    tip += "\n" + k["remove_command"]
+            self.b_delete.setToolTip(tip)
 
     def _note(self, text, tone):
         self.note.setText(text)
@@ -353,7 +378,7 @@ class KeyDetails(QWidget):
                         _("Key ID {keyid}").format(keyid=k.get("keyid") or "?"))],
                 warning=self.page.delete_meaning(k)[0],
                 means=_("it only goes to the queue: nothing changes until you apply it."),
-                password=False, help_topic="repos"):
+                password=False, help_topic="repos", queue=True):
             return
         self.page.queue_delete([k])
 
@@ -407,14 +432,18 @@ class KeysPage(Page):
         lay.addWidget(split, 1)
 
         # the header buttons live as long as the page (the window takes them away and puts them back); without a
-        # parent until then, so they never show up inside the page
+        # parent until then, so they never show up inside the page (never show() or hide() them meanwhile)
+        self.h_queue = queue_label()  # both only put something in the queue
         self.b_unused = button("", "edit-delete", self.delete_unused)
-        self.b_import = button(_("Import a key…"), "list-add", self.import_key, primary=True)
+        # not green: importing only goes to the queue (this page changes nothing at once)
+        self.b_import = button(_("Import a key…"), "list-add", self.import_key)
+        self.b_import.setToolTip(_("Get a key from a web address, a file or its fingerprint, and look at it first. Its "
+                                   "import goes to the queue (rpm --import): nothing changes until you apply it."))
         self._update_unused_button()
         ctx.queue.changed.connect(self._queue_changed)
 
     def header_actions(self):
-        return [self.b_unused, self.b_import]
+        return [self.h_queue, self.b_unused, self.b_import]
 
     # ------------------------------------------------------------ loading
     def reload(self):
@@ -593,10 +622,14 @@ class KeysPage(Page):
 
     def _update_unused_button(self):
         n = len(self.unused())
-        self.b_unused.setText(_("Delete the unused ones") if self.busy and not self.keys else
-                              _("Delete the unused ones ({n})").format(n=n))
+        self.b_unused.setText(ngettext("Delete the unused key…", "Delete the {n} unused keys…", n).format(n=n)
+                              if n and not self.busy else _("Delete the unused keys…"))
         self.b_unused.setEnabled(n > 0 and not self.busy)
-        self.b_unused.setToolTip(_("Keys no repository uses and that signed none of your packages."))
+        self.b_unused.setToolTip(
+            _("Keys no repository uses and that signed none of your packages. Asks first; their deletion goes to the "
+              "queue (rpmkeys --delete, one for each key).") if n else
+            _("Reading the keys…") if self.busy else
+            _("No unused key is left to delete."))
 
     def queue_delete(self, keys):
         with self.ctx.queue.batch():
@@ -673,9 +706,12 @@ class ImportKeyDialog(QDialog):
         seg.setSpacing(0)
         self.seg = QButtonGroup(self)
         self.seg.setExclusive(True)
-        for i, (mode, text) in enumerate((("url", _("From a web address")), ("file", _("From a file")),
-                                          ("fpr", _("By its fingerprint")))):
-            b = QPushButton(text, self)
+        for i, (mode, text, tip) in enumerate((
+                ("url", _("From a web address"), _("Download the key from a web address (https).")),
+                ("file", _("From a file"), _("Read the key from a file on this computer.")),
+                ("fpr", _("By its fingerprint"), _("Look the key up on keys.openpgp.org by its fingerprint.")))):
+            b = QPushButton(text, self)  # a switch between the three ways, not an action
+            b.setToolTip(tip)
             b.setCheckable(True)
             b.setProperty("seg", True)
             b.setProperty("segpos", "first" if i == 0 else "last" if i == 2 else "middle")
@@ -695,13 +731,20 @@ class ImportKeyDialog(QDialog):
         self.fpr_in = QLineEdit(fingerprint, self)
         self.fpr_in.setPlaceholderText(_("40 hexadecimal digits, spaces allowed"))
         self.fpr_in.returnPressed.connect(self.fetch)
-        for edit, text, slot in ((self.url, _("Download it"), self.fetch), (self.file, _("Choose…"), self.choose_file),
-                                 (self.fpr_in, _("Look it up"), self.fetch)):
+        for edit, text, slot, tip in (
+                (self.url, _("Download the key"), self.fetch,
+                 _("Download the key from this address and show what it is. Nothing is imported yet.")),
+                (self.file, _("Choose a file…"), self.choose_file,
+                 _("Choose the key file and show what it is. Nothing is imported yet.")),
+                (self.fpr_in, _("Look up the key"), self.fetch,
+                 _("Ask keys.openpgp.org for the key with this fingerprint and show what it is. Only the fingerprint "
+                   "is sent; nothing is imported yet."))):
             w = QWidget(self)
             h = QHBoxLayout(w)
             h.setContentsMargins(0, 0, 0, 0)
             h.addWidget(edit, 1)
             b = button(text, None, slot)
+            b.setToolTip(tip)
             b.setAutoDefault(False)
             h.addWidget(b)
             self.inputs.addWidget(w)
@@ -787,8 +830,10 @@ class ImportKeyDialog(QDialog):
         self.cmd.setFont(mono())
         foot.addWidget(self.cmd, 1)
         cancel = button(_("Cancel"), None, self.reject)
+        cancel.setToolTip(_("Close this window without importing anything."))
         cancel.setAutoDefault(False)
-        self.b_add = button(_("Add it to the queue"), "list-add", self.add_to_queue, primary=True)
+        # it only goes to the queue: not green (the green button is the one that changes the system now)
+        self.b_add = button(_("Put the key in the queue"), "list-add", self.add_to_queue)
         self.b_add.setAutoDefault(False)
         foot.addWidget(cancel)
         foot.addWidget(self.b_add)
@@ -998,9 +1043,11 @@ class ImportKeyDialog(QDialog):
         cmp = self._compared()
         if not k:
             self.cmd.setText("rpm --import")
+            self.b_add.setText(_("Put the key in the queue"))
             self.b_add.setEnabled(False)
-            self.b_add.setToolTip("")
+            self.b_add.setToolTip(_("Get the key first: download it, choose its file or look it up."))
             return
+        self.b_add.setText(_("Put key {keyid} in the queue").format(keyid=k["fpr"][-8:]))
         self.cmd.setText(_("rpm --import (key {keyid}, checked)").format(keyid=k["fpr"][-8:]) if cmp else
                          _("rpm --import (key {keyid})").format(keyid=k["fpr"][-8:]))
         self.cmd.setToolTip(_("Before importing it, Zypp Desk checks as root that the file still holds exactly the "
@@ -1013,7 +1060,8 @@ class ImportKeyDialog(QDialog):
         elif k["revoked"]:
             reason = _("Its owner revoked this key: it must not be used.")
         self.b_add.setEnabled(not reason)
-        self.b_add.setToolTip(reason)
+        self.b_add.setToolTip(reason or (_("Puts the import of this key in the queue. Nothing changes until you apply "
+                                           "the queue.") + "\n" + self.cmd.text()))
 
     def add_to_queue(self):
         k = self.found

@@ -22,7 +22,8 @@ from ..tasks import run_async
 from ..txqueue import Action, pkg_ident
 from ..question import ask_change, confirm
 from ..ui import button, icon, muted
-from .repotools import REPO_ICON, personal_project_question
+from .markbar import flash_queued, queue_label
+from .repotools import REPO_ICON, commands_of, personal_project_question, short
 
 TRUST = {
     online.OFFICIAL: (GREEN, _("Official"), _("Official Tumbleweed package"),
@@ -85,6 +86,7 @@ class ResultPanel(QWidget):
         self.buttons = QHBoxLayout()
         self.buttons.addStretch(1)
         lay.addLayout(self.buttons)
+        self.queue_lbl = queue_label(self)  # in front of the buttons that only put something in the queue
 
     def current(self):
         it = self.tree.currentItem()
@@ -121,7 +123,11 @@ class FindRepoDialog(QDialog):
         self.term.setText(term)
         self.term.returnPressed.connect(self.search)
         top.addWidget(self.term, 1)
-        top.addWidget(button(_("Search"), "edit-find", self.search, primary=True))
+        # the window's one green button: the buttons below only put something in the queue
+        b_search = button(_("Search"), "edit-find", self.search, primary=True)
+        b_search.setToolTip(_("Look for this name in the openSUSE Build Service, Fedora COPR and Flathub. Only the "
+                              "name is sent. It changes nothing."))
+        top.addWidget(b_search)
         lay.addLayout(top)
         lay.addWidget(muted(_("Looks in the openSUSE Build Service, in Fedora COPR and in Flathub. Only the name you "
                               "type is sent. Nothing changes until you press Apply in the queue bar.")))
@@ -136,28 +142,31 @@ class FindRepoDialog(QDialog):
         self.tabs.addTab(self.flathub, icon("flatpak-discover", "application-vnd.flatpak.ref"), _("Flathub"))
         lay.addWidget(self.tabs, 1)
 
-        # buttons of each source
-        self.b_obs_install = button(_("Add the repository and install"), "list-add", lambda: self.obs_add(True),
-                                    primary=True)
-        self.b_obs_repo = button(_("Only add the repository"), "repository", lambda: self.obs_add(False))
+        # buttons of each source: the ones after “To the queue:” only put changes in the queue, so none is green;
+        # their labels name the selected result (_selected)
+        self.b_obs_install = button(_("Add the repository and install…"), "list-add", lambda: self.obs_add(True))
+        self.b_obs_repo = button(_("Only add the repository…"), "repository", lambda: self.obs_add(False))
         self.b_obs_page = button(_("Open the project page"), "internet-web-browser", self.obs_page)
-        for b in (self.b_obs_page, self.b_obs_repo, self.b_obs_install):
+        for b in (self.b_obs_page, self.obs.queue_lbl, self.b_obs_repo, self.b_obs_install):
             self.obs.buttons.addWidget(b)
         self.b_copr_add = button(_("Add the repository and install…"), "list-add", self.copr_add)
         self.b_copr_page = button(_("Open the project page"), "internet-web-browser", self.copr_page)
-        for b in (self.b_copr_page, self.b_copr_add):
+        for b in (self.b_copr_page, self.copr.queue_lbl, self.b_copr_add):
             self.copr.buttons.addWidget(b)
         self.b_fh_page = button(_("Open on Flathub"), "internet-web-browser", self.flathub_page)
         self.b_fh_go = button(_("Open the Flatpak page"), "go-next", self.go_flatpak)
-        self.b_fh_install = button(_("Install"), "list-add", self.flathub_install, primary=True)
-        for b in (self.b_fh_page, self.b_fh_go, self.b_fh_install):
+        self.b_fh_go.setToolTip(_("Close this window and go to Flatpak, where the Flathub remote can be added."))
+        self.b_fh_install = button(_("Install"), "list-add", self.flathub_install)
+        for b in (self.b_fh_page, self.b_fh_go, self.flathub.queue_lbl, self.b_fh_install):
             self.flathub.buttons.addWidget(b)
         self.b_fh_go.hide()
 
         self.notice = muted("", self)
         bottom = QHBoxLayout()
         bottom.addWidget(self.notice, 1)
-        bottom.addWidget(button(_("Close"), "dialog-close", self.accept))
+        b_close = button(_("Close"), "dialog-close", self.accept)
+        b_close.setToolTip(_("Close this window. What you put in the queue stays there."))
+        bottom.addWidget(b_close)
         lay.addLayout(bottom)
 
         for panel in (self.obs, self.copr, self.flathub):
@@ -345,6 +354,106 @@ class FindRepoDialog(QDialog):
                 it.setIcon(0, ic)
 
     # ------------------------------------------------------------ the selected result
+    def _no_selection_labels(self, panel):
+        """The buttons of a source with no result selected: disabled, with what they would do."""
+        pick = _("Select a result in the list first.")
+        if panel.kind == "obs":
+            self.b_obs_install.setText(_("Add the repository and install…"))
+            self.b_obs_repo.setText(_("Only add the repository…"))
+            buttons = (self.b_obs_install, self.b_obs_repo, self.b_obs_page)
+        elif panel.kind == "copr":
+            self.b_copr_add.setText(_("Add the repository and install…"))
+            buttons = (self.b_copr_add, self.b_copr_page)
+        else:
+            self.b_fh_install.setText(_("Install"))
+            buttons = (self.b_fh_install, self.b_fh_page)
+        for b in buttons:
+            b.setToolTip(pick)
+
+    def _label_buttons(self, panel, r):
+        """Labels and tooltips that name the selected result, say that they only fill the queue, and show the
+        exact commands. “…” only when a question comes first (a personal project, a signing key to trust)."""
+        try:
+            self._label_buttons_of(panel, r)
+        except (KeyError, TypeError, ValueError):  # a result without some field: the buttons keep plain labels
+            pass
+
+    def _label_buttons_of(self, panel, r):
+        later = _("Nothing changes until you apply the queue.")
+        s = short(r["name"])
+        if panel.kind == "obs":
+            have = self._repo_with_url(r["url"])
+            self.b_obs_page.setToolTip(
+                _("Open the page of {project} in the web browser.").format(project=r["project"])
+                + "\n" + f"https://build.opensuse.org/package/show/{r['project']}/{r['package']}")
+            if r["trust"] == online.OFFICIAL:
+                self.b_obs_install.setText(_("Install {name}").format(name=s) if s else _("Install it"))
+                self.b_obs_install.setToolTip(
+                    _("Puts in the queue: install {name} from your openSUSE repositories.").format(name=r["name"])
+                    + " " + later + "\n" + "\n".join(commands_of([Action("install", r["name"], package=r["name"])])))
+                self.b_obs_repo.setText(_("Only add the repository"))
+                self.b_obs_repo.setToolTip(_("It is already in your openSUSE repositories: no repository needs to be "
+                                             "added."))
+                return
+            personal = r["trust"] == online.PERSONAL  # a question about the person comes first
+            alias = have["alias"] if have else self._free_alias(online.obs_alias(r["project"]))
+            add = [] if have else [Action("repo-add", alias, url=r["url"], name=r["project"], autorefresh=True,
+                                          priority=99, gpg="default")]
+            install = [Action("install", f"{alias}:{r['name']}", package=r["name"])]
+            key = "" if have else " " + _("Then it offers to trust the signing key of the project.")
+            if have:
+                text = _("Install {name} from it").format(name=s) if s else _("Install it from this repository")
+                tip = _("Puts in the queue: install {name} from the repository you already have.").format(
+                    name=r["name"])
+            else:
+                text = (_("Add the repository and install {name}").format(name=s) if s else
+                        _("Add the repository and install it"))
+                tip = _("Puts in the queue: add the repository {project} and install {name} from it.").format(
+                    project=r["project"], name=r["name"])
+            self.b_obs_install.setText(text + ("…" if personal or not have else ""))
+            self.b_obs_install.setToolTip(tip + key + " " + later + "\n" + "\n".join(commands_of(add + install)))
+            self.b_obs_repo.setText(_("Only add the repository") + ("" if have else "…"))
+            self.b_obs_repo.setToolTip(
+                _("This repository is already added here.") if have else
+                _("Puts in the queue: add the repository {project}, without installing anything.").format(
+                    project=r["project"]) + key + " " + later + "\n" + "\n".join(commands_of(add)))
+        elif panel.kind == "copr":
+            have = self._repo_with_url(r["url"])
+            alias = have["alias"] if have else self._free_alias(online.copr_alias(r))
+            add = [] if have else [Action("repo-add", alias, url=r["url"], name=f"COPR {r['project']} ({r['chroot']})",
+                                          autorefresh=True, priority=99, gpg="allow-unsigned-repo")]
+            install = [Action("install", f"{alias}:{r['name']}", package=r["name"])]
+            self.b_copr_add.setText(_("Add the repository and install {name}…").format(name=s) if s else
+                                    _("Add the repository and install it…"))
+            self.b_copr_add.setToolTip(
+                _("Asks first, then puts in the queue: add the COPR repository {project} and install {name} from "
+                  "it.").format(project=r["project"], name=r["name"]) + " " + later + "\n"
+                + "\n".join(commands_of(add + install)))
+            self.b_copr_page.setToolTip(_("Open the page of {project} in the web browser.").format(project=r["project"])
+                                        + "\n" + (r.get("page") or ""))
+        else:
+            self.b_fh_install.setText(_("Install {name}").format(name=s) if s else _("Install it"))
+            local_remote = r.get("remote") != "flathub"
+            hub = self._flathub_remote()
+            if local_remote or hub:
+                if local_remote:
+                    remote = r["remote"]
+                    match = [x for x in self.flatpak_remotes if x["name"] == remote]
+                    inst = match[0].get("installation", "system") if match else "system"
+                else:
+                    remote, inst = hub["name"], hub.get("installation", "system")
+                self.b_fh_install.setToolTip(
+                    _("Puts in the queue: install the Flatpak app {name} from {remote}.").format(
+                        name=r["name"], remote=remote) + " " + later + "\n"
+                    + "\n".join(commands_of([Action("flatpak-install", r["app_id"], remote=remote,
+                                                    installation=inst)])))
+            else:
+                self.b_fh_install.setToolTip(_("The Flathub remote is not configured here: add it in the Flatpak "
+                                               "page first."))
+            self.b_fh_page.setToolTip(_("Remotes other than Flathub have no page there.") if local_remote else
+                                      _("Open the page of {name} on Flathub in the web browser.").format(name=r["name"])
+                                      + "\n" + f"https://flathub.org/apps/{r['app_id']}")
+
     def _selected(self, panel):
         r = panel.current()
         if panel.kind == "obs":
@@ -360,27 +469,27 @@ class FindRepoDialog(QDialog):
             self.b_fh_page.setEnabled(bool(r) and not local_remote)
             self.b_fh_go.setVisible(bool(r) and not hub and not local_remote)
         if not r:
+            self._no_selection_labels(panel)
             panel.about.setText("")
             panel.about.setStyleSheet("")
             return
-        color, short, title, text = trust_of(r, panel.kind)
+        self._label_buttons(panel, r)
+        color, short_, title, text = trust_of(r, panel.kind)
         extra = ""
         if panel.kind == "obs":
             have = self._repo_with_url(r["url"])
             if r["trust"] == online.OFFICIAL:
-                self.b_obs_install.setText(_("Install"))
                 self.b_obs_repo.setEnabled(False)
             else:
-                self.b_obs_install.setText(_("Add the repository and install"))
                 self.b_obs_repo.setEnabled(not have)
             if have:
                 extra = "<br><i>" + html.escape(_("This repository is already added here as “{name}”.").format(
-                    name=have["name"])) + "</i>"
+                    name=have.get("name") or have["alias"])) + "</i>"  # one waiting in the queue has only its alias
             if r["trust"] == online.PERSONAL:
-                short = severity_label(WARN) + " · " + short
+                short_ = severity_label(WARN) + " · " + short_
         elif panel.kind == "copr":
             if not r.get("tumbleweed"):
-                short = severity_label(SERIOUS) + " · " + short
+                short_ = severity_label(SERIOUS) + " · " + short_
             extra = "<br>" + html.escape(_("Repository: {url}").format(url=r["url"]))
         else:
             if r.get("remote") != "flathub":
@@ -392,7 +501,7 @@ class FindRepoDialog(QDialog):
             if r.get("installs"):
                 extra += "<br>" + html.escape(ngettext("{n} installation last month", "{n} installations last month",
                                                        r["installs"]).format(n=r["installs"]))
-        panel.set_about(color, short, title, text, extra)
+        panel.set_about(color, short_, title, text, extra)
 
     # ------------------------------------------------------------ actions
     def _queued(self, text):
@@ -406,6 +515,7 @@ class FindRepoDialog(QDialog):
         if r["trust"] == online.OFFICIAL:
             self._install(r["name"], r["name"])
             self._queued(_("Added to the queue: install {name}.").format(name=r["name"]))
+            flash_queued(self.b_obs_install, lambda: self._selected(self.obs))
             return
         if r["trust"] == online.PERSONAL and not personal_project_question(
                 self, r["project"], r["url"], install=r["name"] if install else None):
@@ -419,6 +529,7 @@ class FindRepoDialog(QDialog):
             self._install(r["name"], f"{alias}:{r['name']}")
         self._queued(_("Added to the queue: the repository {project}{and_install}.").format(
             project=r["project"], and_install=(_(" and {name} from it").format(name=r["name"]) if install else "")))
+        flash_queued(self.b_obs_install if install else self.b_obs_repo, lambda: self._selected(self.obs))
         if not have:
             self._offer_key(online.obs_key_url(r), alias, r["project"])
 
@@ -437,7 +548,7 @@ class FindRepoDialog(QDialog):
                            name=r["name"]), _("From this repository."))],
                 warning=title + "\n" + text,
                 means=_("it only goes to the queue: nothing changes until you apply it."),
-                password=False, help_topic="repos"):
+                password=False, help_topic="repos", queue=True):
             return
         have = self._repo_with_url(r["url"])
         alias = have["alias"] if have else self._free_alias(online.copr_alias(r))
@@ -449,6 +560,7 @@ class FindRepoDialog(QDialog):
         self._install(r["name"], f"{alias}:{r['name']}")
         self._queued(_("Added to the queue: the repository {project} and {name} from it.").format(
             project=r["project"], name=r["name"]))
+        flash_queued(self.b_copr_add, lambda: self._selected(self.copr))
         if not have:
             self._offer_key(r["key_url"], alias, r["project"], packages_only=True)
 
@@ -469,7 +581,8 @@ class FindRepoDialog(QDialog):
 
     def _offer_key(self, url, alias, project, packages_only=False):
         """zypper -n refuses a repository whose key it does not know: offer to put its import in the queue too."""
-        run_async(self._key_info, url, on_done=lambda res, err: self._key_ready(res, err, project, packages_only, alias))
+        run_async(self._key_info, url,
+                  on_done=lambda res, err: self._key_ready(res, err, project, packages_only, alias))
 
     @staticmethod
     def _key_info(url):
@@ -516,7 +629,7 @@ class FindRepoDialog(QDialog):
                     detail)],
             means=_("it is imported first when you apply the queue, before the repository is added. Nothing changes "
                     "until then."),
-            warning=warning, password=False, buttons=buttons, help_topic="repos")
+            warning=warning, password=False, buttons=buttons, help_topic="repos", queue=True)
         if answer != "yes":
             return
         link = {"for_repo": alias} if alias else {}  # the queue review: the repository needs this key
@@ -540,6 +653,7 @@ class FindRepoDialog(QDialog):
             remote, inst = hub["name"], hub.get("installation", "system")
         self.ctx.queue.add(Action("flatpak-install", r["app_id"], remote=remote, installation=inst))
         self._queued(_("Added to the queue: install the Flatpak app {name}.").format(name=r["name"]))
+        flash_queued(self.b_fh_install, lambda: self._selected(self.flathub))
 
     def obs_page(self):
         r = self.obs.current()

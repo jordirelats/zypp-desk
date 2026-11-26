@@ -28,7 +28,7 @@ from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Chip, FlowLayout, Page, button, heading, icon, mono, muted, tool
 from .home import Tile
-from .markbar import MarkBar, check_rect, is_checked, paint_check
+from .markbar import MarkBar, amp, check_rect, is_checked, paint_check, queue_label
 
 MARK_ROLE = Qt.ItemDataRole.UserRole + 7  # True on the rows that can be marked (Discover); QListWidgetItem is
 #                                           user-checkable by default, so its flags cannot tell them apart
@@ -409,6 +409,8 @@ class AppsPage(Page):
         self.b_discover = QToolButton(self)
         self.b_discover.setObjectName("segright")
         self.b_discover.setText(_("Discover by theme"))
+        self.b_mine.setToolTip(_("Every program you have, and where it comes from"))
+        self.b_discover.setToolTip(_("Programs to install, by theme, from the openSUSE repositories and Flathub"))
         for i, b in enumerate((self.b_mine, self.b_discover)):
             b.setCheckable(True)
             b.setStyleSheet(SEGMENT_STYLE)
@@ -452,8 +454,16 @@ class AppsPage(Page):
         self.filter_group = QButtonGroup(self)
         self.filter_group.setExclusive(True)
         self.chips = {}
+        tips = {"all": _("Show every program you have"),
+                "repo": _("Show only the programs installed from a repository"),
+                "flatpak": _("Show only the Flatpak apps"),
+                "web": _("Show only the programs installed from files downloaded from the web"),
+                "webapp": _("Show only the web apps of your browsers"),
+                "appimage": _("Show only the AppImages"),
+                "updates": _("Show only the programs with a new version waiting")}
         for key in ("all", "repo", "flatpak", "web", "webapp", "appimage", "updates"):
             c = Chip("", key == "all", w)
+            c.setToolTip(tips[key])
             self.filter_group.addButton(c)
             c.toggled.connect(lambda on, k=key: on and self._fill_mine())
             self.chips[key] = c
@@ -515,7 +525,9 @@ class AppsPage(Page):
         lv = QVBoxLayout(list_page)
         lv.setContentsMargins(0, 0, 0, 0)
         head = QHBoxLayout()
-        head.addWidget(button(_("All themes"), "go-previous", self.back_to_themes))
+        back = button(_("Back to all themes"), "go-previous", self.back_to_themes)
+        back.setToolTip(_("Show the themes again"))
+        head.addWidget(back)
         self.cat_icon = QLabel(list_page)
         self.cat_title = ShortHeading(1.25, list_page)
         head.addSpacing(8)
@@ -523,8 +535,12 @@ class AppsPage(Page):
         head.addWidget(self.cat_title, 1)
         self.src_group = QButtonGroup(self)
         self.src_chips = {}
+        src_tips = {"all": _("Show programs from every source"),
+                    "rpm": _("Show only programs from the openSUSE repositories"),
+                    "flatpak": _("Show only Flatpak apps from Flathub")}
         for key, label in (("all", _("Every source")), ("rpm", "openSUSE"), ("flatpak", "Flathub")):
             c = Chip(label, key == "all", list_page)
+            c.setToolTip(src_tips[key])
             self.src_group.addButton(c)
             c.toggled.connect(lambda on: on and self._fill_discover())
             self.src_chips[key] = c
@@ -555,7 +571,7 @@ class AppsPage(Page):
         self.disc_details = Details(list_page)
         # mark several programs and install them at once; the marks survive a new filter
         self.disc_marked = {}  # (kind, package) -> the catalogue entry
-        self.disc_markbar = MarkBar(self._disc_mark_action, self._disc_unmark_all, list_page)
+        self.disc_markbar = MarkBar(self._disc_mark_action, self._disc_unmark_all, list_page, to_queue=True)
         self.disc_list.itemChanged.connect(self._disc_item_changed)
         left = QWidget(list_page)
         lv2 = QVBoxLayout(left)
@@ -777,6 +793,48 @@ class AppsPage(Page):
         out.append((text if len(text) <= 34 else text[:32] + "…", color, False))
         return out
 
+    # ------------------------------------------------------------ the buttons of a card (botons/NORMES.md)
+    def _named(self, named, plain, name, **kw):
+        """A label with the program's name when it fits the card ('Open Signal'), else without it ('Open it'):
+        the name is right above, in the card's title."""
+        text = named.format(name=amp(name), **kw)
+        f = QFont(self.mine_details.font())
+        f.setBold(True)  # the green button is bold: measure as if every one were
+        if QFontMetrics(f).horizontalAdvance(text.replace("&&", "&")) <= 228:
+            return text
+        return plain.format(**kw)
+
+    @staticmethod
+    def _btn(obj, text, icon_name, slot, tip, primary=False):
+        b = button(text, icon_name, slot, primary=primary)
+        b.setObjectName(obj)  # tests and other pages find a button by this name, whatever its label says
+        b.setToolTip(tip)
+        return b
+
+    @staticmethod
+    def _queue_cmd(a, kind):
+        """The command a queued change of this program becomes, for a tooltip."""
+        if a["kind"] == "flatpak":
+            inst = a.get("installation") or "system"
+            return {"update": f"flatpak update {a['package']}",
+                    "remove": f"flatpak uninstall --{inst} {a['package']}",
+                    "install": f"flatpak install --system {a.get('remote') or 'flathub'} {a['package']}"}[kind]
+        return {"update": f"zypper install {a['package']}", "remove": f"zypper remove {a['package']}",
+                "install": f"zypper install {a['package']}"}[kind]
+
+    def _protect_btn(self, a, guarded):
+        """Protect (asks first) or stop protecting (at once): only a mark in Zypp Desk, never in the queue."""
+        if guarded:
+            return self._btn("app_protect", self._named(_("Stop protecting {name}"), _("Stop protecting it"),
+                                                        a["name"]),
+                             "security-low", lambda: self.toggle_protect(a),
+                             _("Zypp Desk may remove it again. Nothing on the system changes, and nothing goes to "
+                               "the queue."))
+        return self._btn("app_protect", self._named(_("Protect {name}…"), _("Protect it…"), a["name"]),
+                         "security-high", lambda: self.toggle_protect(a),
+                         _("Asks first, then marks it so that Zypp Desk never removes it, from any page. Nothing on "
+                           "the system changes, and nothing goes to the queue."))
+
     # ------------------------------------------------------------ web apps of the browsers (webapps.py)
     def _show_webapp(self, a):
         rows = [(_("Browser"), html.escape(a["origin_name"] + (f" · {a['profile']}" if a["profile"] else "")))]
@@ -793,15 +851,29 @@ class AppsPage(Page):
                      "every browser, opens them and lets the browser remove them.")
         self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "", rows, note)
         btns = []
+        name, browser = a["name"], a["origin_name"]
         if a["orphan"]:
-            btns.append(button(_("Remove it from the menu…"), "edit-delete", lambda: self._remove_orphan(a)))
+            btns.append(self._btn("web_menu_remove", self._named(_("Remove {name} from the menu…"),
+                                                                 _("Remove it from the menu…"), name),
+                                  "edit-delete", lambda: self._remove_orphan(a),
+                                  _("Asks first, then moves its menu entry and icons to the trash at once: its "
+                                    "browser is gone. Web apps do not go through the queue.")))
         else:
-            btns.append(button(_("Open it"), "media-playback-start", lambda: self._start(webapps.open_command(a)),
-                               primary=True))
+            words = webapps.open_command(a)
+            btns.append(self._btn("web_open", self._named(_("Open {name}"), _("Open it"), name),
+                                  "media-playback-start", lambda: self._start(webapps.open_command(a)),
+                                  _("Opens it in {browser} now, as its menu entry does ({command}).").format(
+                                      browser=browser, command=" ".join(shlex.quote(w) for w in words) or "?"),
+                                  primary=True))
             if a["manage"]:
-                btns.append(button(_("Remove it…"), "edit-delete", lambda: self._remove_webapp(a)))
-                btns.append(button(_("Manage them in {browser}").format(browser=a["origin_name"]),
-                                   "internet-web-browser", lambda: self._start(webapps.manage_command(a))))
+                btns.append(self._btn("web_remove", self._named(_("Remove {name}…"), _("Remove it…"), name),
+                                      "edit-delete", lambda: self._remove_webapp(a),
+                                      _("Asks first, then opens the page of apps of {browser}, where the browser "
+                                        "removes it. Web apps do not go through the queue.").format(browser=browser)))
+                btns.append(self._btn("web_manage", _("Manage web apps in {browser}").format(browser=amp(browser)),
+                                      "internet-web-browser", lambda: self._start(webapps.manage_command(a)),
+                                      _("Opens the page of apps of {browser} ({page}), where it installs, removes "
+                                        "and sets up its web apps.").format(browser=browser, page=a["manage"])))
         self.mine_details.set_buttons(btns)
 
     def _start(self, words):
@@ -840,7 +912,10 @@ class AppsPage(Page):
 
     # ------------------------------------------------------------ AppImages (appimages.py)
     def header_actions(self):
-        return [tool(_("Add an AppImage…"), "list-add", self.add_appimage)]
+        b = tool(_("Add an AppImage…"), "list-add", self.add_appimage)
+        b.setToolTip(_("Choose an AppImage file: Zypp Desk asks, then puts it in your AppImage folder and in the menu "
+                       "at once. AppImages are your own files: this does not go through the queue."))
+        return [b]
 
     def _scan_appimages(self, select=None):
         if select:
@@ -964,30 +1039,79 @@ class AppsPage(Page):
                 notes.append(_("Protected: Zypp Desk does not remove it until you stop protecting it."))
         self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "AppImage", rows, "\n\n".join(notes))
 
+        # every action here acts at once (after its question, when it has one): an AppImage is the user's own
+        # file and never goes through the queue. The tooltips say so.
+        name = a["name"]
+        at_once = _("AppImages are your own files: this does not go through the queue.")
         btns = []
         if a["orphan"]:
-            btns.append(button(_("Remove it from the menu…"), "edit-delete", lambda: self._ai_menu_remove(a)))
+            btns.append(self._btn("ai_menu_remove", self._named(_("Remove {name} from the menu…"),
+                                                                _("Remove it from the menu…"), name),
+                                  "edit-delete", lambda: self._ai_menu_remove(a),
+                                  _("Asks first, then moves its menu entry and icons to the trash at once: the file "
+                                    "it runs is gone.") + " " + at_once))
             self.mine_details.set_buttons(btns)
             return
         get_new = bool(new) and a["writable"] and not busy
-        btns.append(button(_("Open it"), "media-playback-start", lambda: self._ai_open(a), primary=not get_new))
+        ask = not os.access(path, os.X_OK)  # "Let it run?" comes first
+        btns.append(self._btn("ai_open", self._named(_("Open {name}…") if ask else _("Open {name}"),
+                                                     _("Open it…") if ask else _("Open it"), name),
+                              "media-playback-start", lambda: self._ai_open(a),
+                              (_("Asks first to make the file executable, then starts the program.") if ask else
+                               _("Starts the program now.")) + " " + at_once, primary=not get_new))
         if get_new:
-            btns.append(button(_("Get the new version…"), "download", lambda: self._ai_get_new(a), primary=True))
-        look = button(_("Looking…") if busy == "checking" else _("Look for a new version"), "view-refresh",
-                      lambda: self._ai_look(a))
+            version = found.get("version")
+            btns.append(self._btn("ai_get_new", self._named(_("Get {name} {version}…"), _("Get the new version…"),
+                                                            name, version=version) if version
+                                  else _("Get the new version…"),
+                                  "download", lambda: self._ai_get_new(a),
+                                  _("Asks first, then downloads {file} from {place} and checks it; it asks again "
+                                    "before the new file takes the place of yours.").format(
+                                      file=found.get("asset") or "?", place=host_of(found.get("url")) or "?")
+                                  + " " + at_once, primary=True))
+        if busy == "checking":
+            look_text, look_tip = _("Looking…"), _("Looking for a new version…")
+        elif src and src["kind"] == "github":
+            look_text = _("Look for a new version")
+            look_tip = _("Asks GitHub now whether {project} has a newer file than yours. Nothing is downloaded.") \
+                .format(project=src.get("repo") or "?")
+        elif src and src["kind"] in ("zsync", "page"):
+            look_text = _("Look for a new version…")
+            look_tip = _("Opens in your browser the page where its publisher puts new versions.")
+        else:
+            look_text = _("Look for a new version…")
+            look_tip = _("The file does not say where new versions are published: Zypp Desk asks you for its "
+                         "GitHub project first, then looks there. Nothing is downloaded.")
+        look = self._btn("ai_look", look_text, "view-refresh", lambda: self._ai_look(a), look_tip)
         look.setEnabled(not busy)
         btns.append(look)
         if src and src.get("user"):
-            btns.append(button(_("Change where to look…"), "document-edit", lambda: self._ai_ask_source(a)))
+            btns.append(self._btn("ai_source", _("Change where to look…"), "document-edit",
+                                  lambda: self._ai_ask_source(a),
+                                  _("Write again the GitHub project where new versions of {name} are "
+                                    "published.").format(name=name)))
         if a["backup"] and a["writable"]:
-            btns.append(button(_("Back to the previous version…"), "edit-undo", lambda: self._ai_restore(a)))
+            btns.append(self._btn("ai_restore", _("Back to the previous version…"), "edit-undo",
+                                  lambda: self._ai_restore(a),
+                                  _("Asks first, then puts back the version you had ({file}); the new one goes to "
+                                    "the trash.").format(file=Path(a["backup"]).name) + " " + at_once))
         if a["menu"]:
-            btns.append(button(_("Remove it from the menu…"), "list-remove", lambda: self._ai_menu_remove(a)))
+            btns.append(self._btn("ai_menu_remove", self._named(_("Remove {name} from the menu…"),
+                                                                _("Remove it from the menu…"), name),
+                                  "list-remove", lambda: self._ai_menu_remove(a),
+                                  _("Asks first, then moves its menu entry and icons to the trash at once. The "
+                                    "program stays where it is and still opens from here.") + " " + at_once))
         else:
-            btns.append(button(_("Add it to the menu"), "list-add", lambda: self._ai_menu_add(a)))
-        btns.append(button(_("Stop protecting it") if guarded else _("Protect it"),
-                           "security-low" if guarded else "security-high", lambda: self.toggle_protect(a)))
-        rm = button(_("Remove it…"), "edit-delete", lambda: self._ai_remove(a))
+            btns.append(self._btn("ai_menu_add", self._named(_("Add {name} to the menu"), _("Add it to the menu"),
+                                                             name),
+                                  "list-add", lambda: self._ai_menu_add(a),
+                                  _("Writes a menu entry with its name and icon now. Zypp Desk does not run the "
+                                    "program.") + " " + at_once))
+        btns.append(self._protect_btn(a, guarded))
+        rm = self._btn("ai_remove", self._named(_("Remove {name}…"), _("Remove it…"), name), "edit-delete",
+                       lambda: self._ai_remove(a),
+                       _("Asks first, then moves the program, its menu entry and its icons to the trash at once. "
+                         "Its settings in your home folder stay.") + " " + at_once)
         if guarded:
             rm.setEnabled(False)
             rm.setToolTip(_("It is protected: stop protecting it first."))
@@ -1141,7 +1265,11 @@ class AppsPage(Page):
                    ("document-save", _("The old one is kept as {file}").format(file=old_name),
                     _("It goes to the trash once the new one has opened from here; until then you can go back."))],
             means=_("the program changes only when it is opened again; if it is open now, close it first."),
-            buttons=[("no", _("Not now: throw it away"), False), ("yes", _("Yes, replace it"), True)],
+            buttons=[("no", _("Not now: throw it away"), False,
+                      _("The downloaded file goes to the trash; yours stays as it is.")),
+                     ("yes", _("Yes, replace it"), True,
+                      _("The new file takes the place of yours now; the old one is kept as {file}.").format(
+                          file=old_name))],
             password=False, help_topic="programs")
         if key != "yes":
             self._trash(res["path"])
@@ -1299,7 +1427,12 @@ class AppsPage(Page):
                     file=name, folder=appimages.display_path(home)) if conflict else None),
                 means=_("Zypp Desk does not run it now; you open it when you want. An AppImage runs with your "
                         "permissions: add only AppImages from publishers you trust."),
-                buttons=[("no", _("Not yet"), False), ("copy", _("Copy it"), False), ("move", _("Move it"), True)],
+                buttons=[("no", _("Not yet"), False, _("Nothing is copied or moved.")),
+                         ("copy", _("Copy it"), False,
+                          _("A copy goes to {folder} now; the file stays where it is too.").format(
+                              folder=appimages.display_path(home))),
+                         ("move", _("Move it"), True,
+                          _("The file moves to {folder} now.").format(folder=appimages.display_path(home)))],
                 password=False, help_topic="programs")
             if key not in ("copy", "move"):
                 return
@@ -1449,34 +1582,66 @@ class AppsPage(Page):
             note = (note + "\n\n" if note else "") + _("In the queue: {change}.").format(change=self._state_text(state))
         self.mine_details.show_app(self.app_icon(a), a["name"], a["summary"] or "", rows, note)
 
-        btns = []
+        # Updating and removing only add to the queue: "To the queue:" says so in front of them, and none is green
+        # (nothing on this card changes the system at once)
+        name = a["name"]
+        nothing_yet = _("Nothing changes until you apply the queue.")
+        queued = []
         if new and a["origin"] == "web":
-            btns.append(button(_("Get the new version…"), "download",
-                               lambda _c=False, pkg=a["package"]: self.ctx.pages["websources"].get_new_versions([pkg]),
-                               primary=True))
+            queued.append(self._btn(
+                "app_get_new", self._named(_("Get {name} {version}…"), _("Get the new version…"), name, version=new),
+                "download", lambda _c=False, pkg=a["package"]: self.ctx.pages["websources"].get_new_versions([pkg]),
+                _("Downloads {name} {version} from {site} and checks it, then puts it in the queue (the checks may ask "
+                  "questions).").format(name=name, version=new, site=a["origin_name"] or "?") + " " + nothing_yet))
         elif new and not state:
-            btns.append(button(_("Update"), "system-software-update", lambda: self._queue_update(a), primary=True))
+            queued.append(self._btn(
+                "app_update", self._named(_("Update {name}"), _("Update it"), name), "system-software-update",
+                lambda: self._queue_update(a),
+                _("Puts the update of {name} to {version} in the queue ({command}).").format(
+                    name=name, version=new, command=self._queue_cmd(a, "update")) + " " + nothing_yet))
         guarded = self.is_protected(a)
+        rest = []
         if state:
-            btns.append(button(_("Drop from the queue"), "edit-undo", lambda: self._drop(a)))
+            rest.append(self._btn("app_drop", self._named(_("Drop {name} from the queue"), _("Drop it from the queue"),
+                                                          name),
+                                  "edit-undo", lambda: self._drop(a),
+                                  _("Takes the change of {name} out of the queue ({change}). Nothing on the system "
+                                    "changes.").format(name=name, change=self._state_text(state))))
         else:
-            rm = button(_("Remove") if a["kind"] == "rpm" else _("Uninstall"), "edit-delete",
-                        lambda: self._queue_remove(a))
+            rm = self._btn("app_remove", self._named(_("Remove {name}") if a["kind"] == "rpm" else _("Uninstall {name}"),
+                                                     _("Remove it") if a["kind"] == "rpm" else _("Uninstall it"), name),
+                           "edit-delete", lambda: self._queue_remove(a),
+                           _("Puts the removal of {name} in the queue ({command}).").format(
+                               name=name, command=self._queue_cmd(a, "remove")) + " " + nothing_yet)
             if guarded:
                 rm.setEnabled(False)
                 rm.setToolTip(_("It is protected: stop protecting it first."))
-            btns.append(rm)
-        btns.append(button(_("Stop protecting it") if guarded else _("Protect it"),
-                           "security-low" if guarded else "security-high", lambda: self.toggle_protect(a)))
+            queued.append(rm)
+        rest.append(self._protect_btn(a, guarded))
         if a["kind"] == "flatpak":
-            btns.append(button(_("Save a copy…"), "document-save", lambda: self.save_bundle(a)))
+            rest.append(self._btn("app_save_copy", self._named(_("Save a copy of {name}…"), _("Save a copy…"), name),
+                                  "document-save", lambda: self.save_bundle(a),
+                                  _("Asks where, then writes the whole app to one .flatpak file at once (flatpak "
+                                    "build-bundle), so that it can be installed again even if its remote drops it. "
+                                    "It does not go through the queue.")))
         if a["origin"] == "web":
-            btns.append(button(_("Open Web sources"), "internet-web-browser", lambda: self.ctx.go("websources")))
+            rest.append(self._btn("app_websources", _("Open Web sources"), "internet-web-browser",
+                                  lambda: self.ctx.go("websources"),
+                                  _("Go to Web sources, where Zypp Desk looks for new versions of the programs from "
+                                    "the web.")))
         if a["kind"] == "flatpak":
-            btns.append(button(_("Show in Flatpak"), "flatpak-discover", lambda: self.ctx.go("flatpak")))
+            rest.append(self._btn("app_show_flatpak", self._named(_("Show {name} in Flatpak"), _("Show it in Flatpak"),
+                                                                  name),
+                                  "flatpak-discover", lambda: self._show_in_flatpak(a),
+                                  _("Go to the Flatpak page with {name} selected: its size, runtime and "
+                                    "permissions.").format(name=name)))
         else:
-            btns.append(button(_("Show in Packages"), "package-x-generic", lambda: self._show_in_packages(a)))
-        self.mine_details.set_buttons(btns)
+            rest.append(self._btn("app_show_packages", self._named(_("Show {name} in Packages"),
+                                                                   _("Show it in Packages"), name),
+                                  "package-x-generic", lambda: self._show_in_packages(a),
+                                  _("Go to Packages and search for {package}: its versions, dependencies and "
+                                    "files.").format(package=a["package"])))
+        self.mine_details.set_buttons(([queue_label()] + queued if queued else []) + rest)
 
     @staticmethod
     def _state_text(state):
@@ -1511,6 +1676,12 @@ class AppsPage(Page):
                                                                    name.endswith(":" + a["package"]))
                 if same:
                     q.discard_action(act)
+
+    def _show_in_flatpak(self, a):
+        self.ctx.go("flatpak")
+        page = self.ctx.pages.get("flatpak")
+        if page is not None and hasattr(page, "select_app"):
+            page.select_app(a["package"])
 
     def _show_in_packages(self, a):
         page = self.ctx.pages["packages"]
@@ -1594,10 +1765,12 @@ class AppsPage(Page):
         top = [s for s in counts if counts[s] >= 2]
         first = Chip(_("All"), True, self)
         first.setProperty("sub", "")
+        first.setToolTip(_("Show every program of this theme"))
         chips = [first]
         for s in sorted(top, key=lambda s: sub_label(s).lower()):
             c = Chip(sub_label(s), False, self)
             c.setProperty("sub", s)
+            c.setToolTip(_("Show only: {theme}").format(theme=sub_label(s)))
             chips.append(c)
         for c in chips:
             self.sub_group.addButton(c)
@@ -1654,9 +1827,21 @@ class AppsPage(Page):
         marked = [a for a in self.disc_marked.values() if not self.is_installed(a)]
         n = len(marked)
         names = ", ".join(a["name"] for a in marked[:4]) + ("…" if n > 4 else "")
+        if n == 1 and len(marked[0]["name"]) <= 24:
+            label = _("Install {name}").format(name=amp(marked[0]["name"]))
+        else:
+            label = ngettext("Install the ticked one", "Install the {n} ticked", n).format(n=n)
+        rpms = [a["package"] for a in marked if a["kind"] == "rpm"]
+        fps = [a["package"] for a in marked if a["kind"] != "rpm"]
+        cmds = []
+        for words, pkgs in (("zypper install", rpms), ("flatpak install --system", fps)):
+            if pkgs:
+                cmds.append(" ".join([words] + pkgs[:3]) + (" …" if len(pkgs) > 3 else ""))
+        tip = _("Puts {names} in the queue to be installed ({command}).").format(
+            names=names, command="; ".join(cmds)) + " " + _("Nothing changes until you apply the queue.")
+        # only adds to the queue: never green, "To the queue:" in front (the bar was made with to_queue=True)
         self.disc_markbar.set_state(n, ngettext("{n} marked", "{n} marked", n).format(n=n), names,
-                                    [("install", ngettext("Install it", "Install the {n}", n).format(n=n), n > 0,
-                                      True)])
+                                    [("install", label, n > 0, False, tip)] if n else [])
 
     def _disc_unmark_all(self):
         self.disc_marked.clear()
@@ -1710,19 +1895,41 @@ class AppsPage(Page):
         if state:
             note = (note + "\n\n" if note else "") + _("In the queue: {change}.").format(change=self._state_text(state))
         self.disc_details.show_app(self.app_icon(a), a["name"], a["summary"] or "", rows, note)
+        # installing and removing only add to the queue: "To the queue:" in front, never green
+        name = a["name"]
+        nothing_yet = _("Nothing changes until you apply the queue.")
         btns = []
         if state:
-            btns.append(button(_("Drop from the queue"), "edit-undo", lambda: self._drop(a)))
+            btns.append(self._btn("disc_drop", self._named(_("Drop {name} from the queue"), _("Drop it from the queue"),
+                                                           name),
+                                  "edit-undo", lambda: self._drop(a),
+                                  _("Takes the change of {name} out of the queue ({change}). Nothing on the system "
+                                    "changes.").format(name=name, change=self._state_text(state))))
         elif installed:
             inst = next((x for x in self.installed if x["package"] == a["package"] and x["kind"] == a["kind"]), None)
-            btns.append(button(_("Remove") if a["kind"] == "rpm" else _("Uninstall"), "edit-delete",
-                               lambda: self._queue_remove(inst or dict(a, installation="system"))))
-        elif a["kind"] == "rpm":
-            btns.append(button(_("Install"), "list-add", lambda: self.ctx.queue.add(Action("install", a["package"])),
-                               primary=True))
+            target = inst or dict(a, installation="system")
+            btns += [queue_label(), self._btn(
+                "disc_remove", self._named(_("Remove {name}") if a["kind"] == "rpm" else _("Uninstall {name}"),
+                                           _("Remove it") if a["kind"] == "rpm" else _("Uninstall it"), name),
+                "edit-delete", lambda: self._queue_remove(target),
+                _("Puts the removal of {name} in the queue ({command}).").format(
+                    name=name, command=self._queue_cmd(target, "remove")) + " " + nothing_yet)]
         else:
-            btns.append(button(_("Install"), "list-add", lambda: self.ctx.queue.add(
-                Action("flatpak-install", a["package"], remote=a["remote"], installation="system")), primary=True))
+            if a["kind"] == "rpm":
+                def add():
+                    self.ctx.queue.add(Action("install", a["package"]))
+            else:
+                def add():
+                    self.ctx.queue.add(Action("flatpak-install", a["package"], remote=a["remote"],
+                                              installation="system"))
+            btns += [queue_label(), self._btn(
+                "disc_install", self._named(_("Install {name}"), _("Install it"), name), "list-add", add,
+                _("Puts {name} in the queue to be installed ({command}).").format(
+                    name=name, command=self._queue_cmd(a, "install")) + " " + nothing_yet)]
         if a["kind"] == "rpm":
-            btns.append(button(_("Show in Packages"), "package-x-generic", lambda: self._show_in_packages(a)))
+            btns.append(self._btn("disc_show_packages", self._named(_("Show {name} in Packages"),
+                                                                    _("Show it in Packages"), name),
+                                  "package-x-generic", lambda: self._show_in_packages(a),
+                                  _("Go to Packages and search for {package}: its versions, dependencies and "
+                                    "files.").format(package=a["package"])))
         self.disc_details.set_buttons(btns)

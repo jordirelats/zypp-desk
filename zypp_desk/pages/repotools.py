@@ -14,6 +14,7 @@ from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action, TxQueue
 from ..ui import button, error_box, heading, icon, mono, muted
+from .markbar import amp
 
 REPO_ICON = "folder-cloud|repository|folder-download"
 
@@ -34,6 +35,17 @@ def tint(color, alpha=0.14):
     return f"rgba({int(c[0:2], 16)}, {int(c[2:4], 16)}, {int(c[4:6], 16)}, {alpha})"
 
 
+# a name in a button stays only when it is short: the label keeps about 30 characters, the tooltip the whole name
+SHORT_NAME = 20
+
+
+def short(name):
+    """The name, ready for a button label, when it fits; '' when it is too long (the caller then says "the selected
+    one" or "it"; the tooltip has the whole name)."""
+    name = (name or "").strip()
+    return amp(name) if 0 < len(name) <= SHORT_NAME else ""
+
+
 def pill(text, color):
     lbl = QLabel(text)
     lbl.setTextFormat(Qt.TextFormat.PlainText)
@@ -47,9 +59,11 @@ class PriorityStepper(QWidget):
 
     changed = Signal(int)
 
-    def __init__(self, value, parent=None):
+    def __init__(self, value, parent=None, name="", alias=""):
+        """name, alias: the repository, for the tooltips (with the exact command)."""
         super().__init__(parent)
         self.value = int(value)
+        self.repo_name, self.alias = name, alias
         v = QVBoxLayout(self)
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(1)
@@ -98,8 +112,25 @@ class PriorityStepper(QWidget):
         self._show()
         self.timer.start()
 
+    def _tips(self):
+        name = self.repo_name or _("this repository")
+        later = _("The change goes to the queue a moment after your last click; nothing changes until you apply "
+                  "the queue.")
+        minus = _("Make the number of “{name}” lower: it wins over repositories with a higher number.").format(
+            name=name) + " " + later
+        plus = _("Make the number of “{name}” higher: it gives way to repositories with a lower number.").format(
+            name=name) + " " + later
+        if self.alias:
+            lower = Action("repo-modify", self.alias, priority=max(1, self.value - 1))
+            higher = Action("repo-modify", self.alias, priority=min(200, self.value + 1))
+            minus += "\n" + "\n".join(commands_of([lower]))
+            plus += "\n" + "\n".join(commands_of([higher]))
+        self.minus.setToolTip(minus)
+        self.plus.setToolTip(plus)
+
     def _show(self):
         self.num.setText(str(self.value))
+        self._tips()
         t = repoprio.tier_of(self.value) if self.value != 99 else None
         if self.value == 99:
             self.tier.setText(_("default"))
@@ -195,11 +226,15 @@ class ProposeOrderDialog(QDialog):
         self.cmd.setStyleSheet("color: palette(placeholder-text);")
         lay.addWidget(self.cmd)
         btns = QHBoxLayout()
-        b_help = button(_("How it works"), "help-about", lambda: _how_it_works(self))
+        b_help = button(_("How the priority works"), "help-about", lambda: _how_it_works(self))
+        b_help.setToolTip(_("Explains how zypper chooses between repositories. It changes nothing."))
         btns.addWidget(b_help)
         btns.addStretch(1)
-        btns.addWidget(button(_("Cancel"), None, self.reject))
-        self.ok = button(_("Add to the queue"), "list-add", self.accept, primary=True)
+        cancel = button(_("Cancel"), None, self.reject)
+        cancel.setToolTip(_("Close this window and leave every priority as it is."))
+        btns.addWidget(cancel)
+        # it only goes to the queue: not green (the green button is the one that changes the system now)
+        self.ok = button(_("Put the changes in the queue"), "list-add", self.accept)
         btns.addWidget(self.ok)
         lay.addLayout(btns)
         self._update()
@@ -215,6 +250,8 @@ class ProposeOrderDialog(QDialog):
     def _update(self):
         ch = self.chosen()
         self.ok.setEnabled(bool(ch))
+        self.ok.setText(ngettext("Put {n} change in the queue", "Put the {n} changes in the queue", len(ch)).format(
+            n=len(ch)) if ch else _("Put the changes in the queue"))
         if ch:
             from ..txqueue import TxQueue
             r, p = ch[0]
@@ -223,8 +260,14 @@ class ProposeOrderDialog(QDialog):
             q.actions = [Action("repo-modify", r["alias"], priority=p)]
             self.cmd.setText(q.steps()[0].display() + (" … " + ngettext(
                 "(and {n} more)", "(and {n} more)", more).format(n=more) if more else ""))
+            self.ok.setToolTip(ngettext(
+                "Puts the new priority of {n} repository in the queue (zypper modifyrepo --priority). Nothing "
+                "changes until you apply the queue.",
+                "Puts the new priorities of {n} repositories in the queue (zypper modifyrepo --priority). Nothing "
+                "changes until you apply the queue.", len(ch)).format(n=len(ch)))
         else:
             self.cmd.setText(_("Nothing to change."))
+            self.ok.setToolTip(_("Tick a kind with changes first."))
 
 
 def _how_it_works(parent):
@@ -235,11 +278,11 @@ def _how_it_works(parent):
 class ChangeUrlDialog(QDialog):
     """A repository at a new address: written by hand, or found again among what its OBS project publishes.
 
-    The address must look right (repoprio.url_problem), and it is checked: “Add to the queue” waits until the check
-    has answered, and an address that does not answer goes to the queue only after a question. zypper cannot
-    change an address: the queue adds the repository again from a .repo file with every setting of the old one
-    (repoprio.new_address_file), under <alias>-zdnew, removes the old one and gives the new one its alias. A change
-    that already waits in the queue for this repository (enabled, priority…) stays there and runs after it.
+    The address must look right (repoprio.url_problem), and it is checked: “Put the new address in the queue”
+    waits until the check has answered, and an address that does not answer goes to the queue only after a question.
+    zypper cannot change an address: the queue adds the repository again from a .repo file with every setting of the
+    old one (repoprio.new_address_file), under <alias>-zdnew, removes the old one and gives the new one its alias. A
+    change that already waits in the queue for this repository (enabled, priority…) stays there and runs after it.
     """
 
     def __init__(self, repo, health, parent=None):
@@ -275,7 +318,9 @@ class ChangeUrlDialog(QDialog):
         self.edit.setFont(mono())
         self.edit.textChanged.connect(self._edited)
         er.addWidget(self.edit, 1)
-        self.b_check = button(_("Check it"), "network-connect", self._check)
+        self.b_check = button(_("Check the address"), "network-connect", self._check)
+        self.b_check.setToolTip(_("Ask the address written here whether it answers. It only reads: nothing "
+                                  "changes. It is also checked by itself a moment after you stop typing."))
         self.b_check.setAutoDefault(False)
         er.addWidget(self.b_check)
         lay.addLayout(er)
@@ -320,9 +365,11 @@ class ChangeUrlDialog(QDialog):
         btns = QHBoxLayout()
         btns.addStretch(1)
         cancel = button(_("Cancel"), None, self.reject)
+        cancel.setToolTip(_("Close this window and keep the address as it is."))
         cancel.setAutoDefault(False)
         btns.addWidget(cancel)
-        self.ok = button(_("Add to the queue"), "list-add", self._accept, primary=True)
+        # it only goes to the queue: not green (the green button is the one that changes the system now)
+        self.ok = button(_("Put the new address in the queue"), "list-add", self._accept)
         btns.addWidget(self.ok)
         lay.addLayout(btns)
         self._edited()
@@ -376,7 +423,20 @@ class ChangeUrlDialog(QDialog):
         ready = (self._changed(u) and not repoprio.url_problem(self.edit.text()) and bool(self._answer)
                  and self._answer[0] == u)
         self.ok.setEnabled(ready)
-        self.ok.setToolTip("" if ready or not self._changed(u) else _("Wait until the address has been checked."))
+        ask = ready and self._answer[1] != "ok"  # an address that does not answer: a question comes first
+        self.ok.setText(_("Put the new address in the queue…") if ask else _("Put the new address in the queue"))
+        if ready:
+            tip = _("Puts the new address of “{name}” in the queue, with the commands shown above. Nothing changes "
+                    "until you apply the queue.").format(name=self.repo["name"])
+            if ask:
+                tip += " " + _("The address does not answer: you are asked first.")
+        elif self.repo.get("service"):
+            tip = _("The service {service} sets the address of this repository.").format(service=self.repo["service"])
+        elif self._changed(u):
+            tip = _("Wait until the address has been checked.")
+        else:
+            tip = _("Write a new address, or choose one of the folders found.")
+        self.ok.setToolTip(tip)
 
     def _show_check(self, text, color):
         self.check_lbl.setText(text)
@@ -419,7 +479,7 @@ class ChangeUrlDialog(QDialog):
                 warning=_("The new address does not answer ({why}).").format(why=self._answer[2]) + " " + _(
                     "Until it answers, zypper cannot read this repository, and refreshing it fails."),
                 means=_("it only goes to the queue: nothing changes until you apply it."),
-                password=False, help_topic="repos"):
+                password=False, help_topic="repos", queue=True):
             return
         try:
             self.repo_file = repoprio.new_address_file(self.repo, u)
@@ -532,7 +592,7 @@ def commands_of(actions):
 
 class YumBanner(QFrame):
     """A repository for Fedora that zypper does not see: who left it, where it is, why it matters, the command that
-    adds it (small), and “Do not add it” / “Add it to zypper”. “Do not add it” only hides the banner: Repositories →
+    adds it (small), and “Do not add it” / “Put it in the queue…”. “Do not add it” only hides the banner: Repositories →
     More → “Show the hidden repositories for Fedora” brings it back. Every text is plain: names come from files."""
 
     add = Signal(object)
@@ -575,7 +635,12 @@ class YumBanner(QFrame):
         self.b_later = button(_("Do not add it"), None, lambda: self.dismiss.emit(self.entry))
         self.b_later.setToolTip(_("Hide this message. Nothing is changed. Repositories → More → “Show the hidden "
                                   "repositories for Fedora” shows it again."))
-        self.b_add = button(_("Add it to zypper"), None, lambda: self.add.emit(self.entry), primary=True)
+        # it only goes to the queue: not green, and it says so (the page's green button is “Search online…”)
+        self.b_add = button(_("Put it in the queue…"), "list-add", lambda: self.add.emit(self.entry))
+        self.b_add.setToolTip(_("Puts in the queue: add “{name}” to zypper (the command shown here), with its signing "
+                                "key when rpm does not have it yet. A question comes first when there is a key to "
+                                "trust or something to warn about. Nothing changes until you apply the queue.").format(
+            name=entry.get("name") or who))
         for b in (self.b_later, self.b_add):
             b.setAutoDefault(False)
             h.addWidget(b, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -584,7 +649,7 @@ class YumBanner(QFrame):
     def set_busy(self, busy):
         self.b_add.setEnabled(not busy)
         self.b_later.setEnabled(not busy)
-        self.b_add.setText(_("Checking its key…") if busy else _("Add it to zypper"))
+        self.b_add.setText(_("Checking its key…") if busy else _("Put it in the queue…"))
 
 
 def yum_question(entry, prep, action, key_path):
@@ -677,4 +742,4 @@ def personal_project_question(parent, project, url, install=None):
                   "stop being updated at any time. Add it only if you trust this person, or if nothing better "
                   "exists.").format(project=project),
         means=_("it only goes to the queue: nothing changes until you apply it."),
-        password=False, help_topic="repos")
+        password=False, help_topic="repos", queue=True)

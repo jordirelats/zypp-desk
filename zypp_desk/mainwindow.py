@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QFrame, QHBoxLa
                                QStackedWidget, QToolButton, QVBoxLayout, QWidget)
 
 from . import APP_NAME, VERSION, appicons, backend, question, repostate, websources
-from .i18n import _, ngettext
+from .i18n import _, ngettext, pgettext
 from .pages.apps import AppsPage
 from .pages.flatpak import FlatpakPage
 from .pages.keys import KeysPage
@@ -51,6 +51,18 @@ ROW_HEIGHTS = ((38, 32), (36, 30), (34, 28), (32, 26), (30, 24))
 FOOT_STYLE = ("QToolButton { border: none; border-radius: 8px; padding: 4px 8px; }"
               "QToolButton:hover { background: rgba(39, 174, 96, 0.10); }"
               "QToolButton:checked { background: rgba(39, 174, 96, 0.22); }")
+
+
+class QueueBar(QFrame):
+    """The bar of the queue at the bottom; fit() is called when its width changes (its buttons get shorter labels in
+    a narrow window)."""
+
+    fit = None
+
+    def resizeEvent(self, ev):
+        super().resizeEvent(ev)
+        if self.fit:
+            self.fit()
 
 
 class Sidebar(QListWidget):
@@ -290,7 +302,7 @@ class QueueDialog(QDialog):
         self.b_close = QPushButton(_("Close"), self)
         self.b_close.setDefault(True)
         self.b_close.clicked.connect(self.reject)
-        self.b_apply = QPushButton(_("Apply…"), self)
+        self.b_apply = QPushButton(_("Apply the queue…"), self)
         self.b_apply.setProperty("primary", True)
         self.b_apply.setAutoDefault(False)
         self.b_apply.clicked.connect(self._apply)
@@ -574,14 +586,37 @@ class MainWindow(QMainWindow):
         self.q_cmd = ElidedLabel(self)
         self.q_cmd.setFont(mono())
         self.q_cmd.setStyleSheet("background: #2a2e32; color: #e6e9ec; border-radius: 4px; padding: 4px 8px;")
-        self.q_cmd.setMinimumWidth(240)  # the summary gives way first: the command is what matters
+        # the summary gives way first; the command shrinks to a short start (all of it in its tooltip) so that the
+        # bar, whose buttons say "the queue", does not make the window wider
+        self.q_cmd.setMinimumWidth(110)
         self.q_cmd.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
-        self.b_review = button(_("Review"), "view-list-details", self.review_queue)
-        self.b_clear = button(_("Clear"), "edit-clear", self.queue.clear)
-        self.b_sim = button(_("Simulate"), "media-playback-start", lambda: self.simulate_queue())
-        self.b_apply = button(_("Apply"), "dialog-ok-apply", lambda: self.apply_queue(), primary=True)
-        qbar = QFrame(self)
+        # every button of the bar says it acts on the queue (the pages have their own Simulate and Clear buttons)
+        self.b_review = button(_("Review the queue…"), "view-list-details", self.review_queue)
+        self.b_review.setToolTip(_("See every change in the queue, in the order it runs, and take some out."))
+        self.b_clear = button(_("Empty the queue"), "edit-clear", self.queue.clear)
+        self.b_clear.setToolTip(_("Take every change out of the queue. Nothing on the computer changes."))
+        self.b_sim = button(_("Simulate the queue"), "media-playback-start", lambda: self.simulate_queue())
+        self.b_sim.setToolTip(_("zypper --dry-run of the queue: what would be installed, updated or removed, without "
+                                "changing anything (with the administrator password)."))
+        self.b_apply = button(_("Apply the queue…"), "dialog-ok-apply", lambda: self.apply_queue(), primary=True)
+        self.b_apply.setToolTip(_("Make the changes in the queue: Zypp Desk asks first, then runs the commands shown "
+                                  "on the left."))
+        # in a narrow window (or a language with long words) the labels get short: the bar is titled "Queue" on the
+        # left, and each tooltip says the rest. Each button's minimum is its short label, so the window can shrink.
+        self._qbar_labels = [(self.b_review, _("Review the queue…"), pgettext("queue bar", "Review…")),
+                             (self.b_clear, _("Empty the queue"), pgettext("queue bar", "Empty")),
+                             (self.b_sim, _("Simulate the queue"), pgettext("queue bar", "Simulate")),
+                             (self.b_apply, _("Apply the queue…"), pgettext("queue bar", "Apply…"))]
+        self._qbar_full = {}
+        for b, full, short in self._qbar_labels:
+            b.setText(short)
+            b.setMinimumWidth(b.sizeHint().width())
+            b.setText(full)
+            self._qbar_full[b] = b.sizeHint().width()
+        qbar = QueueBar(self)
         qbar.setObjectName("queuebar")
+        self.qbar = qbar
+        qbar.fit = self._fit_qbar
         qh = QHBoxLayout(qbar)
         qh.setContentsMargins(10, 6, 10, 6)
         qh.addWidget(self.q_title)
@@ -653,7 +688,9 @@ class MainWindow(QMainWindow):
         self.terminal.setVisible(self.term_toggle.isChecked() and (self.runner.busy or self._terminal_used))
         page.activated()
         if run_routine and key == "updates":
-            page.run_routine()
+            # the tray and the command line: the same as the green button, which asks first when some rows of
+            # Updates are unticked (the routine updates everything)
+            (getattr(page, "update_everything", None) or page.run_routine)()
 
     def handle_request(self, req):
         """What the command line asked for, from this start or from a later one (app.py forwards it)."""
@@ -789,6 +826,7 @@ class MainWindow(QMainWindow):
     def _set_busy(self, busy):
         for b in (self.b_sim, self.b_apply, self.b_clear):
             b.setEnabled(not busy and len(self.queue) > 0)
+        self._paint_apply()
         self.status_lbl.setText(_("Working…") if busy else self.status_lbl.text())
         if not busy:
             self._queue_changed()  # the queue may have changed while it ran
@@ -805,6 +843,29 @@ class MainWindow(QMainWindow):
         busy = self.runner.busy
         for b in (self.b_review, self.b_clear, self.b_sim, self.b_apply):
             b.setEnabled(n > 0 and not busy)
+        self._paint_apply()
+
+    def _fit_qbar(self):
+        """Full labels ("Review the queue…") when they fit in the bar, short ones ("Review…") when they do not."""
+        lay = self.qbar.layout()
+        if lay is None:
+            return
+        m = lay.contentsMargins()
+        need = (m.left() + m.right() + lay.spacing() * max(0, lay.count() - 1) + self.q_title.sizeHint().width()
+                + self.q_summary.minimumSizeHint().width() + self.q_cmd.minimumWidth() + sum(self._qbar_full.values()))
+        full = self.qbar.width() >= need
+        for b, long_text, short in self._qbar_labels:
+            want = long_text if full else short
+            if b.text() != want:
+                b.setText(want)
+
+    def _paint_apply(self):
+        """The "Apply the queue…" button is green only when it can be pressed: an empty queue has nothing to do."""
+        on = self.b_apply.isEnabled()
+        if bool(self.b_apply.property("primary")) != on:
+            self.b_apply.setProperty("primary", on)
+            self.b_apply.style().unpolish(self.b_apply)
+            self.b_apply.style().polish(self.b_apply)
 
     def review_queue(self):
         dlg = QueueDialog(self.queue, self, self.icon_catalog)

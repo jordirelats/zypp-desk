@@ -28,6 +28,8 @@ from ..style import GREEN, RED, dot
 from ..tasks import emit_safely, run_async
 from ..txqueue import Action, TxQueue
 from ..ui import Chip, Page, button, error_box, icon, info_box, muted, tool
+from .markbar import queue_label
+from .repotools import short
 
 COL_ON, COL_NAME, COL_HEALTH, COL_PRIO, COL_AUTO, COL_KEEP, COL_GPG, COL_URL = range(8)
 FCOL_NAME, FCOL_HEALTH, FCOL_ON, FCOL_INST, FCOL_URL = range(5)
@@ -59,7 +61,7 @@ class Checker(QObject):
     """Runs repocheck functions in daemon threads, at most MAX_CHECKS at once, and reports each result.
 
     Daemon threads: closing the window never waits for a slow server. Results of an older run
-    (another "Check them" was pressed meanwhile) carry an older generation and are ignored.
+    (another "Check the addresses" was pressed meanwhile) carry an older generation and are ignored.
     """
 
     result = Signal(int, str, object)  # generation, key, result
@@ -94,7 +96,7 @@ class Checker(QObject):
 
 class AddRepoDialog(QDialog):
     """A repository by its address. The address and the alias are checked as they are typed, and the exact command
-    is shown; “Add to the queue” is the main button, like in the other windows."""
+    is shown; “Put the repository in the queue” is the main button (Enter), not green: it only fills the queue."""
 
     def __init__(self, parent=None, used=()):
         super().__init__(parent)
@@ -136,9 +138,11 @@ class AddRepoDialog(QDialog):
         btns = QHBoxLayout()
         btns.addStretch(1)
         cancel = button(_("Cancel"), None, self.reject)
+        cancel.setToolTip(_("Close this window without adding anything."))
         cancel.setAutoDefault(False)
         btns.addWidget(cancel)
-        self.ok = button(_("Add to the queue"), "list-add", self._check, primary=True)
+        # it only goes to the queue: not green (the green button is the one that changes the system now)
+        self.ok = button(_("Put the repository in the queue"), "list-add", self._check)
         self.ok.setDefault(True)
         btns.addWidget(self.ok)
         lay.addLayout(btns)
@@ -174,6 +178,8 @@ class AddRepoDialog(QDialog):
         self.problem.setText(problem if self.url.text() else "")
         self.problem.setVisible(bool(self.problem.text()))
         self.ok.setEnabled(not problem)
+        self.ok.setToolTip(problem or _("Puts the new repository in the queue, with the command shown above. Nothing "
+                                        "changes until you apply the queue."))
         self.cmd_title.setVisible(not problem)
         self.cmd.setVisible(not problem)
         if not problem:
@@ -397,9 +403,14 @@ class ReposPage(Page):
         self.filter.setClearButtonEnabled(True)
         self.filter.textChanged.connect(self._apply_filter)
         self.only_fail = Chip(_("Only those that fail"))
+        self.only_fail.setToolTip(_("A filter: show only the repositories whose address does not answer. It changes "
+                                    "nothing."))
         self.only_fail.toggled.connect(lambda _on: self._apply_filter(self.filter.text()))
+        # view switches, not actions
         self.v_list = self._view_button(_("List"), "view-list-details")
+        self.v_list.setToolTip(_("Show the repositories as a table. Double-click a priority to change it."))
         self.v_cards = self._view_button(_("Cards"), "view-list-icons")
+        self.v_cards.setToolTip(_("Show the repositories as cards, with − and + for the priority."))
         group = QButtonGroup(self)
         group.setExclusive(True)
         group.addButton(self.v_list)
@@ -421,7 +432,9 @@ class ReposPage(Page):
 
         # ---- status row: what the check found, and what to do with the failing ones
         self.status = QLabel(self)
-        self.fix_btn = button(_("Deal with the ones that fail…"), "edit-delete", self.deal_with_failing)
+        self.fix_btn = button(_("Disable or remove the ones that fail…"), "edit-delete", self.deal_with_failing)
+        self.fix_btn.setToolTip(_("Asks whether to disable or to remove the repositories whose address does not "
+                                  "answer. What you choose goes to the queue: nothing changes until you apply it."))
         self.fix_btn.hide()
         srow = QHBoxLayout()
         srow.addWidget(self.status, 1)
@@ -448,6 +461,7 @@ class ReposPage(Page):
         self.tree.itemChanged.connect(self._item_changed)
         self.tree.itemDoubleClicked.connect(self._double_clicked)
         self.tree.currentItemChanged.connect(self._tree_current)
+        self.tree.itemSelectionChanged.connect(self._tree_selection)
         self.grid = CardGrid(self)
         self.z_stack = QStackedWidget(self)
         self.z_stack.addWidget(self.tree)
@@ -476,7 +490,9 @@ class ReposPage(Page):
         frow = QHBoxLayout()
         frow.addWidget(muted(_("Flatpak apps come from these remotes. They are added, removed and changed in the "
                                "Flatpak section."), self), 1)
-        frow.addWidget(button(_("Open the Flatpak section"), "flatpak-discover", lambda: ctx.go("flatpak")))
+        b_flatpak = button(_("Open the Flatpak section"), "flatpak-discover", lambda: ctx.go("flatpak"))
+        b_flatpak.setToolTip(_("Go to Flatpak, where the remotes are added, removed and changed. It changes nothing."))
+        frow.addWidget(b_flatpak)
         fl.addLayout(frow)
         fl.addWidget(self.f_stack, 1)
 
@@ -484,6 +500,7 @@ class ReposPage(Page):
         self.tabs.setDocumentMode(True)
         self.tabs.addTab(zpage, icon("repository", "folder-download"), "zypper")
         self.tabs.addTab(fpage, icon("flatpak-discover", "application-vnd.flatpak.ref"), "Flatpak")
+        self.tabs.currentChanged.connect(lambda _i: self._update_actions())
 
         lay = QVBoxLayout(self)
         lay.addWidget(self.yum_box)
@@ -491,6 +508,7 @@ class ReposPage(Page):
         lay.addLayout(top)
         lay.addLayout(srow)
         lay.addWidget(self.tabs, 1)
+        self._make_header()
         self._view_changed()
         ctx.queue.changed.connect(self._queue_changed)
 
@@ -503,32 +521,100 @@ class ReposPage(Page):
         b.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         return b
 
-    def header_actions(self):
-        more = QToolButton(self)
+    def _make_header(self):
+        """The header buttons, made once: their labels follow the selected repository. They live as long as the
+        page (the window takes them away and puts them back); without a parent until then, so they never show up
+        inside the page. Never show() or hide() them while they have no parent: they would open as windows."""
+        self.h_queue = queue_label()  # Add and Remove only put something in the queue
+        self.b_add = tool(_("Add a repository…"), "list-add", self.add_repo)
+        self.b_add.setToolTip(_("Write the address of a repository (zypper addrepo). It goes to the queue: nothing "
+                                "changes until you apply it."))
+        self.b_remove = tool(_("Remove…"), "list-remove", self.remove_repo)
+        self.h_sep = QFrame()
+        self.h_sep.setFrameShape(QFrame.Shape.VLine)
+        self.h_sep.setFrameShadow(QFrame.Shadow.Sunken)
+        self.b_refresh = tool(_("Refresh all repositories"), "view-refresh", self.refresh_selected)
+        self.b_check = tool(_("Check the addresses"), "network-connect", self.check_all)
+        self.b_check.setToolTip(_("Ask the address of every repository and Flatpak remote again whether it answers. "
+                                  "It only reads: nothing changes."))
+        more = QToolButton()
         more.setText(_("More"))
+        more.setToolTip(_("Less common actions on the repositories"))
         more.setIcon(icon("application-menu", "overflow-menu", "open-menu-symbolic"))
         more.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         more.setAutoRaise(True)
         more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(more)
-        menu.addAction(icon("view-refresh"), _("Refresh all"), self.refresh_all)
-        menu.addAction(icon("edit-clear"), _("Clean the cache…"), self.clean_cache)
-        menu.addAction(icon("document-edit"), _("Change the address…"), self.change_url)
-        menu.addAction(icon("view-sort-ascending"), _("Suggest an order of priority…"), self.propose_order)
+        menu.setToolTipsVisible(True)
+        a = menu.addAction(icon("view-refresh"), _("Refresh all repositories"), self.refresh_all)
+        a.setToolTip(_("Refresh the list of packages of every enabled repository now. It installs nothing.")
+                     + "\nzypper -n -v refresh")
+        a = menu.addAction(icon("edit-clear"), _("Clean the cache…"), self.clean_cache)
+        a.setToolTip(_("Delete the packages and lists zypper downloaded. A question comes first.")
+                     + "\nzypper -v -n clean --all")
+        self.a_change_url = menu.addAction(icon("document-edit"), _("Change the address…"), self.change_url)
+        a = menu.addAction(icon("view-sort-ascending"), _("Suggest an order of priority…"), self.propose_order)
+        a.setToolTip(_("A priority for each kind of repository; a window shows it first. What you accept goes to "
+                       "the queue."))
         menu.addSeparator()
-        menu.addAction(icon("object-locked"), _("Import a signing key…"), self.import_key)
+        a = menu.addAction(icon("object-locked"), _("Import a signing key…"), self.import_key)
+        a.setToolTip(_("Get a key from a web address, a file or its fingerprint and look at it first. Its import "
+                       "goes to the queue."))
         hidden = menu.addAction(icon("view-visible", "view-hidden"), _("Show the hidden repositories for Fedora"),
                                 self.show_hidden_yum)
         hidden.setToolTip(_("The ones you put aside with “Do not add it”."))
         menu.aboutToShow.connect(lambda: hidden.setEnabled(bool(self._yum_hidden())))
+        menu.aboutToShow.connect(self._update_actions)
         more.setMenu(menu)
+        self.b_more = more
+        self._update_actions()
+
+    def header_actions(self):
         # "Search online…" is the green banner's button, right under the header: a second one here only made the
         # header wider than the window in German
-        return [tool(_("Add…"), "list-add", self.add_repo),
-                tool(_("Remove"), "list-remove", self.remove_repo),
-                tool(_("Refresh"), "view-refresh", self.refresh_selected),
-                tool(_("Check them"), "network-connect", self.check_all),
-                more]
+        return [self.h_queue, self.b_add, self.b_remove, self.h_sep, self.b_refresh, self.b_check, self.b_more]
+
+    def _update_actions(self):
+        """Remove, Refresh and Change the address say which repository they act on: the selected one, by its name
+        (or “the selected one” when the name is long), or every one for Refresh when none is selected."""
+        if not hasattr(self, "b_remove"):
+            return
+        from .repotools import commands_of
+        r = self._selected()
+        if r is None:
+            self.b_remove.setText(_("Remove…"))
+            self.b_remove.setEnabled(False)
+            self.b_remove.setToolTip(_("Flatpak remotes are removed in the Flatpak section.")
+                                     if self.tabs.currentIndex() != 0 else _("Select a repository first."))
+            self.b_refresh.setText(_("Refresh all repositories"))
+            self.b_refresh.setToolTip(_("Refresh the list of packages of every enabled repository now. It installs "
+                                        "nothing.") + "\nzypper -n -v refresh")
+            self.a_change_url.setText(_("Change the address…"))
+            self.a_change_url.setToolTip(_("Select a repository first."))
+            return
+        name, alias = r["name"], r["alias"]
+        s = short(name)
+        if self._pending(alias)[2] is not None:  # its removal already waits in the queue: the list shows it too
+            self.b_remove.setText(_("Removal in the queue ✓"))
+            self.b_remove.setEnabled(False)
+            self.b_remove.setToolTip(_("The removal of “{name}” waits in the queue. To keep the repository, take it "
+                                       "out of the queue (Review the queue).").format(name=name))
+        else:
+            self.b_remove.setText(_("Remove “{name}”…").format(name=s) if s else _("Remove the selected one…"))
+            self.b_remove.setEnabled(True)
+            self.b_remove.setToolTip(_("Asks first, then puts the removal of “{name}” in the queue. Nothing changes "
+                                       "until you apply the queue.").format(name=name) + "\n" +
+                                     "\n".join(commands_of([Action("repo-remove", alias)])))
+        self.b_refresh.setText(_("Refresh “{name}”").format(name=s) if s else _("Refresh the selected one"))
+        self.b_refresh.setToolTip(_("Refresh the list of packages of “{name}” now. It installs nothing. With no "
+                                    "repository selected, it refreshes all of them.").format(name=name)
+                                  + "\nzypper -n -v refresh -- " + alias)
+        self.a_change_url.setText(_("Change the address of “{name}”…").format(name=s) if s else
+                                  _("Change the address of the selected one…"))
+        self.a_change_url.setToolTip(
+            _("The service {service} sets its address.").format(service=r["service"]) if r["service"] else
+            _("Write a new address for “{name}”, or find it again. A window opens; the change goes to the queue.")
+            .format(name=name))
 
     def refresh_all(self):
         self.ctx.run([Step("zypper", ["-n", "-v", "refresh"])], _("Refresh every repository"),
@@ -615,6 +701,9 @@ class ReposPage(Page):
             self.tree.resizeColumnToContents(COL_HEALTH)
             self.ftree.resizeColumnToContents(FCOL_HEALTH)
             self._fit_columns()
+        if fails:
+            self.fix_btn.setText(ngettext("Disable or remove the one that fails…", "Disable or remove the {n} that "
+                                          "fail…", len(fails)).format(n=len(fails)))
         self.fix_btn.setVisible(done >= total and bool(fails))
         self._update_tab_titles()
 
@@ -693,8 +782,15 @@ class ReposPage(Page):
         self.prio_text = muted("", band)
         v.addWidget(self.prio_text)
         h.addLayout(v, 1)
-        h.addWidget(button(_("How it works"), "help-about", self._how_it_works))
-        h.addWidget(button(_("Suggest an order…"), "view-sort-ascending", self.propose_order, primary=True))
+        b_how = button(_("How the priority works"), "help-about", self._how_it_works)
+        b_how.setToolTip(_("Explains how zypper chooses between repositories. It changes nothing."))
+        h.addWidget(b_how)
+        # not green: it only leads to the queue, and the page's green button is “Search online…”
+        self.b_propose = button(_("Suggest an order…"), "view-sort-ascending", self.propose_order)
+        self.b_propose.setToolTip(_("Proposes a priority for each kind of repository (codecs, openSUSE, companies, "
+                                    "personal projects, local folders). A window shows it first; what you accept goes "
+                                    "to the queue."))
+        h.addWidget(self.b_propose)
         return band
 
     def _update_priority_text(self):
@@ -804,6 +900,7 @@ class ReposPage(Page):
         self._apply_filter(self.filter.text())
         self._update_tab_titles()
         self._filling = False
+        self._update_actions()  # the selected one may be gone, or its removal may wait in the queue now
 
     def _build_cards(self):
         self._cards_stale = False
@@ -814,22 +911,27 @@ class ReposPage(Page):
             card = RepoCard(r["alias"], self.grid.inner)
             facts = _("signatures: {what}").format(what=self._gpg_text(r))
             card.set_header(r["name"], o.get("url") or r["url"], facts, r["enabled"], style)
+            later = _("Ticking or unticking it puts the change in the queue: nothing changes until you apply it.")
             on = QCheckBox(_("Enabled"), card)
             on.setChecked(enabled)
+            on.setToolTip(_("zypper uses “{name}” only while it is enabled.").format(name=r["name"]) + " " + later)
             on.toggled.connect(lambda v, r=r: self._queue_change(r, "enabled", v))
             ref = QCheckBox(_("Auto-refresh"), card)
-            ref.setToolTip(_("Refresh it automatically"))
+            ref.setToolTip(_("zypper refreshes “{name}” by itself before it installs or updates.").format(
+                name=r["name"]) + " " + later)
             ref.setChecked(auto)
             ref.toggled.connect(lambda v, r=r: self._queue_change(r, "autorefresh", v))
             from .repotools import PriorityStepper
-            pr = PriorityStepper(prio, card)
+            pr = PriorityStepper(prio, card, name=r["name"], alias=r["alias"])
             pr.changed.connect(lambda val, r=r: self._queue_change(r, "priority", val))
             card.side.addWidget(pr, 0, Qt.AlignmentFlag.AlignTop)
             card.side_width = pr.sizeHint().width() + 8
             addr = QToolButton(card)
             addr.setText(_("✎ Address…"))
             addr.setAutoRaise(True)
-            addr.setToolTip(_("Change the address of this repository, or find it again"))
+            addr.setToolTip(_("The service {service} sets its address.").format(service=r["service"]) if r["service"]
+                            else _("Change the address of “{name}”, or find it again. A window opens; the change "
+                                   "goes to the queue.").format(name=r["name"]))
             addr.setStyleSheet("color: #2980b9;")
             addr.clicked.connect(lambda _c=False, r=r: self.change_url(r))
             card.url_row.addWidget(addr)
@@ -962,6 +1064,7 @@ class ReposPage(Page):
             c.set_selected(a == alias)
         if alias in self.items:
             self.tree.setCurrentItem(self.items[alias])
+        self._update_actions()
 
     def _selected(self):
         if self.tabs.currentIndex() != 0:  # the Flatpak tab: remotes are changed in the Flatpak section
@@ -969,10 +1072,24 @@ class ReposPage(Page):
         return next((r for r in self.repos if r["alias"] == self._current), None)
 
     def _tree_current(self, cur, _prev):
-        if cur is not None and not self._filling:
+        # only a selected row: when the list gets the focus, Qt makes the first row current without selecting it,
+        # and the header buttons would then name a repository that does not look chosen
+        if cur is not None and not self._filling and cur.isSelected():
             self._current = cur.data(0, Qt.ItemDataRole.UserRole)["alias"]
             for a, c in self.cards.items():
                 c.set_selected(a == self._current)
+            self._update_actions()
+
+    def _tree_selection(self):
+        if self._filling or self.z_stack.currentIndex() != 0:
+            return
+        sel = self.tree.selectedItems()
+        alias = sel[0].data(0, Qt.ItemDataRole.UserRole)["alias"] if sel else None
+        if alias != self._current:
+            self._current = alias
+            for a, c in self.cards.items():
+                c.set_selected(a == alias)
+            self._update_actions()
 
     # ------------------------------------------------------------ Flatpak remotes
     def _fill_flatpak(self):
@@ -1085,7 +1202,7 @@ class ReposPage(Page):
             password=False, help_topic="repos",
             # Enter is "Not yet": it never removes repositories
             buttons=[("no", _("Not yet"), False), ("remove", _("Remove them"), False),
-                     ("disable", _("Disable them"), True)])
+                     ("disable", _("Disable them"), True)], queue=True)
         if not any(r["enabled"] for r in failing):
             dlg.buttons["disable"].setEnabled(False)
         if not own:
@@ -1119,8 +1236,8 @@ class ReposPage(Page):
         list keeps its room (the longer explanation is the tooltip)."""
         box = QFrame(self)
         box.setObjectName("onlinebanner")
-        box.setStyleSheet("#onlinebanner { background: rgba(39, 174, 96, 0.10); border: 1px solid rgba(39, 174, 96, 0.35);"
-                          " border-radius: 10px; }")
+        box.setStyleSheet("#onlinebanner { background: rgba(39, 174, 96, 0.10); "
+                          "border: 1px solid rgba(39, 174, 96, 0.35); border-radius: 10px; }")
         box.setToolTip(_("Search the openSUSE Build Service, Fedora COPR and Flathub. Zypp Desk says how far each "
                          "source can be trusted, and adds the repository for you."))
         h = QHBoxLayout(box)
@@ -1135,7 +1252,10 @@ class ReposPage(Page):
         f.setBold(True)
         title.setFont(f)
         h.addWidget(title, 1)
-        h.addWidget(button(_("Search online…"), "edit-find", self.search_online, primary=True))
+        # the page's one green button: what people come here for most (it only opens a window)
+        b = button(_("Search online…"), "edit-find", self.search_online, primary=True)
+        b.setToolTip(box.toolTip() + " " + _("A window opens; what you choose there goes to the queue."))
+        h.addWidget(b)
         return box
 
     # ------------------------------------------------------------ repositories left for Fedora
@@ -1204,7 +1324,7 @@ class ReposPage(Page):
         self._show_yum()
 
     def _yum_add(self, entry):
-        """“Add it to zypper”: read its signing keys first (from the file the package installed, or from its https
+        """“Put it in the queue…”: read its signing keys first (from the file the package installed, or from its https
         address), in a thread; then ask, or put it straight in the queue when there is nothing to ask."""
         if entry["id"] in self._yum_busy:
             return
@@ -1288,7 +1408,7 @@ class ReposPage(Page):
                        (_("Disable it instead"), commands_of([Action("repo-modify", r["alias"], enabled=False)]))]
             if r["enabled"] else commands_of([remove]),
             password=False,  # it only goes to the queue
-            buttons=buttons, help_topic="repos")
+            buttons=buttons, help_topic="repos", queue=True)
         if answer == "yes":
             self.ctx.queue.add(remove)
         elif answer == "disable":

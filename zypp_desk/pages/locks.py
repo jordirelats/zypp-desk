@@ -24,7 +24,7 @@ from ..style import BLUE, GREEN, ORANGE, PURPLE
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Card, Page, RoomSplitter, button, heading, icon, mono, muted
-from .markbar import MarkBar, check_rect, is_checked, paint_check
+from .markbar import MarkBar, amp, check_rect, flash_queued, is_checked, paint_check
 from .system import ask_clean_locks
 
 GREY = "#7f8c8d"
@@ -304,7 +304,8 @@ class LockCard(QWidget):
 
         btns = QHBoxLayout()
         btns.setSpacing(8)
-        self.b_main = button(_("Unlock"), None, self._main, primary=True, parent=self)
+        self.b_main = button(ngettext("Put the unlock in the queue", "Put the {n} unlocks in the queue", 1).format(n=1),
+                             None, self._main, parent=self)
         self.b_show = button(_("Show in Packages"), None, self._show, parent=self)
         btns.addWidget(self.b_main)
         btns.addWidget(self.b_show)
@@ -382,12 +383,20 @@ class LockCard(QWidget):
         self._row("versions", _("only {range}").format(range=lk["range"]) if lk.get("range") else "")
         self._row("origin", self.page.origin_text(e))
         if pend == "lock":
-            self.b_main.setText(_("Do not lock it"))
+            self.b_main.setText(_("Take the lock out of the queue"))
+            self.b_main.setToolTip(_("It will not be locked: the lock comes out of the queue, now."))
         elif pend == "unlock":
-            self.b_main.setText(_("Keep the lock"))
+            self.b_main.setText(_("Take the unlock out of the queue"))
+            self.b_main.setToolTip(_("It stays locked: the unlock comes out of the queue, now."))
         else:
-            self.b_main.setText(_("Unlock"))
-        set_primary(self.b_main, not pend)
+            self.b_main.setText(_("Put the unlock in the queue"))
+            self.b_main.setToolTip(_("It is unlocked when you apply the queue. Until then, nothing changes.") + "\n"
+                                   + lock_command("unlock", lk))
+        set_primary(self.b_main, False)  # it only changes the queue: never the green button
+        name = lk["name"]
+        self.b_show.setText(_("Show {name} in Packages").format(name=amp(name)) if len(name) <= 20 and not
+                            pattern else _("Show in Packages"))
+        self.b_show.setToolTip(_("Opens Packages, searched for {name}.").format(name=name))
         self.b_main.show()
         self.b_show.show()
         self.cmd.setText(lock_command("lock" if pend == "lock" else "unlock", lk))
@@ -406,7 +415,7 @@ class LockCard(QWidget):
         d = found[0] if found else None
         if d is None:
             self._row("now", _("not installed"))
-            self._row("avail", _("no package has this name now: “Clean useless locks” takes this lock away"))
+            self._row("avail", _("no package has this name now: “Clean the useless locks” takes this lock away"))
             return
         if d.get("summary"):
             self.summary.setText(d["summary"])
@@ -435,7 +444,7 @@ class LockCard(QWidget):
             elif repo:
                 self._row("avail", _("none in the repository {repo}").format(repo=self.page.repo_name(repo)))
             else:
-                self._row("avail", _("no package has this name now: “Clean useless locks” takes this lock away"))
+                self._row("avail", _("no package has this name now: “Clean the useless locks” takes this lock away"))
 
     @staticmethod
     def _held_text(edition, held):
@@ -458,7 +467,7 @@ class LockCard(QWidget):
             self._row("avail", ngettext("{n} package matches it: {names}", "{n} packages match it: {names}",
                                         len(found)).format(n=len(found), names=names(found)))
         else:
-            self._row("avail", _("no package matches it now: “Clean useless locks” takes this lock away"))
+            self._row("avail", _("no package matches it now: “Clean the useless locks” takes this lock away"))
 
     # ------------------------------------------------------------ buttons
     def _main(self):
@@ -511,7 +520,8 @@ class LocksPage(Page):
         tb.setSpacing(12)
         self.temp_text = plain_label("", self.temp_band)
         tb.addWidget(self.temp_text, 1)
-        self.temp_btn = button(_("Unlock them"), "object-unlocked", self.unlock_temp, parent=self.temp_band)
+        self.temp_btn = button(_("Put the unlocks in the queue"), "object-unlocked", self.unlock_temp,
+                               parent=self.temp_band)
         tb.addWidget(self.temp_btn, 0, Qt.AlignmentFlag.AlignVCenter)
         self.temp_band.setVisible(False)
         lay.addWidget(self.temp_band)
@@ -555,7 +565,11 @@ class LocksPage(Page):
 
         # the header buttons live as long as the page (the window takes them away and puts them back)
         self.b_lock = button(_("Lock a package…"), "object-locked", self.add)
-        self.b_clean = button(_("Clean useless locks"), "edit-clear", self.clean_locks)
+        self.b_lock.setToolTip(_("Opens a window to find packages and put their locks in the queue."))
+        # it changes the computer now, after its question
+        self.b_clean = button(_("Clean the useless locks…"), "edit-clear", self.clean_locks)
+        self.b_clean.setToolTip(_("Asks first, then removes now the locks that match no package.") + "\n"
+                                + Step("zypper", ["cleanlocks"]).display())
 
         self._fill_timer = QTimer(self)  # the queue changes in bursts: draw the list once
         self._fill_timer.setSingleShot(True)
@@ -612,6 +626,7 @@ class LocksPage(Page):
         note = problemgroups.temp_locks_note(self.temp) if self.temp else ""
         self.temp_text.setText(note)
         self.temp_band.setVisible(bool(note))
+        self._temp_label()
         self._fill()
         if not getattr(self.ctx, "icon_catalog", None):
             self._catalog_tries = 0
@@ -743,6 +758,7 @@ class LocksPage(Page):
 
     # ------------------------------------------------------------ the list
     def _queue_changed(self):
+        self._temp_label()
         if self.isVisible():
             self._fill_timer.start(0)
         else:
@@ -850,15 +866,39 @@ class LocksPage(Page):
         if e.get("action") is not None:
             self.ctx.queue.discard_action(e["action"])
 
+    def _temp_locks(self):
+        """The locks Zypp Desk made to leave a problem as it was (the band on top)."""
+        temp = {r.get("spec") for r in self.temp}
+        return [lk for lk in self.items if lk["name"] in temp or lk["spec"] in temp]
+
+    def _temp_label(self):
+        """The band's button: how many unlocks it puts in the queue, or that they are there already."""
+        if self.temp_btn.property("flashing"):
+            return  # "In the queue ✓" for a moment; it comes back by itself
+        locks = self._temp_locks()
+        queued = self.ctx.queue.of("unlock")
+        left = [lk for lk in locks if not any(self._same(a, lk) for a in queued)]
+        if locks and not left:
+            self.temp_btn.setText(_("In the queue ✓"))
+            self.temp_btn.setEnabled(False)
+            self.temp_btn.setToolTip(_("Their unlocks wait in the queue: they are made when you apply it."))
+            return
+        n = len(left)
+        self.temp_btn.setText(ngettext("Put the unlock in the queue", "Put the {n} unlocks in the queue",
+                                       n).format(n=n) if n else _("Put the unlocks in the queue"))
+        self.temp_btn.setEnabled(bool(n))
+        self.temp_btn.setToolTip(_("They are unlocked when you apply the queue. Until then, nothing changes.") + "\n"
+                                 + "\n".join(lock_command("unlock", lk) for lk in left[:5])
+                                 + ("\n…" if n > 5 else ""))
+
     def unlock_temp(self):
         """Queue the unlock of every lock Zypp Desk made to leave a problem as it was (with the exact spec, kind
         and repository zypper needs to find it)."""
-        temp = {r.get("spec") for r in self.temp}
         with self.ctx.queue.batch():
-            for lk in self.items:
-                if lk["name"] in temp or lk["spec"] in temp:
-                    self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package",
-                                              repo=lk["repo"] or ""))
+            for lk in self._temp_locks():
+                self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package",
+                                          repo=lk["repo"] or ""))
+        flash_queued(self.temp_btn, restore=self._temp_label)
 
     def add(self):
         dlg = LockDialog(self, self.window())
@@ -1008,6 +1048,8 @@ class LockDialog(QDialog):
         self.term.setClearButtonEnabled(True)
         self.term.returnPressed.connect(self.search)
         self.search_btn = button(_("Search"), "edit-find", self.search, parent=self)
+        self.search_btn.setToolTip(_("Looks for packages with this name in your repositories (zypper search). "
+                                     "Nothing changes."))
         self.search_btn.setAutoDefault(False)
         row.addWidget(self.term, 1)
         row.addWidget(self.search_btn)
@@ -1022,7 +1064,7 @@ class LockDialog(QDialog):
         self.list.setUniformItemSizes(True)
         self.list.itemChanged.connect(lambda _it: self._update_markbar())
         v.addWidget(self.list, 1)
-        self.markbar = MarkBar(self._mark_action, self._unmark_all, self)
+        self.markbar = MarkBar(self._mark_action, self._unmark_all, self, to_queue=True)
         self.markbar.clear_btn.setAutoDefault(False)
         v.addWidget(self.markbar)
         bottom = QHBoxLayout()
@@ -1135,8 +1177,13 @@ class LockDialog(QDialog):
         n = len(marked)
         names = [r["name"] for r in marked]
         detail = ", ".join(names[:5]) + (", …" if n > 5 else "")
+        # "To the queue:" in front (MarkBar(to_queue=True)): the lock is made when the queue is applied
+        label = (_("Lock {name}").format(name=amp(names[0])) if n == 1 and len(names[0]) <= 24 else
+                 ngettext("Lock the marked one", "Lock the {n} marked", n).format(n=n))
+        tip = _("Puts the locks in the queue: nothing changes until you apply it.") + "\n" + "\n".join(
+            Step("zypper", ["-n", "addlock", "--", name]).display() for name in names[:5]) + ("\n…" if n > 5 else "")
         self.markbar.set_state(n, ngettext("{n} marked", "{n} marked", n).format(n=n), detail,
-                               [("lock", ngettext("Lock it", "Lock them", n), True, True)])
+                               [("lock", label, True, False, tip)])
 
     def _mark_action(self, key):
         if key != "lock":

@@ -63,6 +63,12 @@ def _link(text, parent=None):
     return b
 
 
+def _queue_label(n):
+    """The apply button when the chosen solutions only go to the queue."""
+    return ngettext("Put the solution in the queue and simulate again",
+                    "Put the {n} solutions in the queue and simulate again", n).format(n=n)
+
+
 def _kind_name(target):
     """'pattern:kde' → ('pattern', 'kde'); 'vlc' → ('package', 'vlc')."""
     kind, colon, name = target.partition(":")
@@ -581,11 +587,13 @@ class ProblemDialog(QDialog):
         self.help_btn.clicked.connect(lambda: qmod.show_help(self, "problems"))
         bottom.addWidget(self.help_btn)
         self.show_raw = _link(_("Show zypper's text"), self)
+        self.show_raw.setToolTip(_("Shows the problem as zypper wrote it, under the solutions."))
         self.show_raw.toggled.connect(self._raw_toggled)
         bottom.addWidget(self.show_raw)
         self.to_summary = QToolButton(self)
         self.to_summary.setObjectName("link")
         self.to_summary.setText(_("◂ Grouped by cause"))
+        self.to_summary.setToolTip(_("Back to the problems grouped by what causes them."))
         self.to_summary.setAutoRaise(True)
         self.to_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.to_summary.clicked.connect(lambda: self.set_mode("summary"))
@@ -595,8 +603,11 @@ class ProblemDialog(QDialog):
         self.cancel = QPushButton(_("Cancel"), self)
         self.cancel.clicked.connect(self.reject)
         self.cancel.setDefault(True)  # Enter never starts a change
+        self.cancel.setToolTip(_("Close this window: nothing changes, and the queue stays as it is."))
         bottom.addWidget(self.cancel)
-        self.apply = button(apply_label or _("Add to the queue and simulate again"), primary=True, parent=self)
+        # green only while the chosen answer changes the computer now (_set_apply); an answer that only changes
+        # the queue is never green
+        self.apply = button(apply_label or _queue_label(1), parent=self)
         self.apply.setAutoDefault(False)
         self.apply.clicked.connect(self._go)
         bottom.addWidget(self.apply)
@@ -907,10 +918,34 @@ class ProblemDialog(QDialog):
         if steps and not (add or discard):
             return _("Do it now and simulate again")
         if steps:
-            return _("Go ahead and simulate again")  # some of it runs now, the rest changes the queue
+            return _("Do it now, change the queue, simulate again")  # some of it runs now, the rest is queued
         if add and not discard:
-            return _("Add to the queue and simulate again")
+            return _queue_label(len(chosen))
         return _("Change the queue and simulate again")  # something leaves the queue
+
+    def _set_apply(self, text, enabled, solutions=(), tip=None):
+        """The apply button: its text, and green only when the answer changes the computer now (a lock, or the
+        dup's solutions); an answer that only changes the queue, sets a reminder or shows the problems is not
+        green. The tooltip shows the exact commands."""
+        try:
+            plan = solution_plan(list(solutions), self.now, self.locks) if solutions else ([], [], [])
+        except Exception:
+            plan = ([], [], [])
+        now = bool(plan[0])
+        self.apply.setText(text)
+        self.apply.setEnabled(enabled)
+        if bool(self.apply.property("primary")) != now:
+            self.apply.setProperty("primary", now)
+            self.apply.style().unpolish(self.apply)
+            self.apply.style().polish(self.apply)
+        if tip is None:
+            try:
+                lines = plan_lines(list(solutions), self.now, self.queue, self.locks) if solutions else []
+            except Exception:
+                lines = []
+            tip = "\n".join(lines) + ("\n" + _("Then the update or the queue is simulated again.") if lines else "")
+        self.apply.setToolTip(tip)
+        self.password.setVisible(now)
 
     def _keeps(self):
         return [s for s in (self.analysis or {}).get("keeps") or [] if s]
@@ -927,27 +962,22 @@ class ProblemDialog(QDialog):
         if self.mode == "summary":
             key = self._choice_key()
             if key == "wait":
-                self.apply.setText(_("Remind me tomorrow"))
-                self.apply.setEnabled(True)
-                self._set_password([])
+                self._set_apply(_("Remind me tomorrow"), True, tip=reminder_promise())
             elif key == "keep":
                 keeps = self._keeps()
-                self.apply.setEnabled(bool(keeps))
-                self.apply.setText(self.apply_label or (self._plan_label(keeps) if keeps else _("Go ahead")))
-                self._set_password(keeps)
+                self._set_apply(self.apply_label or (self._plan_label(keeps) if keeps else
+                                                     _("Leave them as they are")), bool(keeps), keeps)
             else:
-                self.apply.setText(_("Look at them one by one"))
-                self.apply.setEnabled(True)
-                self._set_password([])
+                self._set_apply(_("Look at them one by one"), True,
+                                tip=_("Shows each problem with the solutions zypper offers. Nothing changes."))
             return
         groups = [g for g in self.groups if g]
-        self.apply.setEnabled(bool(groups) and all(g.checkedButton() is not None for g, _c in groups))
+        enabled = bool(groups) and all(g.checkedButton() is not None for g, _c in groups)
         chosen = self._page_choices()
-        self._set_password(chosen)
         if self.apply_label or not chosen:
-            self.apply.setText(self.apply_label or _("Add to the queue and simulate again"))
+            self._set_apply(self.apply_label or _queue_label(max(1, len(groups))), enabled, chosen)
             return
-        self.apply.setText(self._plan_label(chosen))
+        self._set_apply(self._plan_label(chosen), enabled, chosen)
 
     def _go(self):
         """The primary button: what it does depends on the page and the answer."""

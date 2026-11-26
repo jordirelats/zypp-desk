@@ -349,6 +349,8 @@ def free_card(free, after):
     btn = QPushButton(_("Free {size}").format(size=human_size(free["bytes"])))
     btn.setAutoDefault(False)  # Enter never runs a change as root
     btn.setDefault(False)
+    btn.setToolTip(_("Frees the space now, with the administrator password; then you are asked again.") + "\n"
+                   + "\n".join(st.display() for st in free_steps(free)))
     return question.item("edit-clear|edit-delete", _("First, free up space"), "\n".join(lines), right=btn), btn
 
 
@@ -476,9 +478,9 @@ def dup_question(parent, res, steps, facts):
                  change_summary(res)]
         cmds = []
         if feasible:
-            cmds.append((_("Yes, in parts:"), [st.display() for st in steps["parts"]]))
+            cmds.append((_("Yes, update in parts:"), [st.display() for st in steps["parts"]]))
         if tight:
-            cmds.append((_("Update it now anyway:"), [steps["now"].display()]))
+            cmds.append((_("Update everything anyway:"), [steps["now"].display()]))
         if steps.get("free"):
             card, free_btn = free_card(space["free"], _("After that it should fit all at once. The update is "
                                                          "simulated again and you are asked again.")
@@ -491,14 +493,14 @@ def dup_question(parent, res, steps, facts):
             if big or fresh:
                 extra.append(wait_reasons(res, facts, big, tip=False))
                 buttons.append(("remind", _("Remind me tomorrow"), False))
-            buttons.append(("parts", _("Yes, in parts"), True))
+            buttons.append(("parts", _("Yes, update in parts"), True))
             title = _("Update in parts?")
         else:
             # nothing to say yes to: what can be done is freeing space, or updating anyway
             if space["snapshots"]:
                 buttons.append(("history", _("Open History"), False))
             if tight:
-                buttons.append(("now", _("Update it now anyway"), False))
+                buttons.append(("now", _("Update everything anyway"), False))
             title = (_("Very little room on the disk: update anyway?") if tight else
                      _("There is not enough room for this update"))
         dlg = question.Question(parent, title, icon_name="drive-harddisk|computer", extra=extra,
@@ -515,12 +517,12 @@ def dup_question(parent, res, steps, facts):
         if downloaded:
             cmds = [steps["now"].display()]
             buttons = [("no", _("Not yet"), False), ("remind", _("Remind me tomorrow"), False),
-                       ("now", _("Update it now"), True)]
+                       ("now", _("Update everything now"), True)]
         else:
-            cmds = [(_("Only download it now:"), [steps["download"].display()]),
-                    (_("Update it now:"), [steps["now"].display()])]
+            cmds = [(_("Only download the update:"), [steps["download"].display()]),
+                    (_("Update everything now:"), [steps["now"].display()])]
             buttons = [("no", _("Not yet"), False), ("remind", _("Remind me tomorrow"), False),
-                       ("download", _("Only download it now"), False), ("now", _("Update it now"), True)]
+                       ("download", _("Only download the update"), False), ("now", _("Update everything now"), True)]
         title = _("A big update: shall we do it now?") if big else _("A brand-new Tumbleweed: update now?")
         dlg = question.Question(parent, title, items=items, extra=[wait_reasons(res, facts, big, tip=not downloaded)],
                                 commands_=cmds, buttons=buttons, width=760, help_topic="update")
@@ -561,9 +563,9 @@ def routine_question(parent, info, usual, parts, cleaning):
             (GREEN, _("This time it can go in parts"),
              _("First the repositories are refreshed. Then the update is simulated and split into parts that fit, "
                "and you are asked before anything is installed. Your saved routine does not change."))]
-    tip = _("To know exactly how much room it needs, simulate it first with “Simulate the dup…”.")
+    tip = _("To know exactly how much room it needs, simulate it first with “Simulate updating everything…”.")
     extra = [_space_box(_("There is little room on the system disk"), root, 0, caption, rows, tip)]
-    cmds = [(_("Yes, in parts:"), list(parts)), (_("As usual:"), [st.display() for st in usual])]
+    cmds = [(_("Yes, update in parts:"), list(parts)), (_("Run the routine as usual:"), [st.display() for st in usual])]
     free_btn = None
     if cleaning:
         card, free_btn = free_card(info["free"], _("Then the free space is checked again, and your routine runs."))
@@ -571,11 +573,78 @@ def routine_question(parent, info, usual, parts, cleaning):
         cmds.append((_("First, free up space:"), [st.display() for st in cleaning]))
     dlg = question.Question(parent, _("Little room on the disk: run the routine in parts?"),
                             icon_name="drive-harddisk|computer", extra=extra, commands_=cmds,
-                            buttons=[("no", _("Not yet"), False), ("usual", _("Run it as usual"), False),
-                                     ("parts", _("Yes, in parts"), True)], width=740, help_topic="update")
+                            buttons=[("no", _("Not yet"), False), ("usual", _("Run the routine as usual"), False),
+                                     ("parts", _("Yes, update in parts"), True)], width=740, help_topic="update")
     if free_btn is not None:
         free_btn.clicked.connect(lambda: dlg.press("free"))
     return dlg
+
+
+# ------------------------------------------------------------------ what the buttons under the list act on
+# a longer name makes the label too long (about 30 characters in English): the label says "the ticked one"
+NAME_MAX = 18
+
+
+def tick_labels(rows):
+    """(simulate, to the queue, only) labels for the ticked rows: "Simulate only digikam", "Put digikam in the
+    queue", "Only digikam"; with several, the count ("Simulate the 3 ticked")."""
+    n = len(rows)
+    if n == 0:
+        return _("Simulate the ticked ones"), _("Put the ticked ones in the queue"), _("Only the ticked ones")
+    if n == 1 and len(rows[0]["name"]) <= NAME_MAX:
+        name = rows[0]["name"]
+        return (_("Simulate only {name}").format(name=name), _("Put {name} in the queue").format(name=name),
+                _("Only {name}").format(name=name))
+    if n == 1:
+        return _("Simulate the ticked one"), _("Put the ticked one in the queue"), _("Only the ticked one")
+    return (ngettext("Simulate the {n} ticked", "Simulate the {n} ticked", n).format(n=_n(n)),
+            ngettext("Put the {n} ticked in the queue", "Put the {n} ticked in the queue", n).format(n=_n(n)),
+            ngettext("Only the {n} ticked", "Only the {n} ticked", n).format(n=_n(n)))
+
+
+def names_text(rows, limit=4):
+    """'digikam, showfoto … and 3 more'."""
+    names = [r["name"] for r in rows]
+    if len(names) <= limit:
+        return ", ".join(names)
+    return ", ".join(names[:limit]) + " " + _more(len(names) - limit)
+
+
+def whole_question(parent, ticked, beyond, whole, steps, queue_cmds):
+    """Before "Update everything" when some rows are ticked and the routine would also update rows you
+    unticked: the routine does not look at the ticks. ticked: the ticked rows; beyond: the unticked rows it
+    updates too; whole: how many rows it updates; steps: the routine; queue_cmds: the queue's commands for the
+    ticked ones. exec() gives 'no' (Enter), 'only' (the ticked ones go to the queue, then the usual Apply
+    question), 'all' or None."""
+    n_t, n_b = len(ticked), len(beyond)
+    _sim, _queue, only = tick_labels(ticked)
+    items = [
+        question.item("checkbox|emblem-checked|dialog-ok",
+                      ngettext("You ticked {n} update", "You ticked {n} updates", n_t).format(n=_n(n_t)),
+                      names_text(ticked), more=[r["name"] for r in ticked] if n_t > 4 else None),
+        question.item("system-software-update",
+                      ngettext("Your routine updates everything: {n} update",
+                               "Your routine updates everything: {n} updates", whole).format(n=_n(whole)),
+                      ngettext("The {n} you unticked is updated too: {names}.",
+                               "The {n} you unticked are updated too: {names}.", n_b).format(
+                          n=_n(n_b), names=names_text(beyond)),
+                      more=[r["name"] for r in beyond] if n_b > 4 else None),
+    ]
+    means = _("“Update everything” runs your routine as it is, and the routine does not look at the ticks. To "
+              "update only what you ticked, choose “{only}”: it goes to the queue, and you are asked before "
+              "anything changes.").format(only=only)
+    cmds = [(_("Yes, update everything:"), [st.display() for st in steps])]
+    if queue_cmds:
+        cmds.append((_("{only}, through the queue:").format(only=only), list(queue_cmds)))
+    return question.Question(parent, _("Update the whole system?"), items=items, means=means, commands_=cmds,
+                             buttons=[("no", _("Not yet"), False, _("Close this question. Nothing changes.")),
+                                      ("only", only, False,
+                                       _("Puts {names} in the queue, then asks you as usual before anything "
+                                         "changes.").format(names=names_text(ticked))),
+                                      ("all", _("Yes, update everything"), True,
+                                       _("Runs your routine now, which updates the whole system:") + "\n"
+                                       + "\n".join(st.display() for st in steps))],
+                             width=680, help_topic="update")
 
 
 class UpdateDelegate(QStyledItemDelegate):
@@ -694,7 +763,12 @@ STATE_STYLE = {
     "done": ("✓", "#27ae60", "rgba(39,174,96,0.08)"),
     "failed": ("✕", "#da4453", "rgba(218,68,83,0.08)"),
     "skipped": ("–", "palette(mid)", ""),
+    # "Stop after this step" was pressed: this step will not run
+    "stopping": ("–", ORANGE, "rgba(246,116,0,0.10)"),
 }
+# "Will stop after this step": the pressed Stop button keeps saying what it set, in orange, until the run ends
+STOPPING_CSS = (f"QPushButton:disabled {{ color: {ORANGE}; border: 1px solid {ORANGE}; border-radius: 7px; "
+                "background: rgba(246, 116, 0, 0.12); padding: 5px 12px; }")
 
 
 class StepBox(QFrame):
@@ -771,11 +845,19 @@ class UpdatesPage(Page):
                           "would have to choose, for example in a conflict."))
         head.addWidget(info)
         self.edit_btn = button(_("Edit the routine…"), "document-edit", self.edit_routine)
-        self.dup_btn = button(_("Simulate the dup…"), "system-run", self.open_dup)
-        self.dup_btn.setToolTip(_("What would 'zypper dup' do?"))
-        self.stop_btn = button(_("Stop after this step"), "media-playback-pause", self.ctx.runner.stop_after_current)
+        self.edit_btn.setToolTip(_("Change the steps of your routine, in a window. Nothing runs."))
+        self.dup_btn = button(_("Simulate updating everything…"), "system-run", self.open_dup)
+        self.dup_btn.setToolTip(_("Opens a window that simulates updating the whole system (zypper dup --dry-run): "
+                                  "what would be installed, updated or removed. Nothing changes."))
+        self.stop_btn = button(_("Stop after this step"), "media-playback-pause", self.stop_after_step)
+        self.stop_btn.setToolTip(_("The step that runs now finishes; the steps after it do not run."))
         self.stop_btn.hide()  # it takes the place of Run while the routine runs
-        self.run_btn = button(_("Run the routine"), "system-software-update", self.run_routine, primary=True)
+        # the routine updates the whole system, whatever is ticked in the list below: the label says so, and it
+        # asks first when rows are unticked (update_everything)
+        self.run_btn = button(_("Update everything…"), "system-software-update", self.update_everything,
+                              primary=True)
+        self._stop_asked = False
+        self._in_pre = False  # the refresh before an update in parts: after it, the update is simulated and asked
         for b in (self.edit_btn, self.dup_btn, self.stop_btn, self.run_btn):
             head.addWidget(b)
         rc.lay.addLayout(head)
@@ -801,16 +883,19 @@ class UpdatesPage(Page):
         lh.addStretch(1)
         # tick or untick every row at once: updating only one package meant unticking every other row by hand
         self.mark_all_btn = tool(_("Mark all"), "edit-select-all", lambda: self.set_all_ticked(True))
+        self.mark_all_btn.setToolTip(_("Tick every row of the list. Nothing is queued or run."))
         self.unmark_all_btn = tool(_("Unmark all"), "edit-select-none", lambda: self.set_all_ticked(False))
+        self.unmark_all_btn.setToolTip(_("Untick every row of the list, to tick only the ones you want. Nothing is "
+                                         "queued or run."))
         again = button(_("Look again"), "view-refresh", lambda: self.load_updates())
-        again.setToolTip(_("Since the last refresh of the repositories. On Tumbleweed your routine (zypper dup) "
-                           "updates everything at once; here you can pick only some."))
+        again.setToolTip(_("Look again for updates, as of the last refresh of the repositories. On Tumbleweed your "
+                           "routine (zypper dup) updates everything at once; here you can pick only some."))
         lh.addWidget(again)
         # "Look again" only reads what the computer already knows; this asks the repositories for what is new
         # (a version just published does not show until the repositories are refreshed)
         fresh = button(_("Refresh the repositories"), "download", self.refresh_and_look)
         fresh.setToolTip(_("Ask every repository for what is new (with the administrator password), then look "
-                           "again."))
+                           "again: zypper -n -v refresh"))
         lh.addWidget(fresh)
         lc.lay.addLayout(lh)
         self.up_lbl = muted(_("Looking…"), self)
@@ -828,6 +913,8 @@ class UpdatesPage(Page):
         self._row_timer.timeout.connect(lambda: self._show_row_now(self.up_list.currentItem()))
         self.up_list.currentItemChanged.connect(lambda cur, _p: self._row_timer.start())
         self.up_list.itemDoubleClicked.connect(self._up_double)
+        # the two buttons under the list name what they act on, as the ticks change
+        self.up_list.itemChanged.connect(lambda _it: self._update_tick_buttons())
         lc.lay.addWidget(self.up_list, 1)
         ub = QHBoxLayout()
         ub.addWidget(self.mark_all_btn)  # under the list, next to what is done with the ticked ones
@@ -835,13 +922,17 @@ class UpdatesPage(Page):
         ub.addStretch(1)
         self.up_sim_btn = button(_("Simulate the ticked ones"), "media-playback-start",
                                  lambda: self.queue_ticked(simulate=True))
-        self.up_sim_btn.setToolTip(_("Programs from the web are downloaded and checked first: zypper can only "
-                                     "simulate them with the file. Then the whole queue is simulated."))
-        self.up_queue_btn = button(_("Add to the queue"), "list-add", self.queue_ticked, primary=True)
-        self.up_queue_btn.setToolTip(_("Add the ticked ones to the queue"))
+        # only to the queue: never the green one (the green one changes the system now)
+        self.up_queue_btn = button(_("Put the ticked ones in the queue"), "list-add", lambda: self.queue_ticked())
+        # "In the queue ✓" for a moment after a press, then the label that follows the ticks again
+        self._flash = QTimer(self)
+        self._flash.setSingleShot(True)
+        self._flash.setInterval(1600)
+        self._flash.timeout.connect(self._update_tick_buttons)
         ub.addWidget(self.up_sim_btn)
         ub.addWidget(self.up_queue_btn)
         lc.lay.addLayout(ub)
+        self._total = 0
 
         dc = Card(None, self)
         dc.lay.setContentsMargins(10, 12, 12, 10)
@@ -858,6 +949,7 @@ class UpdatesPage(Page):
         split.setChildrenCollapsible(False)
         lay.addWidget(split, 1)
         ctx.queue.changed.connect(self.details.refresh)
+        ctx.queue.changed.connect(self._update_tick_buttons)  # their tooltips say what the queue holds already
 
         # ------------------------------------------------ the whole dup, in its own window
         self.dup_dialog = self._build_dup_dialog()
@@ -873,6 +965,8 @@ class UpdatesPage(Page):
     def show_routine(self):
         text = self.ctx.settings["routine"]
         self.routine_lbl.setToolTip(text)
+        self.run_btn.setToolTip(_("Runs your routine, which updates the whole system, not only the ticked rows. "
+                                  "It asks first when you unticked some of them.") + "\n" + text)
         try:
             self.steps = routine.parse(text)
         except routine.RoutineError as e:
@@ -912,17 +1006,118 @@ class UpdatesPage(Page):
         dlg.deleteLater()
 
     def _set_running(self, running):
-        """The buttons of the routine band while it runs (Stop takes the place of Run) and after."""
+        """The buttons of the routine band while it runs (Stop takes the place of Run) and after. "Will stop after
+        this step" goes back to "Stop after this step" when a run starts or ends; _stop_asked (pressed during this
+        run) is reset only when the next run starts, so that the end of the run can still read it."""
         self._running = running
+        if running:
+            self._stop_asked = False
         self.run_btn.setVisible(not running)
+        self.stop_btn.setText(_("Stop after this step"))
+        self.stop_btn.setStyleSheet("")
         self.stop_btn.setVisible(running)
         self.stop_btn.setEnabled(running)
         self.edit_btn.setEnabled(not running)
+
+    def stop_after_step(self):
+        """'Stop after this step': the runner stops after the step that runs now. The button shows it at once (a
+        disabled orange "Will stop after this step"), the terminal says what will not run, and so does the band."""
+        if not self.ctx.runner.busy and not getattr(self, "_running", False):
+            return
+        self.ctx.runner.stop_after_current()
+        self._stop_asked = True
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.setText(_("Will stop after this step"))
+        self.stop_btn.setStyleSheet(STOPPING_CSS)
+        steps = list(getattr(self, "run_steps", None) or [])
+        cur = getattr(self.ctx.runner, "index", -1)
+        if not isinstance(cur, int) or not 0 <= cur < len(steps):
+            cur = getattr(self, "_cur_step", 0)
+        rest = [st for st in steps[cur + 1:] if getattr(st, "state", "pending") not in ("done", "failed")]
+        if rest:
+            first = rest[0].display()
+            if len(rest) == 1:
+                text = _("When this step ends, Zypp Desk stops: {command} will not run.").format(command=first)
+            else:
+                more = len(rest) - 1
+                text = ngettext("When this step ends, Zypp Desk stops: {command} and {n} more step will not run.",
+                                "When this step ends, Zypp Desk stops: {command} and {n} more steps will not run.",
+                                more).format(command=first, n=more)
+        elif self._in_pre:
+            text = _("When this step ends, Zypp Desk stops: the update will not be simulated or run.")
+        else:
+            text = _("This is the last step: when it ends, nothing else runs.")
+        try:
+            self.ctx.terminal.view.note(text, "info")
+        except AttributeError:  # a window without a terminal (tests)
+            pass
+        for box in self.boxes[cur + 1:]:
+            box.set_state("stopping", _("will not run"))
 
     def _flow_busy(self):
         """An update is on its way to its question: simulated, and now the free space is measured or the parts
         are checked. Nothing else may start meanwhile: the question would be dropped."""
         return bool(getattr(self, "_dup_asking", False) or getattr(self, "_routine_asking", False))
+
+    # ------------------------------------------------ "Update everything (n)…": the routine, asked first when needed
+    def routine_kinds(self):
+        """The kinds of rows of the list ('repo', 'flatpak', 'firmware') that the saved routine updates: a zypper
+        dup, update or patch that installs updates the packages from the repositories, 'flatpak update' the Flatpak
+        apps and 'fwupdmgr update' the firmware. Programs from the web are never updated by the routine."""
+        kinds = set()
+        for st in self.steps:
+            sub = next((a for a in st.args if not a.startswith("-")), "")
+            if st.program == "zypper" and sub in ("dup", "dist-upgrade", "up", "update", "patch") \
+                    and not routine.is_download_only(st):
+                kinds.add("repo")
+            elif st.program == "flatpak" and {"update", "upgrade"} & set(st.args):
+                kinds.add("flatpak")
+            elif st.program == "fwupdmgr" and sub == "update":
+                kinds.add("firmware")
+        return kinds
+
+    def tick_scope(self):
+        """(ticked rows, unticked rows the routine would update anyway): what "Update everything" does beyond
+        the ticks."""
+        kinds = self.routine_kinds()
+        ticked, beyond = [], []
+        for row, on in self._tick_rows():
+            if on:
+                ticked.append(row)
+            elif row["kind"] in kinds:
+                beyond.append(row)
+        return ticked, beyond
+
+    def update_everything(self):
+        """The green button of the band. The routine updates the whole system: when some rows are ticked and it
+        would also update rows you unticked, it asks first (Enter: "Not yet"), and offers to update only the ticked
+        ones through the queue. With every row ticked, or none, it runs as always."""
+        if self.ctx.runner.busy or self._flow_busy():
+            self.run_routine()  # it says to wait
+            return
+        self.show_routine()
+        ticked, beyond = self.tick_scope()
+        if ticked and beyond:
+            key = self._ask_whole(ticked, beyond)
+            if key == "only":
+                self.queue_ticked(apply=True)
+                return
+            if key != "all":
+                self.result_lbl.setText(_("Nothing has been changed."))
+                self.result_lbl.show()
+                return
+        self.run_routine()
+
+    def _ask_whole(self, ticked, beyond):
+        """"Update the whole system?": what the routine does beyond the ticks. 'no', 'only', 'all' or None."""
+        kinds = self.routine_kinds()
+        whole = sum(1 for r in ticked if r["kind"] in kinds) + len(beyond)
+        dlg = whole_question(self, ticked, beyond, whole, self.steps,
+                             self._queue_preview(self._ticked_actions(ticked)))
+        try:
+            return dlg.exec()
+        finally:
+            dlg.deleteLater()
 
     def run_routine(self):
         if self.ctx.runner.busy or self._flow_busy():
@@ -1011,14 +1206,19 @@ class UpdatesPage(Page):
         self._show_steps(pre, custom=True)
         self._routine_say("")
         self._set_running(True)
+        self._in_pre = True
         if not self.ctx.run(pre, _("Routine: {text}").format(text=routine.steps_text(pre)),
                             on_done=lambda ok: self._routine_pre_done(job, pre, split["join"], ok)):
+            self._in_pre = False
             self._set_running(False)
             self._restore_band()
 
     def _routine_pre_done(self, job, pre, join, ok):
+        # "Stop after this step" pressed on the last refresh step: nothing was left to skip in this run, but the
+        # simulation and the update after it must not come
+        asked, self._in_pre = self._stop_asked, False
         self._set_running(False)
-        if getattr(self.ctx.runner, "stopped", False) or any(st.code in (126, 127) for st in pre):
+        if asked or getattr(self.ctx.runner, "stopped", False) or any(st.code in (126, 127) for st in pre):
             self._job_end(job, _("The routine was stopped: the steps after it did not run."))
             return
         if not ok and join == "success":
@@ -1079,6 +1279,7 @@ class UpdatesPage(Page):
             self.reload()
 
     def _step_started(self, i):
+        self._cur_step = i
         if getattr(self, "_running", False) and i < len(self.boxes):
             self.boxes[i].set_state("running", _("running…"))
 
@@ -1086,7 +1287,9 @@ class UpdatesPage(Page):
         if not getattr(self, "_running", False) or i >= len(self.boxes):
             return
         st = self.run_steps[i]
-        if st.state == "skipped":
+        if st.state == "skipped" and self._stop_asked:
+            self.boxes[i].set_state("skipped", _("did not run: you stopped the routine"))
+        elif st.state == "skipped":
             self.boxes[i].set_state("skipped", _("skipped"))
         elif st.state == "done":
             self.boxes[i].set_state("done", _("done (exit code {code})").format(code=code))
@@ -1267,8 +1470,88 @@ class UpdatesPage(Page):
         if errors:
             text = (text + "  " + _("(could not look: {error})").format(error="; ".join(errors))).strip()
         self._say(text)
-        self.up_queue_btn.setEnabled(total > 0)
-        self.up_sim_btn.setEnabled(total > 0)
+        self._total = total
+        # "Update everything (97)…": the number of updates found so far, as the green number next to the list
+        self.run_btn.setText(_("Update everything ({n})…").format(n=_n(total)) if total else _("Update everything…"))
+        self._update_tick_buttons()
+
+    # ------------------------------------------------ the ticks and the buttons under the list
+    def _tick_rows(self):
+        """(row, ticked) for every row that can be ticked."""
+        out = []
+        for i in range(self.up_list.count()):
+            it = self.up_list.item(i)
+            row = it.data(ROW_ROLE)
+            if row and not row.get("header") and not row.get("error"):
+                out.append((row, is_checked(it.checkState())))
+        return out
+
+    @staticmethod
+    def _ticked_actions(rows):
+        """The queue changes for these rows (the programs from the web are downloaded first: not here)."""
+        out = []
+        for row in rows:
+            if row["kind"] == "repo":
+                out.append(Action("install", row["name"]))
+            elif row["kind"] == "flatpak":
+                out.append(Action("flatpak-update", row["name"]))
+            elif row["kind"] == "firmware":
+                u = row["data"]
+                out.append(Action("firmware", u["id"], name=u["name"], version=u["new_version"]))
+        return out
+
+    def _queue_preview(self, actions):
+        """The commands the queue would run for these changes alone (the queue's own code and settings), a long
+        list of names shortened ('… and 90 more'): for a tooltip or a question."""
+        if not actions:
+            return []
+        from ..txqueue import TxQueue
+        q = TxQueue(getattr(self.ctx.queue, "settings", None) or self.ctx.settings)
+        with q.batch():
+            for a in actions:
+                q.add(a)
+        out = []
+        for st in q.steps():
+            args = list(st.args)
+            if "--" in args:
+                i = args.index("--")
+                out.append(heaps.shown([st.program, *args[:i + 1]], args[i + 1:], _more))
+            else:
+                out.append(st.display())
+        return out
+
+    def _update_tick_buttons(self):
+        """The buttons under the list say what they act on: the one ticked row by name, or how many."""
+        rows = [row for row, on in self._tick_rows() if on]
+        sim, queue, _only = tick_labels(rows)
+        n = len(rows)
+        self.up_sim_btn.setText(sim)
+        if not self._flash.isActive():
+            self.up_queue_btn.setText(queue)
+        self.up_sim_btn.setEnabled(n > 0)
+        self.up_queue_btn.setEnabled(n > 0)
+        if not n:
+            tip = _("Tick one or more rows first.")
+            self.up_sim_btn.setToolTip(tip)
+            self.up_queue_btn.setToolTip(tip)
+            return
+        what = names_text(rows)
+        web = [r for r in rows if r["kind"] == "web"]
+        cmds = self._queue_preview(self._ticked_actions(rows))
+        sim_tip = [_("Puts {names} in the queue and simulates the queue (zypper --dry-run): what would be installed, "
+                     "updated or removed. Nothing changes.").format(names=what)]
+        if web:
+            sim_tip.append(_("Programs from the web are downloaded and checked first: zypper can only simulate "
+                             "them with the file."))
+        if len(self.ctx.queue):
+            sim_tip.append(_("What the queue holds already is simulated with them."))
+        q_tip = [_("Puts {names} in the queue. Nothing changes until you apply the queue.").format(names=what)]
+        if web:
+            q_tip.append(_("Programs from the web are downloaded and checked first, then they join the queue."))
+        if cmds:
+            q_tip.append(_("The queue will run:") + "\n" + "\n".join(cmds))
+        self.up_sim_btn.setToolTip("\n".join(sim_tip))
+        self.up_queue_btn.setToolTip("\n".join(q_tip))
 
     # ------------------------------------------------ the package card
     def pkg_icon(self, d):
@@ -1336,8 +1619,12 @@ class UpdatesPage(Page):
         if row["kind"] == "web":
             overrides = {"from": u["where"],
                          "new": u["new"] or _("the file changed: download it to see its version")}
+            # the card's own main action: download, check, then into the queue (nothing is installed yet)
             self.details.set_custom(_("Download the new version"),
-                                    lambda n=name: self.ctx.pages["websources"].get_new_versions([n]))
+                                    lambda n=name: self.ctx.pages["websources"].get_new_versions([n]),
+                                    tip=_("Downloads the new version of {name} from {where} and checks it; then it "
+                                          "goes to the queue. Nothing is installed until you apply the "
+                                          "queue.").format(name=name, where=u["where"]))
         self.details.load(quick, overrides)
         run_async(backend.search, name, exact=True, on_done=lambda res, err, r=row: self._row_package(r, res, err))
 
@@ -1375,9 +1662,13 @@ class UpdatesPage(Page):
                 run_async(firmware.devices, on_done=lambda res, err, r=row: self._fw_devices_loaded(r, res))
         self.details.show_simple(u["name"], u.get("release_summary") or u.get("vendor") or _("Firmware"),
                                  self.row_icon(row), table(rows) + warn + cmd_html, tabs)
-        self.details.set_custom(_("Add it to the queue"),
+        # it only goes to the queue: after "To the queue:", never green
+        self.details.set_custom(_("Update"),
                                 lambda: self.ctx.queue.add(Action("firmware", u["id"], name=u["name"],
-                                                                  version=u["new_version"])))
+                                                                  version=u["new_version"])),
+                                tip=_("Puts the update of {name} in the queue. Nothing changes until you apply the "
+                                      "queue, which runs:").format(name=u["name"]) + "\n" + cmd.display(),
+                                queue=True)
 
     def _fw_devices_loaded(self, row, res):
         self._fw_devices = res or []
@@ -1418,8 +1709,12 @@ class UpdatesPage(Page):
         finally:
             self.up_list.blockSignals(False)
         self.up_list.viewport().update()
+        self._update_tick_buttons()
 
-    def queue_ticked(self, simulate=False):
+    def queue_ticked(self, simulate=False, apply=False):
+        """The ticked rows go to the queue (the programs from the web once downloaded and checked). simulate: then
+        the queue is simulated; apply: then the usual Apply question ("Only digikam" in the question before
+        "Update everything")."""
         n, web = 0, []
         with self.ctx.queue.batch():
             for i in range(self.up_list.count()):
@@ -1448,12 +1743,16 @@ class UpdatesPage(Page):
                                    "other; each joins the queue when it is ready (look at the terminal).",
                                    len(web)).format(n=len(web))
         self._say(text.strip())  # first: the simulation below may write its own message
-        if simulate:
+        if n:  # the button shows it happened; the line under the title says the rest
+            self._flash.start()
+            self.up_queue_btn.setText(_("In the queue ✓"))
+        if simulate or apply:
             if self.ctx.runner.busy:
                 self._say(_("Wait until the current command finishes."))
                 return
-            # the simulation runs once every program from the web is downloaded, checked and queued
-            self.ctx.pages["websources"].get_new_versions(web, on_finished=self._simulate_queue)
+            # it goes on once every program from the web is downloaded, checked and queued
+            self.ctx.pages["websources"].get_new_versions(
+                web, on_finished=self._simulate_queue if simulate else self._apply_queue)
         elif web:
             self.ctx.pages["websources"].get_new_versions(web)
 
@@ -1462,6 +1761,13 @@ class UpdatesPage(Page):
             self._say(_("Nothing reached the queue, so there is nothing to simulate."))
             return
         self.ctx.simulate_queue()
+
+    def _apply_queue(self):
+        """The usual Apply question of the window, for what is in the queue now."""
+        if not self.ctx.queue.actions:
+            self._say(_("Nothing reached the queue, so there is nothing to apply."))
+            return
+        self.ctx.apply_queue()
 
     # ------------------------------------------------ dup simulation, in its own window
     def _build_dup_dialog(self):
@@ -1513,7 +1819,8 @@ class UpdatesPage(Page):
         dl.addWidget(self.dup_cmd)
         self.sim_lbl = muted(_("It asks for the administrator password. Programs from the web are not in it."), dlg)
         self.sim_lbl.setToolTip(_("zypper needs root even to simulate, and it does not know a program from the web "
-                                  "until its file is downloaded: simulate those with “Simulate the ticked ones”."))
+                                  "until its file is downloaded: tick those in the list and simulate them with the "
+                                  "button under it."))
         dl.addWidget(self.sim_lbl)
         self.sim_tree = QTreeWidget(dlg)
         self.sim_tree.setHeaderLabels([_("Package"), _("Version"), _("Repository")])
@@ -1521,16 +1828,18 @@ class UpdatesPage(Page):
         dl.addWidget(self.sim_tree, 1)
         bb = QHBoxLayout()
         bb.addStretch(1)
-        # Enter simulates (nothing changes); the real dup needs a click, and then its question answers No to Enter
-        run_btn = button(_("Run 'zypper dup' with these options"), "system-run", lambda: self.run_dup())
-        run_btn.setAutoDefault(False)
-        run_btn.setToolTip(_("First it simulates the update (unless it was just simulated with these options), "
-                             "then it asks you with the numbers: how big it is and whether it fits on the disk."))
-        sim_btn = button(_("Simulate"), "media-playback-start", lambda: self.simulate_dup(), primary=True)
-        sim_btn.setDefault(True)
+        # Enter simulates (nothing changes); the real dup needs a click, and then its question answers No to Enter.
+        # The green one is the one that changes the system (after its question), as everywhere.
+        self.dup_run_btn = button(_("Update everything with these options…"), "system-software-update",
+                                  lambda: self.run_dup(), primary=True)
+        self.dup_run_btn.setAutoDefault(False)
+        self.dup_sim_btn = button(_("Simulate updating everything"), "media-playback-start",
+                                  lambda: self.simulate_dup())
+        self.dup_sim_btn.setDefault(True)
         close_btn = button(_("Close"), "window-close", dlg.close)
         close_btn.setAutoDefault(False)
-        for b in (run_btn, sim_btn, close_btn):
+        close_btn.setToolTip(_("Close this window. Nothing changes."))
+        for b in (self.dup_run_btn, self.dup_sim_btn, close_btn):
             bb.addWidget(b)
         dl.addLayout(bb)
         self._show_dup_cmd()
@@ -1616,6 +1925,14 @@ class UpdatesPage(Page):
         sim, run = self._dup_steps()
         self.dup_cmd.setText(_("Simulate: {command}").format(command=sim.display()) + "\n"
                              + _("Run: {command}").format(command=run.display()))
+        # the buttons' tooltips carry the exact commands, as the options change
+        if hasattr(self, "dup_run_btn"):
+            self.dup_run_btn.setToolTip(_("Updates the whole system with the options above. First it simulates the "
+                                          "update (unless it was just simulated with these options), then it asks "
+                                          "you with the numbers: how big it is and whether it fits on the disk.")
+                                        + "\n" + run.display())
+            self.dup_sim_btn.setToolTip(_("Shows what updating the whole system with the options above would "
+                                          "install, update or remove. Nothing changes.") + "\n" + sim.display())
 
     def _fresh_sim(self, args):
         """The last simulation of the dup, if it is recent, for these options and nothing has run since."""

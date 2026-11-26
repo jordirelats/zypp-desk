@@ -198,11 +198,18 @@ class AboutPage(Page):
         hv.addWidget(lic)
         links = QHBoxLayout()
         links.setSpacing(8)
-        links.addWidget(button(_("Web site"), "internet-web-browser",
-                               lambda: QDesktopServices.openUrl(QUrl(HOME))))
-        links.addWidget(button(_("Report a problem"), "tools-report-bug",
-                               lambda: QDesktopServices.openUrl(QUrl(HOME + "/issues"))))
-        links.addWidget(button(_("License"), "text-x-generic", self.show_license))
+        # each says what it opens: the two web pages in the browser, the license in a window ("…")
+        b = button(_("Open the web site"), "internet-web-browser", lambda: QDesktopServices.openUrl(QUrl(HOME)))
+        b.setToolTip(_("Opens Zypp Desk's page in your web browser: {url}").format(url=HOME))
+        links.addWidget(b)
+        b = button(_("Report a problem on GitHub"), "tools-report-bug",
+                   lambda: QDesktopServices.openUrl(QUrl(HOME + "/issues")))
+        b.setToolTip(_("Opens the list of problems of Zypp Desk in your web browser, to add yours: {url}").format(
+            url=HOME + "/issues"))
+        links.addWidget(b)
+        b = button(_("Read the license…"), "text-x-generic", self.show_license)
+        b.setToolTip(_("Shows the GNU General Public License in a window."))
+        links.addWidget(b)
         links.addStretch(1)
         hv.addSpacing(6)
         hv.addLayout(links)

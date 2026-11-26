@@ -2,8 +2,8 @@
 """Proposed routines: ready-made starting points for the routine editor.
 
 A few ready routines, each with what it does, why, its steps and the line it makes in a terminal. The first one is
-made for this computer from what it has (routine.machine_facts: Flatpak apps, fwupd, free space). "Use this one"
-loads it into the routine editor; nothing is saved until the editor's "Save".
+made for this computer from what it has (routine.machine_facts: Flatpak apps, fwupd, free space). "Use the chosen
+routine" loads it into the routine editor; nothing is saved until the editor's "Save the routine".
 """
 
 from PySide6.QtCore import Qt
@@ -128,7 +128,7 @@ class ProposalsDialog(QDialog):
         lay.setSpacing(10)
         lay.addWidget(heading(_("Proposed routines"), 1.3))
         lay.addWidget(muted(_("Choose one, and change it in the editor afterwards if you like. Nothing is saved "
-                              "until you press “Save”.")))
+                              "until you press “Save the routine”.")))
         self.scroll = QScrollArea(self)
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -145,7 +145,11 @@ class ProposalsDialog(QDialog):
         foot.addStretch(1)
         cancel = button(_("Cancel"), None, self.reject)
         cancel.setDefault(True)
-        self.use = button(_("Use this one"), None, self.accept_choice, primary=True)
+        cancel.setToolTip(_("Close: the steps in the editor stay as they are."))
+        # it only fills the editor: nothing is saved and nothing runs
+        self.use = button(_("Use the chosen routine"), None, self.accept_choice, primary=True)
+        self.use.setToolTip(_("Puts the chosen routine in the editor, in place of its steps. Nothing is saved "
+                              "until you save the routine, and nothing runs."))
         self.use.setAutoDefault(False)
         self.use.setEnabled(False)
         foot.addWidget(cancel)

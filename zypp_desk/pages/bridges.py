@@ -38,6 +38,12 @@ def home_short(path):
     return "~" + path[len(home):] if path == home or path.startswith(home + "/") else path
 
 
+def queue_buttons(yes):
+    """The buttons of a question whose answer only adds to the queue: "Not yet" (Enter) and `yes`, which is never the
+    green one, since green is only for what changes the computer now."""
+    return [("no", _("Not yet"), False), ("yes", yes, False)]
+
+
 def system_words(plan):
     """(the system the program was made for, how that system is called in "its … names")."""
     kind, full = plan["system"]
@@ -178,7 +184,7 @@ def ask_bridge(parent, plan, info, program_action, settings, folder, warnings=()
                 "apply the queue."),
         warning="\n\n".join(warnings) or None,
         commands_=commands_for(plan, program_action, settings), password=False, width=780, help_topic="web",
-        buttons=[("no", _("Not yet"), False), ("yes", _("Create the bridge and add both to the queue"), True)])
+        buttons=queue_buttons(_("Create the bridge and add both to the queue")))
     return answer == "yes"
 
 
@@ -200,7 +206,7 @@ def ask_unmapped(parent, plan, info, warnings=()):
         means=_("zypper will not be able to install it as it is. A bridge package cannot help here: openSUSE has "
                 "these things under no name Zypp Desk knows. Look for a version of the program made for openSUSE."),
         warning="\n\n".join(warnings) or None, password=False, width=720, help_topic="web",
-        buttons=[("no", _("Not yet"), False), ("yes", _("Add it to the queue anyway"), True)])
+        buttons=queue_buttons(_("Add it to the queue anyway")))
     return answer == "yes"
 
 
@@ -359,8 +365,21 @@ class BridgesBox(QFrame):
                               small=True, muted=True))
         h.addLayout(v, 1)
         queued = self.ctx.queue.state_of(b["name"]) == "remove"
-        rm = button(_("In the queue") if queued else _("Remove it"), "list-remove",
-                    lambda _c=False, b=b: self.remove(b))
+        # it only puts the removal in the queue, and says so; a bridge still needed asks first ("…")
+        if queued:
+            text = _("In the queue ✓")
+            tip = _("Its removal waits in the queue: apply the queue to remove it.")
+        elif state == "needed":
+            text = _("Put its removal in the queue…")
+            tip = _("{program} still needs it: Zypp Desk asks first, because removing the bridge removes {program} "
+                    "too. Nothing is removed until you apply the queue.").format(program=b["program"])
+        else:
+            text = _("Put its removal in the queue")
+            tip = _("zypper removes {name} when you apply the queue.").format(name=b["name"])
+            if state == "replaceable":
+                tip += " " + _("It installs {list} instead.").format(list=", ".join(b.get("install", [])))
+        rm = button(text, "list-remove", lambda _c=False, b=b: self.remove(b))
+        rm.setToolTip(tip)
         rm.setEnabled(not queued)
         h.addWidget(rm, 0, Qt.AlignmentFlag.AlignVCenter)
         return f
@@ -380,8 +399,9 @@ class BridgesBox(QFrame):
                                                "names.").format(program=b["program"]))],
                 warning=_("{program} still needs it: removing the bridge removes {program} too.").format(
                     program=b["program"]),
+                means=_("both removals go to the queue. Nothing is removed until you apply it."),
                 commands_=cmds, password=False, help_topic="web",
-                buttons=[("no", _("Not yet"), False), ("yes", _("Remove both"), True)]) == "yes"
+                buttons=queue_buttons(_("Put both removals in the queue"))) == "yes"
             if not ok:
                 return
         with self.ctx.queue.batch():

@@ -3,11 +3,12 @@
 page, and the question before running an installer.
 
 Each program is a card: where it is, how much room it takes, its menu entries and whether it brings its own
-uninstaller; "Open the folder" and "Uninstall…". Uninstall runs the program's own uninstaller in a terminal window,
+uninstaller; "Open its folder" and the button that removes it, whose label says how ("Uninstall it…", "Move it to
+the trash…", "How to remove it…"). Uninstall runs the program's own uninstaller in a terminal window,
 as you, so that its questions can be answered; without one, and only in your own folder, Zypp Desk moves the
 program's folder, menu entries and icons to the trash. A program installed for the whole computer (/opt,
 /usr/local) needs the administrator password: Zypp Desk explains it and gives the commands for a terminal instead
-of running them. "Install from a folder…" unpacks the chosen archive into Zypp Desk's own folder, runs the
+of running them. "Run an installer…" unpacks the chosen archive into Zypp Desk's own folder, runs the
 installer in a terminal window as you, and notes what it created when it ends, so that the program can be removed
 later even without an uninstaller of its own.
 
@@ -204,8 +205,10 @@ def uninstall_question(p, argv, paths, places, size=None, terminal=True):
 
 def trash_question(p, paths, places, size=None):
     """The question when Zypp Desk removes the program itself: everything goes to the trash."""
+    yes = _("Move it to the trash")
     if p.get("state") == "missing":
         title = _("Clean up what is left of {name}?").format(name=p["name"])
+        yes = _("Move what is left to the trash")
         means = _("its program is not there any more. Zypp Desk moves what is left to the trash, as you, without "
                   "the administrator password. You can bring it back from the trash.")
     else:
@@ -217,7 +220,7 @@ def trash_question(p, paths, places, size=None):
         help_topic="expert",
         icon_name="user-trash-full|user-trash", items=trash_items(p, paths, places, size), means=means,
         commands_=trash_commands(paths, places), password=False, width=720,
-        buttons=[("no", _("Not yet"), False), ("yes", _("Move to the trash"), True)])
+        buttons=[("no", _("Not yet"), False), ("yes", yes, True)])
 
 
 def system_question(p, places):
@@ -348,9 +351,11 @@ class ScriptsPage(Page):
         lay.addStretch(1)
 
         # the header button lives as long as the page; without a parent until the window shows it
-        self.b_install = button(_("Install from a folder…"), None, self.install, primary=True)
-        self.b_install.setToolTip(_("Run the installer of a program (a .sh, a .run, or a .tgz or .zip with one "
-                                    "inside) as you, and note what it creates"))
+        # the page's only green button: it changes the computer now (as you, after a question), not the queue
+        self.b_install = button(_("Run an installer…"), None, self.install, primary=True)
+        self.b_install.setToolTip(_("Choose the installer of a program you downloaded (a .sh, a .run, or a .tgz or "
+                                    ".zip with one inside). Zypp Desk asks first, then runs it at once, as you, in a "
+                                    "terminal window (not through the queue), and notes what it creates."))
 
     def header_actions(self):
         return [self.b_install]
@@ -507,10 +512,13 @@ class ScriptsPage(Page):
         h.addLayout(v, 1)
         bv = QVBoxLayout()
         bv.setSpacing(6)
-        b_open = QPushButton(_("Open the folder"), f)
+        b_open = QPushButton(_("Open its folder"), f)
         b_open.setEnabled(bool(p.get("folder") and os.path.isdir(p["folder"])))
+        b_open.setToolTip(_("Show {folder} in the file manager").format(folder=_where(p, self.places)))
         b_open.clicked.connect(lambda _c=False, x=p: self.open_folder(x))
-        b_rm = QPushButton(_("Uninstall…"), f)
+        text, tip = self.remove_words(p)
+        b_rm = QPushButton(text, f)
+        b_rm.setToolTip(tip)
         b_rm.clicked.connect(lambda _c=False, x=p: self.uninstall(x))
         bv.addWidget(b_open)
         bv.addWidget(b_rm)
@@ -537,16 +545,16 @@ class ScriptsPage(Page):
         if p["state"] == "empty":
             text = _("Only empty folders are left in {folder}. It is for the whole computer: removing it needs the "
                      "administrator password.").format(folder=where)
-            btext = _("How to remove it…")
         else:
             n = len(p["entries"])
             text = ngettext("Its program is not in {folder} any more: only its menu entry is left.",
                             "Its program is not in {folder} any more: only its {n} menu entries are left.",
                             n).format(folder=where, n=n)
-            btext = _("Clean up…")
+        btext, tip = self.remove_words(p)
         v.addWidget(label(text, small=True, muted=True, selectable=True))
         h.addLayout(v, 1)
         b = QPushButton(btext, f)
+        b.setToolTip(tip)
         b.clicked.connect(lambda _c=False, x=p: self.uninstall(x))
         h.addWidget(b, 0, Qt.AlignmentFlag.AlignVCenter)
         f.buttons = {"uninstall": b}
@@ -602,6 +610,28 @@ class ScriptsPage(Page):
             info_box(self, self.title, _("Wait until the installer or uninstaller that is running now ends."))
             return True
         return False
+
+    def remove_words(self, p):
+        """(label, tooltip) of the button that removes a program: what uninstall() will really do. Nothing here goes
+        through the queue: it acts at once, as you, after a question."""
+        name = p["name"]
+        if p["state"] == "empty" or p["scope"] == "system":
+            return _("How to remove it…"), _(
+                "{name} is installed for the whole computer: removing it needs the administrator password, which "
+                "Zypp Desk does not use for this. It shows you the commands to run in a terminal.").format(name=name)
+        if p["state"] == "ok" and p.get("uninstaller"):
+            return _("Uninstall it…"), _(
+                "Runs the uninstaller of {name} ({file}) at once, as you, in a terminal window, after a question. "
+                "It does not go through the queue. The question also offers to move it to the trash instead.").format(
+                name=name, file=os.path.basename(p["uninstaller"]))
+        if p["state"] == "missing":
+            return _("Move what is left to the trash…"), _(
+                "Moves the menu entries and icons left by {name} to the trash at once, as you, after a question (not "
+                "through the queue). You can bring them back from the trash.").format(name=name)
+        return _("Move it to the trash…"), _(
+            "{name} has no uninstaller of its own: Zypp Desk moves its folder, menu entries and icons to the trash at "
+            "once, as you, after a question (not through the queue). You can bring them back from the "
+            "trash.").format(name=name)
 
     def uninstall(self, p):
         if self._wait_first():
@@ -676,16 +706,16 @@ class ScriptsPage(Page):
         self._say("")
         name = os.path.basename(path)
         if err:
-            error_box(self, _("Install from a folder"), _("{file} could not be read: {error}").format(
+            error_box(self, _("Run an installer"), _("{file} could not be read: {error}").format(
                 file=name, error=err))
             return
         if not info.get("installer"):
-            error_box(self, _("Install from a folder"), _(
+            error_box(self, _("Run an installer"), _(
                 "Zypp Desk found no installer in {file}. It looks for install.sh, install.pl, setup.sh, or a .run "
                 "or .bin file.").format(file=name))
             return
         if not info.get("argv"):
-            error_box(self, _("Install from a folder"), _("Zypp Desk does not know how to run {file}.").format(
+            error_box(self, _("Run an installer"), _("Zypp Desk does not know how to run {file}.").format(
                 file=info["installer"]))
             return
         has_term = self.terminal_argv(["true"]) is not None
@@ -701,7 +731,7 @@ class ScriptsPage(Page):
         self.b_install.setEnabled(not self.running)
         self._say("")
         if err:
-            error_box(self, _("Install from a folder"), _("The installer could not be prepared: {error}").format(
+            error_box(self, _("Run an installer"), _("The installer could not be prepared: {error}").format(
                 error=err))
             return
         keep = {k: info.get(k) for k in ("path", "name", "kind", "installer")}

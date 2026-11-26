@@ -10,13 +10,13 @@ line it makes in a terminal. "Write it by hand" switches to the text and back.
 from PySide6.QtCore import QMimeData, QPoint, QRect, QSize, Qt, QTimer
 from PySide6.QtGui import QDrag
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout,
-                               QLabel, QLayout, QLineEdit, QPlainTextEdit, QPushButton, QScrollArea, QStackedWidget,
-                               QToolButton, QVBoxLayout, QWidget)
+                               QLabel, QLayout, QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea,
+                               QStackedWidget, QToolButton, QVBoxLayout, QWidget)
 
 from .. import routine
 from ..i18n import _
-from ..style import BLUE, GREEN, GREEN_DARK, RED
-from ..ui import ask, button, heading, hline, icon, mono, muted, tool
+from ..style import BLUE, GREEN, RED
+from ..ui import button, heading, hline, icon, mono, muted, plain, tool
 
 MIME = "application/x-zypp-desk-routine-step"
 
@@ -233,12 +233,16 @@ class StepCard(QWidget):
         tools = QHBoxLayout()
         tools.setSpacing(0)
         for text, tip, slot, enabled in (
-                ("↑", _("Move up"), lambda: editor.move_step(self.index, self.index - 1), index > 0),
-                ("↓", _("Move down"), lambda: editor.move_step(self.index, self.index + 1), index < count - 1),
-                ("✕", _("Remove this step"), lambda: editor.remove_step(self.index), True)):
+                ("↑", _("Move step {n} up").format(n=index + 1),
+                 lambda: editor.move_step(self.index, self.index - 1), index > 0),
+                ("↓", _("Move step {n} down").format(n=index + 1),
+                 lambda: editor.move_step(self.index, self.index + 1), index < count - 1),
+                ("✕", _("Take step {n} out of the routine").format(n=index + 1),
+                 lambda: editor.remove_step(self.index), True)):
             b = QToolButton(self.frame)
             b.setText(text)
             b.setToolTip(tip)
+            b.setAccessibleName(tip)
             b.setAutoRaise(True)
             b.setEnabled(enabled)
             b.clicked.connect(slot)
@@ -415,7 +419,10 @@ class RoutineEditorDialog(QDialog):
             "QPushButton[seg=\"left\"] { border-top-left-radius: 7px; border-bottom-left-radius: 7px;"
             " border-right: none; }"
             "QPushButton[seg=\"right\"] { border-top-right-radius: 7px; border-bottom-right-radius: 7px; }"
-            f"QPushButton[seg]:checked {{ background: {GREEN}; color: white; border-color: {GREEN_DARK}; }}"
+            # the chosen way to join two steps: the selection colour, as the chips; green is kept for the one
+            # main button ("Save the routine")
+            "QPushButton[seg]:checked { background: palette(highlight); color: palette(highlighted-text);"
+            " border-color: palette(highlight); }"
             "QFrame#preview { background: rgba(127, 140, 141, 0.13); border-radius: 10px; }")
 
         lay = QVBoxLayout(self)
@@ -446,7 +453,10 @@ class RoutineEditorDialog(QDialog):
         self.list.lay.insertWidget(0, self.empty)
         sv.addWidget(self.scroll, 1)
 
+        # every button after this label only adds a step at the end of the routine: nothing runs (as "To the
+        # queue:" on the package card)
         add_lbl = QLabel(_("+ Add a step:"), steps_page)
+        add_lbl.setToolTip(_("These buttons add a step at the end of the routine. Nothing runs now."))
         f = add_lbl.font()
         f.setBold(True)
         add_lbl.setFont(f)
@@ -455,7 +465,7 @@ class RoutineEditorDialog(QDialog):
         add_flow = FlowLayout(add_box, hspacing=6, vspacing=6)
         for kind in routine.KINDS:
             b = QPushButton(add_title(kind), add_box)
-            b.setToolTip(kind_help(kind))
+            b.setToolTip(_("Adds this step at the end of the routine. Nothing runs now.") + "\n" + kind_help(kind))
             b.setAutoDefault(False)
             b.clicked.connect(lambda _c=False, k=kind: self.add_step(k))
             add_flow.addWidget(b)
@@ -516,12 +526,18 @@ class RoutineEditorDialog(QDialog):
         foot.addWidget(self.hand_btn)
         proposed = tool(_("Proposed routines…"), "view-list-details", self.open_proposals, self)
         proposed.setStyleSheet("color: palette(link);")
+        proposed.setToolTip(_("Opens ready routines to start from, the first one made for this computer. The one "
+                              "you choose replaces these steps; nothing is saved until you save the routine."))
         foot.addWidget(proposed)
         foot.addStretch(1)
-        usual = button(_("Back to the usual one"), None, self.back_to_usual)
-        usual.setToolTip(routine.DEFAULT_ROUTINE)
+        usual = button(_("Back to the usual routine…"), None, self.back_to_usual)
+        usual.setToolTip(_("Asks first, then replaces these steps with the usual routine (nothing is saved until "
+                           "you save the routine):") + "\n" + routine.DEFAULT_ROUTINE)
         cancel = button(_("Cancel"), None, self.reject)
-        save = button(_("Save"), None, self.save, primary=True)
+        cancel.setToolTip(_("Close without saving: your routine stays as it was."))
+        # it saves the routine only: nothing runs (that is "Update everything" on the Updates page)
+        save = button(_("Save the routine"), None, self.save, primary=True)
+        save.setToolTip(_("Saves these steps as your routine. Nothing runs now."))
         for b in (usual, cancel):
             b.setAutoDefault(False)
         save.setDefault(True)
@@ -595,6 +611,8 @@ class RoutineEditorDialog(QDialog):
         self.stack.setCurrentIndex(1 if hand else 0)
         self.hand_btn.setText(_("Use the steps") if hand else _("Write it by hand"))
         self.hand_btn.setIcon(icon("view-list-details", "view-list-text") if hand else icon("document-edit"))
+        self.hand_btn.setToolTip(_("Back to the steps, one card each.") if hand else
+                                 _("Shows the routine as one line of text, to write it as in a terminal."))
         self.subtitle.setText(
             _("Write it as in a terminal. ';' runs the next command anyway, '&&' only if the previous one "
               "worked. Only zypper, flatpak and fwupdmgr commands are allowed.") if hand else
@@ -633,8 +651,7 @@ class RoutineEditorDialog(QDialog):
 
     # ------------------------------------------------ buttons
     def back_to_usual(self):
-        if not ask(self, _("Back to the usual one"),
-                   _("Replace these steps with the usual routine?") + "\n\n" + routine.DEFAULT_ROUTINE):
+        if not ask_usual(self):
             return
         if self.in_hand_mode():
             self.text_edit.setPlainText(routine.DEFAULT_ROUTINE)
@@ -686,6 +703,22 @@ class RoutineEditorDialog(QDialog):
             return
         self.error.setText(_("Not saved. {problem}").format(problem=message))
         self.error.show()
+
+
+def ask_usual(parent):
+    """"Replace these steps with the usual routine?": buttons that say what they do, and Enter keeps the steps."""
+    box = QMessageBox(QMessageBox.Icon.Question, _("Back to the usual routine"),
+                      _("Replace these steps with the usual routine? Nothing is saved until you save the routine.")
+                      + "\n\n" + routine.DEFAULT_ROUTINE, QMessageBox.StandardButton.NoButton, parent)
+    keep = box.addButton(_("Keep these steps"), QMessageBox.ButtonRole.RejectRole)
+    use = box.addButton(_("Use the usual routine"), QMessageBox.ButtonRole.AcceptRole)
+    box.setDefaultButton(keep)
+    box.setEscapeButton(keep)
+    try:
+        plain(box).exec()
+        return box.clickedButton() is use
+    finally:
+        box.deleteLater()
 
 
 def join_lines(text):

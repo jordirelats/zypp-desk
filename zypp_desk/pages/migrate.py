@@ -13,7 +13,7 @@ web are settings of Zypp Desk, not changes in the queue: they change only after 
 import os
 
 import shiboken6
-from PySide6.QtCore import QLocale, QStandardPaths, Qt
+from PySide6.QtCore import QLocale, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QFrame, QHBoxLayout, QLineEdit,
                                QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget)
@@ -116,13 +116,16 @@ class ExportDialog(question.Question):
             extra=[status, rows_box],
             means=_("the file holds no passwords and none of your documents: only the list of your software and "
                     "where it comes from."),
-            password=False, buttons=[("cancel", _("Cancel"), False), ("save", _("Save the file…"), True)],
+            password=False, buttons=[("cancel", _("Cancel"), False), ("save", _("Save everything in a file…"), True)],
             width=720, help_topic="move")
         self.ctx = ctx
         self.data = None
         self.saved_path = None
         self.status, self.checks, self.counts = status, checks, counts
         self.buttons["save"].setEnabled(False)
+        self.buttons["save"].setToolTip(_("Choose where to save the file (.zdesk) with what is ticked. Nothing on "
+                                          "this computer changes."))
+        self.buttons["cancel"].setToolTip(_("Close this window without saving anything"))
         for cb in checks.values():
             cb.toggled.connect(self._ticked)
         run_async(migrate.collect, dict(getattr(ctx, "settings", None) or {}), on_done=self._collected)
@@ -161,7 +164,10 @@ class ExportDialog(question.Question):
         self._ticked()
 
     def _ticked(self, *_a):
-        self.buttons["save"].setEnabled(self.data is not None and any(cb.isChecked() for cb in self.checks.values()))
+        n = len(self.parts())
+        self.buttons["save"].setEnabled(self.data is not None and n > 0)
+        self.buttons["save"].setText(_("Save everything in a file…") if n == len(self.checks) else ngettext(
+            "Save the ticked one in a file…", "Save the {n} ticked in a file…", n).format(n=n))
 
     def parts(self):
         return [k for k, cb in self.checks.items() if cb.isChecked()]
@@ -235,8 +241,9 @@ class ChooseDialog(QDialog):
         self.list.itemChanged.connect(self._count)
         v.addWidget(self.list, 1)
         h = QHBoxLayout()
-        for text, state in ((_("Tick all"), Qt.CheckState.Checked), (_("Untick all"), Qt.CheckState.Unchecked)):
-            b = QPushButton(text, self)
+        self.b_tick = QPushButton(_("Tick all"), self)
+        self.b_untick = QPushButton(_("Untick all"), self)
+        for b, state in ((self.b_tick, Qt.CheckState.Checked), (self.b_untick, Qt.CheckState.Unchecked)):
             b.setAutoDefault(False)
             b.clicked.connect(lambda _c=False, s=state: self._set_all(s))
             h.addWidget(b)
@@ -246,6 +253,9 @@ class ChooseDialog(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
         for b in bb.buttons():
             b.setAutoDefault(False)  # Enter in the filter does not close the window
+        self.b_ok = bb.button(QDialogButtonBox.StandardButton.Ok)
+        self.b_ok.setToolTip(_("Back to the list of changes with only the ticked ones. Nothing goes to the queue yet."))
+        bb.button(QDialogButtonBox.StandardButton.Cancel).setToolTip(_("Back without changing what was chosen"))
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         v.addWidget(bb)
@@ -256,6 +266,7 @@ class ChooseDialog(QDialog):
         for i in range(self.list.count()):
             it = self.list.item(i)
             it.setHidden(bool(t) and t not in it.text().casefold())
+        self._count()
 
     def _set_all(self, state):
         """Tick or untick the rows shown (all of them, or those the filter leaves)."""
@@ -271,6 +282,19 @@ class ChooseDialog(QDialog):
         n = sum(1 for i in range(self.list.count())
                 if self.list.item(i).checkState() == Qt.CheckState.Checked)
         self.count.setText(_("{n} of {total} ticked").format(n=_num(n), total=_num(self.list.count())))
+        # Tick all and Untick all act on the rows the filter leaves: they say how many
+        shown = sum(1 for i in range(self.list.count()) if not self.list.item(i).isHidden())
+        if shown == self.list.count():
+            self.b_tick.setText(_("Tick all"))
+            self.b_untick.setText(_("Untick all"))
+        else:
+            self.b_tick.setText(ngettext("Tick the {n} shown", "Tick the {n} shown", shown).format(n=_num(shown)))
+            self.b_untick.setText(ngettext("Untick the {n} shown", "Untick the {n} shown", shown).format(
+                n=_num(shown)))
+        self.b_tick.setToolTip(_("Tick every row the filter shows"))
+        self.b_untick.setToolTip(_("Untick every row the filter shows"))
+        self.b_ok.setText(ngettext("Keep the ticked one", "Keep the {n} ticked", n).format(n=_num(n)) if n else
+                          _("Keep none"))
 
     def chosen(self):
         return {self.list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.list.count())
@@ -297,7 +321,7 @@ class ImportDialog(question.Question):
             lead=_("From the file “{file}”. Nothing changes until you apply the queue.").format(
                 file=migrate.text(os.path.basename(path), 120)),
             extra=[body], password=False,
-            buttons=[("cancel", _("Cancel"), False), ("queue", _("Put it in the queue"), True)],
+            buttons=[("cancel", _("Cancel"), False), ("queue", _("Put it in the queue"), False)],
             width=740, help_topic="move")
         self.ctx, self.path, self.data = ctx, path, data
         self.body, self.body_lay = body, lay
@@ -305,6 +329,7 @@ class ImportDialog(question.Question):
         self.queued_actions = []
         self.sel_repos, self.sel_pkgs, self.sel_fp = set(), set(), set()
         self.buttons["queue"].setEnabled(False)
+        self.buttons["cancel"].setToolTip(_("Close this window: nothing goes to the queue"))
         q = ctx.queue
         queued = {"aliases": [a.target for a in q.of("repo-add")],
                   "urls": [a.opts.get("url") or "" for a in q.of("repo-add")],
@@ -376,7 +401,10 @@ class ImportDialog(question.Question):
                             name=k["name"], fpr=txqueue.nice_fpr(k["fpr"])))
             more += [_("Enable “{name}”").format(name=r["name"]) for r in enable]
             lay.addWidget(question.item("folder-cloud|folder-network", title, detail, more or None,
-                                        right=self._choose_button(self.choose_repos)))
+                                        right=self._choose_button(
+                                            _("Choose the repositories…"),
+                                            _("Tick or untick the repositories that go in the queue"),
+                                            self.choose_repos)))
             total += n + len(enable)
 
         # packages
@@ -396,7 +424,8 @@ class ImportDialog(question.Question):
             more = sorted(x["name"] + (f"  ({x['title']})" if x["title"] else "") for x in pkgs)
             lay.addWidget(question.item("package-install|system-software-install", ngettext(
                 "Install {n} package", "Install {n} packages", n).format(n=_num(n)), detail, more or None,
-                right=self._choose_button(self.choose_packages)))
+                right=self._choose_button(_("Choose the packages…"), _("Tick or untick the packages that go in the "
+                                                                        "queue"), self.choose_packages)))
             total += n
         skipped = []
         if p["packages_missing"]:
@@ -428,7 +457,9 @@ class ImportDialog(question.Question):
             lay.addWidget(question.item("flatpak-discover|package-x-generic", ngettext(
                 "Install {n} Flatpak app", "Install {n} Flatpak apps", n).format(n=_num(n)), detail,
                 [f"{f['name']} ({f['id']})" for f in fps] or None,
-                right=self._choose_button(self.choose_flatpaks) if p["flatpak"] else None))
+                right=self._choose_button(_("Choose the apps…"), _("Tick or untick the Flatpak apps that go in the "
+                                                                    "queue"), self.choose_flatpaks)
+                if p["flatpak"] else None))
             total += n
 
         # locks, languages, routine, zypp.conf, protected apps
@@ -504,13 +535,31 @@ class ImportDialog(question.Question):
             lay.addWidget(question.box("warn", "⚠ " + _(
                 "Open only a file you made yourself, or one from someone you trust: its repositories and keys let "
                 "zypper install programs from them as administrator. Check the list before you apply the queue.")))
-        self.buttons["queue"].setEnabled(total > 0)
+        self._label_queue(total)
         if self.isVisible():
             self._fit()
 
-    def _choose_button(self, slot):
-        b = QPushButton(_("Choose…"))
+    def _label_queue(self, total):
+        """“Put the 312 changes in the queue”, with “…” when the question about the settings comes first."""
+        b = self.buttons["queue"]
+        b.setEnabled(total > 0)
+        asks = bool(self._settings_rows())
+        if total > 0:
+            text = ngettext("Put {n} change in the queue", "Put the {n} changes in the queue", total).format(
+                n=_num(total))
+        else:
+            text = _("Put it in the queue")
+        b.setText(text + ("…" if asks else ""))
+        tip = _("Adds the chosen changes to the queue in one go. Nothing changes until you apply the queue.")
+        if asks:
+            tip += " " + _("First it asks about the routine, zypper's settings, the protected apps and the programs "
+                           "from the web: those settings change as soon as you answer.")
+        b.setToolTip(tip)
+
+    def _choose_button(self, text, tip, slot):
+        b = QPushButton(text)
         b.setAutoDefault(False)
+        b.setToolTip(tip)
         b.clicked.connect(slot)
         return b
 
@@ -545,12 +594,20 @@ class ImportDialog(question.Question):
         full = question.label("\n".join(lines), small=True, selectable=True)
         full.setVisible(False)
         h = QHBoxLayout()
-        h.addWidget(question.More(_("▸ Show it all"), _("▾ Hide it"), full))
+        more = question.More(_("▸ Show the whole list"), _("▾ Hide the list"), full)
+        more.setToolTip(_("Show or hide what to do by hand, one by one"))
+        h.addWidget(more)
         h.addStretch(1)
         copy = QPushButton(ui.icon("edit-copy"), _("Copy the list"))
         copy.setAutoDefault(False)
         copy.setFlat(True)
-        copy.clicked.connect(lambda: QGuiApplication.clipboard().setText("\n".join(lines)))
+        copy.setToolTip(_("Copy the list of what to do by hand to the clipboard, to keep it somewhere"))
+
+        def copied():
+            QGuiApplication.clipboard().setText("\n".join(lines))
+            copy.setText(_("Copied ✓"))
+            QTimer.singleShot(2500, lambda: shiboken6.isValid(copy) and copy.setText(_("Copy the list")))
+        copy.clicked.connect(copied)
         h.addWidget(copy)
         v.addLayout(h)
         v.addWidget(full)
@@ -631,6 +688,25 @@ class ImportDialog(question.Question):
                     "button; zypper's settings go in the queue with the rest."),
             password=False, buttons=[("keep", _("Leave them as they are"), False),
                                      ("change", _("Change the ticked ones"), True)], width=660)
+        dlg.buttons["keep"].setToolTip(_("Nothing of these changes; the rest still goes to the queue."))
+
+        def label_change(*_a):
+            n = sum(cb.isChecked() for cb in boxes.values())
+            b = dlg.buttons["change"]
+            if n == len(boxes) == 1:
+                b.setText(_("Change it"))
+            elif n == len(boxes):
+                b.setText(ngettext("Change all {n}", "Change all {n}", n).format(n=n))
+            elif n:
+                b.setText(ngettext("Change the ticked one", "Change the {n} ticked", n).format(n=n))
+            else:
+                b.setText(_("Change the ticked ones"))
+            b.setEnabled(n > 0)
+            b.setToolTip(_("The routine, the protected apps and the programs from the web change at once; zypper's "
+                           "settings go to the queue with the rest."))
+        for cb in boxes.values():
+            cb.toggled.connect(label_change)
+        label_change()
         try:
             answer = dlg.exec()
         finally:

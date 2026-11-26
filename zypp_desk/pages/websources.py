@@ -28,7 +28,7 @@ from ..style import BLUE, GREEN, ORANGE, RED
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Page, ask, button, error_box, icon, info_box, muted, tool
-from .bridges import RPM_ICON, BridgesBox, ask_bridge, ask_unmapped, queue_bridge
+from .bridges import RPM_ICON, BridgesBox, ask_bridge, ask_unmapped, queue_bridge, queue_buttons
 
 GREY = "#7f8c8d"
 SIG_TEXT = {
@@ -54,6 +54,18 @@ def sig_text(sig):
 def home_short(path):
     home = str(Path.home())
     return "~" + path[len(home):] if path == home or path.startswith(home + "/") else path
+
+
+NAME_IN_LABEL = 20  # a longer program name does not go into a button: the button says "it" or "the selected one"
+
+
+def short_name(name, version=None):
+    """The name (and version) of a program for a button label, or "" when it would make the button too wide."""
+    if not name:
+        return ""
+    if version and len(name) + len(version) < NAME_IN_LABEL + 4:
+        return f"{name} {version}"
+    return name if len(name) <= NAME_IN_LABEL else ""
 
 
 def local_packages():
@@ -117,6 +129,8 @@ class SourceDialog(QDialog):
         self.repo = QLineEdit(self)
         self.repo.setPlaceholderText(_("owner/project on github.com"))
         find = QPushButton(_("Look for it on GitHub"), self)
+        find.setToolTip(_("Search github.com for a project with the name of the installed package, and fill in the "
+                          "one with most stars. Check it before saving."))
         find.clicked.connect(self._find)
         self.r_repo = self._row(_("GitHub project:"), self._hbox(self.repo, find))
         # fixed address
@@ -139,7 +153,8 @@ class SourceDialog(QDialog):
         self.r_help = form.rowCount() - 1
         # where new versions go
         self.folder = QLineEdit(self)
-        pick = QPushButton(_("Choose…"), self)
+        pick = QPushButton(_("Choose a folder…"), self)
+        pick.setToolTip(_("The folder where the new versions of this program are saved"))
         pick.clicked.connect(self._pick)
         self.r_folder = self._row(_("Download into:"), self._hbox(self.folder, pick))
         # the patterns, for those who want them
@@ -149,6 +164,7 @@ class SourceDialog(QDialog):
         self.adv.setAutoRaise(True)
         self.adv.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.adv.setArrowType(Qt.ArrowType.RightArrow)
+        self.adv.setToolTip(_("Show or hide the regular expression that chooses the file to download"))
         self.adv.toggled.connect(self._update_rows)
         form.addRow(self.adv)
         self.r_adv = form.rowCount() - 1
@@ -158,6 +174,11 @@ class SourceDialog(QDialog):
         self.r_ppat = self._row(_("Link to take (regular expression):"), self.ppattern)
 
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel, self)
+        ok = bb.button(QDialogButtonBox.StandardButton.Ok)
+        ok.setText(_("Save the changes") if source else _("Follow this program"))
+        ok.setToolTip(_("Zypp Desk remembers where it is published and looks for its new versions. Nothing is "
+                        "downloaded or installed now."))
+        bb.button(QDialogButtonBox.StandardButton.Cancel).setToolTip(_("Close this window without saving anything"))
         bb.accepted.connect(self._ok)
         bb.rejected.connect(self.reject)
         form.addRow(bb)
@@ -340,7 +361,10 @@ class TidyDialog(QDialog):
         bb = QDialogButtonBox(self)
         self.go = bb.addButton(_("Move to the trash"), QDialogButtonBox.ButtonRole.AcceptRole)
         self.go.setAutoDefault(False)  # Enter must never throw files away: it presses Cancel
+        self.go.setToolTip(_("Moves the ticked files to the trash at once, as you (not through the queue). You can "
+                             "get them back from the trash."))
         cancel = bb.addButton(QDialogButtonBox.StandardButton.Cancel)
+        cancel.setToolTip(_("Close this window without moving anything"))
         cancel.setDefault(True)
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
@@ -362,6 +386,8 @@ class TidyDialog(QDialog):
         size = sum(f["size"] for f in files)
         self.total.setText(ngettext("{n} file ticked, {size}.", "{n} files ticked, {size}.", len(files)).format(
             n=len(files), size=fmt_size(size)))
+        self.go.setText(ngettext("Move the ticked file to the trash", "Move the {n} ticked to the trash",
+                                 len(files)).format(n=len(files)) if files else _("Move to the trash"))
         self.go.setEnabled(bool(files))
 
 
@@ -393,9 +419,16 @@ class WebSourcesPage(Page):
         self.folder_lbl.setWordWrap(True)
         fbar = QHBoxLayout()
         fbar.addWidget(self.folder_lbl, 1)
-        fbar.addWidget(button(_("Change the folder…"), "folder-open", self.change_folder))
+        self.folder_btn = button(_("Change the folder…"), "folder-open", self.change_folder)
+        self.folder_btn.setToolTip(_("Choose another folder for the new versions of the programs from the web. If it "
+                                     "is not a zypper repository yet, Zypp Desk offers to add it to the queue."))
+        fbar.addWidget(self.folder_btn)
         # next to the folder it tidies (in the page header it made the window wider in German and French)
-        fbar.addWidget(button(_("Tidy up old versions…"), "edit-clear-history", lambda: self.tidy()))
+        self.tidy_btn = button(_("Tidy up old versions…"), "edit-clear-history", lambda: self.tidy())
+        self.tidy_btn.setToolTip(_("Look in the folder for old versions of the programs and choose which files to move "
+                                   "to the trash, as you, at once (not through the queue). The version you have "
+                                   "installed always stays."))
+        fbar.addWidget(self.tidy_btn)
 
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels([_("Program"), _("Status"), _("Installed"), _("Latest"),
@@ -407,9 +440,25 @@ class WebSourcesPage(Page):
         self.details = QTextBrowser(self)
         self.details.setOpenExternalLinks(True)
         self.follow_btn = button(_("Follow it…"), "list-add", self.follow)
-        self.get_btn = button(_("Download, verify and add to the queue"), "download", self.download, primary=True)
+        # it only puts the new version in the queue (after downloading and checking it): never the green button
+        self.get_btn = button(_("Put it in the queue"), "download", self.download)
+        self.get_btn.setToolTip(_("Choose a program that has a new version."))
         self.follow_btn.hide()
         self.get_btn.setEnabled(False)
+        # the header buttons live as long as the page (their labels follow the selected program); without a parent
+        # until the window shows them
+        self.h_add = tool(_("Follow a program…"), "list-add", lambda: self.add())
+        self.h_add.setToolTip(_("Choose an installed program and say where it is published (GitHub, a fixed address "
+                                "or a download page): Zypp Desk then looks for its new versions. Nothing is "
+                                "downloaded or installed now."))
+        self.h_edit = tool(_("Edit…"), "document-edit", self.edit)
+        self.h_remove = tool(_("Stop following…"), "list-remove", self.remove)
+        self.h_check = tool(_("Check all now"), "view-refresh", lambda: self.check_all(force=True))
+        self.h_check.setToolTip(_("Look again for new versions of every program you follow (GitHub, the addresses and "
+                                  "the pages), without the answers kept from the last minutes. Nothing is downloaded."))
+        queue = getattr(ctx, "queue", None)
+        if queue is not None:  # "Put it in the queue" becomes "In the queue ✓", and back
+            queue.changed.connect(self._update_get_btn)
         left = QWidget(self)
         lv = QVBoxLayout(left)
         lv.setContentsMargins(0, 0, 0, 0)
@@ -435,11 +484,39 @@ class WebSourcesPage(Page):
         self.bridges = BridgesBox(ctx, self)  # hidden while there is no bridge
         lay.addWidget(self.bridges)
         self._show_folder()
+        self._update_header()
 
     def header_actions(self):
-        return [tool(_("Add…"), "list-add", self.add), tool(_("Edit…"), "document-edit", self.edit),
-                tool(_("Remove"), "list-remove", self.remove),
-                tool(_("Check now"), "view-refresh", lambda: self.check_all(force=True))]
+        return [self.h_add, self.h_edit, self.h_remove, self.h_check]
+
+    def _update_header(self):
+        """Edit… and Stop following… name the selected program (they act on it), or wait for one."""
+        name = self._current_name()
+        s = self._current()
+        short = short_name(name)
+        if s is not None:
+            self.h_edit.setText(_("Edit {name}…").format(name=short) if short else _("Edit the selected one…"))
+            self.h_edit.setToolTip(_("Change where {name} is published and the folder its new versions go to.")
+                                   .format(name=name))
+            if s.get("type") == "manual":  # not followed already: what goes is what you wrote about it
+                self.h_remove.setText(_("Forget {name}…").format(name=short) if short
+                                      else _("Forget the selected one…"))
+                self.h_remove.setToolTip(_("Zypp Desk forgets what you wrote about {name} (not followed, its note), "
+                                           "after a question. Nothing is uninstalled.").format(name=name))
+            else:
+                self.h_remove.setText(_("Stop following {name}…").format(name=short) if short
+                                      else _("Stop following the selected one…"))
+                self.h_remove.setToolTip(_("Zypp Desk stops looking for new versions of {name}, after a question. "
+                                           "Nothing is uninstalled.").format(name=name))
+        else:
+            self.h_edit.setText(_("Edit…"))
+            self.h_remove.setText(_("Stop following…"))
+            tip = (_("{name} is not followed yet: follow it with the button under the list.").format(name=name)
+                   if name else _("Choose a program in the list first."))
+            self.h_edit.setToolTip(tip)
+            self.h_remove.setToolTip(tip)
+        self.h_edit.setEnabled(s is not None)
+        self.h_remove.setEnabled(s is not None)
 
     def reload(self):
         self.sources = websources.load()
@@ -533,7 +610,7 @@ class WebSourcesPage(Page):
             websources.save(self.sources)
         if not self._repo_of(short) and question.confirm(
                 self, _("Add {folder} as a zypper repository?").format(folder=short), _("Add it to the queue"),
-                window_title=self.title, icon_name="folder",
+                buttons=queue_buttons(_("Add it to the queue")), window_title=self.title, icon_name="folder",
                 items=[("folder", pgettext("change", "Add the repository “{name}”").format(
                     name=_("Programs from the web")), "dir:" + d)],
                 means=_("zypper sees every RPM you keep there, and you can install them by name. Nothing changes "
@@ -605,7 +682,7 @@ class WebSourcesPage(Page):
         if self.tree.columnWidth(1) > 240:  # a long error stays in the tooltip
             self.tree.setColumnWidth(1, 240)
         if not rows:
-            empty = QTreeWidgetItem(self.tree, [_("No program from the web yet. Use “Add…”.")])
+            empty = QTreeWidgetItem(self.tree, [_("No program from the web yet. Use “Follow a program…”.")])
             empty.setFirstColumnSpanned(True)
             empty.setFlags(Qt.ItemFlag.NoItemFlags)
         elif self.tree.currentItem() is None:
@@ -648,9 +725,15 @@ class WebSourcesPage(Page):
         name = item.data(0, Qt.ItemDataRole.UserRole + 1) if item else None
         s = item.data(0, Qt.ItemDataRole.UserRole) if item else None
         self.follow_btn.setVisible(bool(name) and s is None)
+        self._update_header()
+        if name and s is None:
+            short = short_name(name)
+            self.follow_btn.setText(_("Follow {name}…").format(name=short) if short else _("Follow it…"))
+            self.follow_btn.setToolTip(_("Say where {name} is published, so that Zypp Desk looks for its new "
+                                         "versions. Nothing is downloaded or installed now.").format(name=name))
         if not name:
             self.details.setHtml("")
-            self.get_btn.setEnabled(False)
+            self._update_get_btn()
             return
         e = html.escape
         if s is None:
@@ -658,9 +741,10 @@ class WebSourcesPage(Page):
             self.details.setHtml(
                 f"<h3>{e(name)}</h3><p>" + e(_("Installed from {folder}. Zypp Desk does not know yet where it is "
                                                "published.").format(folder=home_short(folder))) + "</p><p>"
-                + e(_("Use “Follow it…” to say where (GitHub, a fixed address or a download page), or choose “Do "
-                      "not follow it” there if it does not come from the web.")) + "</p>")
-            self.get_btn.setEnabled(False)
+                + e(_("Use “{button}” to say where (GitHub, a fixed address or a download page), or choose “Do "
+                      "not follow it” there if it does not come from the web.").format(
+                    button=self.follow_btn.text())) + "</p>")
+            self._update_get_btn()
             return
         f = self.found.get(name, {})
         kind = s.get("type", "github")
@@ -701,8 +785,6 @@ class WebSourcesPage(Page):
         self.details.setHtml(f"<h3>{e(name)}</h3><table>" + "".join(
             f"<tr><td style='color:gray;padding-right:12px'>{k}</td><td>{v}</td></tr>" for k, v in rows if v)
             + "</table>" + advanced)
-        self.get_btn.setText(_("Download it to see the version") if f.get("newer") is None and f.get("changed")
-                             else _("Download, verify and add to the queue"))
         self._update_get_btn()
 
     def _worth_downloading(self, s, f):
@@ -712,15 +794,68 @@ class WebSourcesPage(Page):
             return False
         return self.counts_as_new(f) or not f.get("installed")
 
+    def _in_queue(self, name):
+        queue = getattr(self.ctx, "queue", None)
+        return bool(name) and queue is not None and any(
+            a.kind == "install" and a.opts.get("package") == name for a in queue.actions)
+
     def _update_get_btn(self):
+        """The button under the list says which program and version it puts in the queue (it downloads and checks
+        the file first), and what is happening to it."""
         s = self._current()
+        name = s["package"] if s else self._current_name()
         f = self.found.get(s["package"], {}) if s else {}
         worth = self._worth_downloading(s, f)
-        self.get_btn.setEnabled(worth and not self.ctx.runner.busy and not self.downloading)
-        if s and f and not f.get("error") and f.get("url") and not worth:
-            self.get_btn.setToolTip(_("You already have the latest version."))
+        unknown = bool(f) and f.get("newer") is None and bool(f.get("changed"))
+        short = short_name(name)
+        short_v = short_name(name, f.get("version") if not unknown else None)
+        if name and self.downloading and self._dl_current == name:
+            text = _("Downloading {name}").format(name=short_v) if short_v else _("Downloading it")
+            tip = _("Zypp Desk is downloading and checking the file. The terminal below shows how it goes.")
+        elif self._in_queue(name):
+            text = _("{name} is in the queue ✓").format(name=short) if short else _("In the queue ✓")
+            tip = _("The new version of {name} waits in the queue: review, simulate and apply the queue at the "
+                    "bottom of the window.").format(name=name)
+            worth = False
+        elif unknown:
+            text = _("Download {name} to see its version").format(name=short) if short else \
+                _("Download it to see its version")
+            tip = _("The address does not say the version, and the file changed since last time. Zypp Desk downloads "
+                    "it ({size}) and reads its version: if it is not the one you have, it checks it and puts it in "
+                    "the queue; if it is, the file is deleted.").format(size=fmt_size(f.get("size")) if f.get("size")
+                                                                       else "?")
         else:
-            self.get_btn.setToolTip("")
+            # what it would do; when there is nothing to do, a disabled button that says why (the state)
+            text = _("Put {name} in the queue").format(name=short_v) if short_v else _("Put it in the queue")
+            if s and s.get("type") == "manual":
+                text = _("{name} is not followed").format(name=short) if short else text
+                tip = _("Zypp Desk does not follow {name}: it does not look for its new versions.").format(name=name)
+            elif f.get("error"):
+                text = _("{name} could not be checked").format(name=short) if short else text
+                tip = _("Zypp Desk could not check it: {error}").format(error=f["error"])
+            elif s and not f:
+                text = _("Checking {name}").format(name=short) if short else text
+                tip = _("Zypp Desk is looking for its latest version.")
+            elif s and f and not f.get("url"):
+                text = _("No file found for {name}").format(name=short) if short else text
+                tip = _("No file of its latest release matches. Check where it is published (Edit…).")
+            elif s and f and not worth:
+                text = _("{name} is up to date").format(name=short) if short else text
+                tip = _("You already have the latest version.")
+            elif worth:
+                tip = _("Downloads {file} ({size}) from {where}, checks its SHA-256 and its signature, and puts it in "
+                        "the queue. Nothing is installed until you apply the queue.").format(
+                    file=f.get("asset") or name, size=fmt_size(f.get("size")) if f.get("size") else "?",
+                    where=websources.origin_text(s))
+            else:
+                tip = _("Choose a program that has a new version.")
+            if worth and self.downloading and self._dl_current:
+                tip = _("Wait until the download of {other} ends.").format(other=self._dl_current)
+        # a program that is not followed yet has “Follow it…” in its place
+        self.get_btn.setVisible(not (name and s is None))
+        self.get_btn.setText(text)
+        self.get_btn.setToolTip(tip)
+        self.get_btn.setEnabled(worth and not self.ctx.runner.busy and not self.downloading)
 
     # ------------------------------------------------------------ checking
     def check_all(self, force=False):
@@ -789,8 +924,11 @@ class WebSourcesPage(Page):
 
     def remove(self):
         s = self._current()
-        if s and ask(self, _("Remove"), _("Stop looking for new versions of {name}? Nothing is uninstalled.")
-                     .format(name=s["package"])):
+        if s and s.get("type") == "manual":
+            title, text = _("Forget"), _("Forget what you wrote about {name}? Nothing is uninstalled.")
+        else:
+            title, text = _("Stop following"), _("Stop looking for new versions of {name}? Nothing is uninstalled.")
+        if s and ask(self, title, text.format(name=s["package"])):
             self.sources = [x for x in self.sources if x["package"] != s["package"]]
             websources.save(self.sources)
             self._fill()
@@ -891,7 +1029,7 @@ class WebSourcesPage(Page):
         s = self._dl_queue.pop(0)
         self.downloading = True
         self._dl_current = s["package"]
-        self.get_btn.setEnabled(False)
+        self._update_get_btn()  # "Downloading …", disabled
         f = self.found.get(s["package"]) or {}
         if f.get("url"):
             self._start_download(s, f)
@@ -978,6 +1116,7 @@ class WebSourcesPage(Page):
             if not question.confirm(
                     self, _("{name} {version} is signed with a different key").format(
                         name=s["package"], version=res["version"]), _("Add it to the queue anyway"),
+                    buttons=queue_buttons(_("Add it to the queue anyway")),
                     window_title=_("A different signing key"), icon_name="security-low|dialog-warning",
                     items=[(RPM_ICON, "{name} {version}".format(name=s["package"], version=res["version"]),
                             _("Signed now with the key {new}; until now it came signed with {old}.").format(
@@ -1044,7 +1183,8 @@ class WebSourcesPage(Page):
         """The question before a file without a signature goes to the queue (when no bridge question says it)."""
         return question.confirm(
             self, _("{name} {version} is not signed").format(name=s["package"], version=pending["version"]),
-            _("Add it to the queue anyway"), window_title=_("Package not verified by rpm"),
+            _("Add it to the queue anyway"), buttons=queue_buttons(_("Add it to the queue anyway")),
+            window_title=_("Package not verified by rpm"),
             icon_name="security-low|dialog-warning",
             items=[(RPM_ICON, "{name} {version}".format(name=s["package"], version=pending["version"]),
                     _("From {where}.").format(where=websources.origin_text(s)))],

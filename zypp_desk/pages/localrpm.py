@@ -36,7 +36,7 @@ from ..txqueue import Action, TxQueue
 from ..ui import button, error_box, heading, hline, icon, info_box, mono, muted
 from . import bridges as bridgeui
 from .repotools import personal_project_question
-from .websources import fmt_size, home_short, local_state
+from .websources import fmt_size, home_short, local_state, short_name
 
 GREY = "#7f8c8d"
 RPM_ICON = bridgeui.RPM_ICON
@@ -312,10 +312,11 @@ class LocalRpmDialog(QDialog):
         self.summary = muted("", self)
         bottom.addWidget(self.summary, 1)
         self.b_cancel = button(_("Cancel"), "dialog-cancel", self.reject)
-        self.b_sim = button(_("Simulate"), "media-playback-start", lambda: self.add_to_queue(simulate=True))
-        self.b_add = button(_("Add all to the queue") if self.multi else _("Add to the queue"), "list-add",
-                            lambda: self.add_to_queue(), primary=True)
-        self.b_add.setDefault(True)
+        # both buttons only put the files in the queue (nothing is installed here): never the green one
+        self.b_sim = button(_("Put it in the queue and simulate"), "media-playback-start",
+                            lambda: self.add_to_queue(simulate=True))
+        self.b_add = button(_("Put it in the queue"), "list-add", lambda: self.add_to_queue())
+        self.b_add.setDefault(True)  # Enter only puts it in the queue (and a file that needs it asks first)
         for b in (self.b_cancel, self.b_sim, self.b_add):
             bottom.addWidget(b)
         lay.addLayout(bottom)
@@ -545,10 +546,9 @@ class LocalRpmDialog(QDialog):
         self.b_add.setEnabled(ok)
         self.b_sim.setEnabled(ok)
         self.b_cancel.setText(_("Cancel") if ready or reading else _("Close"))
+        self.b_cancel.setToolTip(_("Close this window: nothing goes to the queue."))
+        self._label_buttons(ready)
         if self.multi:
-            n = len(ready)
-            self.b_add.setText(_("Add all to the queue") if not n or n == len(self.items) else
-                               ngettext("Add the {n} that can go", "Add the {n} that can go", n).format(n=n))
             if reading:
                 self.summary.setText(_("Reading the files…"))
             else:
@@ -556,6 +556,45 @@ class LocalRpmDialog(QDialog):
                                               "{n} of {total} files can go to the queue.", len(self.items))
                                      .format(n=len(ready), total=len(self.items)))
         self._update_copy()
+
+    def _asks_first(self, targets):
+        """Whether putting these files in the queue asks a question first (as add_to_queue does): a bridge, a file
+        without a signature, or (several files) an older version."""
+        for it in targets:
+            info = it.get("info") or {}
+            if (it.get("plan") or {}).get("needs_bridge") or info.get("signature") == "unsigned":
+                return True
+            if self.multi and info.get("compare") == "older":
+                return True
+        return False
+
+    def _label_buttons(self, ready):
+        """The two buttons say which file (by name) or how many go to the queue, and "…" when a question comes
+        first."""
+        dots = "…" if self._asks_first(ready) else ""
+        n = len(ready)
+        if self.multi:
+            if n and n == len(self.items):
+                add = ngettext("Put the file in the queue", "Put all {n} in the queue", n).format(n=n)
+            elif n:
+                add = ngettext("Put the {n} that can go in the queue", "Put the {n} that can go in the queue",
+                               n).format(n=n)
+            else:
+                add = _("Put them in the queue")
+            sim = ngettext("Put the file in the queue and simulate", "Put them in the queue and simulate", n)
+            what = ngettext("{n} file", "{n} files", n).format(n=n)
+        else:
+            info = (ready[0].get("info") if ready else None) or (self.current() or {}).get("info") or {}
+            short = short_name(info.get("name") or "")
+            add = _("Put {name} in the queue").format(name=short) if short else _("Put it in the queue")
+            sim = _("Put it in the queue and simulate")
+            what = info.get("name") or _("the file")
+        self.b_add.setText(add + dots)
+        self.b_sim.setText(sim + dots)
+        self.b_add.setToolTip(_("Puts {what} in the queue: a private copy of the file, with its checksum. Nothing is "
+                                "installed until you apply the queue.").format(what=what))
+        self.b_sim.setToolTip(_("Puts {what} in the queue and simulates the whole queue at once (zypper --dry-run): "
+                                "it shows what zypper would do, and nothing is installed.").format(what=what))
 
     def add_to_queue(self, simulate=False):
         targets = self._queueable()
@@ -659,9 +698,10 @@ class LocalRpmDialog(QDialog):
                      _("{name} {version} is older than yours").format(name=i["name"], version=i["evr"]))
         else:
             title = ngettext("{n} file needs your OK", "{n} files need your OK", len(files)).format(n=len(files))
+        yes = _("Add it to the queue anyway") if len(files) == 1 else _("Add them to the queue anyway")
         return question.confirm(
-            self, title, _("Add it to the queue anyway") if len(files) == 1 else _("Add them to the queue anyway"),
-            window_title=self.windowTitle(), icon_name="security-low|dialog-warning", items=items,
+            self, title, yes, buttons=bridgeui.queue_buttons(yes), window_title=self.windowTitle(),
+            icon_name="security-low|dialog-warning", items=items,
             means=_("it only goes to the queue: nothing is installed until you apply it."),
             warning="\n\n".join(warnings), password=False, help_topic="web")
 
@@ -1010,7 +1050,8 @@ class LocalRpmDialog(QDialog):
         sig = info["signature"] if info["compare"] != "same" else ""
         key8 = (info["keyid"] or sig[6:])[-8:].upper()
         if sig.startswith("nokey:"):
-            again = button(_("Check again"), "view-refresh", lambda: self.check_again(it))
+            again = button(_("Check the signature again"), "view-refresh", lambda: self.check_again(it))
+            again.setToolTip(_("Ask rpm again whether it knows the key that signed this file (after you import it)."))
             again.setEnabled(not it["busy"])
             if it["key_queued"]:
                 notes.append(_Note(ORANGE, "security-medium|dialog-warning", _("The key is in the queue"), _(
@@ -1025,8 +1066,7 @@ class LocalRpmDialog(QDialog):
                 elif obs and chk.get("key_matches"):
                     text += " " + _("The project {project} publishes this key in its repository.").format(
                         project=obs["project"])
-                    buttons.append(button(_("Import the key of {project}…").format(project=obs["project"]),
-                                          "document-import", lambda: self.import_key(it)))
+                    buttons.append(self._import_button(it))
                 elif obs and chk.get("key_matches") is False:
                     text += " " + _("The key that {project} publishes now ({fpr}) is not the one that signed this "
                                     "file. The project may have changed its key: download the file again from its "
@@ -1034,11 +1074,11 @@ class LocalRpmDialog(QDialog):
                 elif obs and chk.get("exists") and chk.get("key_error"):
                     text += " " + _("The key of {project} could not be read ({error}).").format(
                         project=obs["project"], error=chk["key_error"])
-                    buttons.append(button(_("Import the key of {project}…").format(project=obs["project"]),
-                                          "document-import", lambda: self.import_key(it)))
+                    buttons.append(self._import_button(it))
                 else:
                     text += " " + _("Get the key from the official web site of whoever made it, check its fingerprint "
-                                    "there and import it (Signing keys → Import a key…). Then press Check again.")
+                                    "there and import it (Signing keys → Import a key…). Then press “Check the "
+                                    "signature again”.")
                     if bridge.system_of(info)[0] == "fedora":
                         text += " " + _("Fedora publishes its keys, with their fingerprints, at {url}.").format(
                             url="https://fedoraproject.org/security/")
@@ -1093,4 +1133,16 @@ class LocalRpmDialog(QDialog):
                  "routine keeps it up to date.")
         if project.startswith("home:"):
             text += " " + _("It is the personal project of one person: nobody else reviews it.")
-        return [_Note(BLUE, "", "", text, [button(_("Add the repository"), "list-add", lambda: self.add_repo(it))])]
+        add = button(_("Put the repository in the queue…") if project.startswith("home:") else
+                     _("Put the repository in the queue"), "list-add", lambda: self.add_repo(it))
+        add.setToolTip(_("Adds the repository of {project} ({url}) to the queue. After you apply the queue, the "
+                         "routine keeps this program up to date.").format(project=project, url=obs["url"]))
+        return [_Note(BLUE, "", "", text, [add])]
+
+    def _import_button(self, it):
+        obs = it["obs"]
+        b = button(_("Import the key of {project}…").format(project=obs["project"]), "document-import",
+                   lambda: self.import_key(it))
+        b.setToolTip(_("Opens the window to import the key that {project} publishes ({url}), where you compare its "
+                       "fingerprint before it is trusted.").format(project=obs["project"], url=obs["key_url"]))
+        return b

@@ -8,8 +8,8 @@ und aktualisiert. Alles, was Zypp Desk tut, erledigt es mit zypper, und es zeigt
 <p>Drei Ideen sorgen dafür, dass die Benutzung sicher ist:</p>
 <ul>
 <li><b>Nichts ändert sich, bevor du es anwendest.</b> Was du auswählst, kommt in die <b>Warteschlange</b> unten im
-Fenster. Du kannst sie dir ansehen (<b>Überprüfen</b>), ausprobieren (<b>Simulieren</b>) und erst dann wirklich
-ausführen (<b>Anwenden</b>).</li>
+Fenster. Du kannst sie dir ansehen (<b>Warteschlange überprüfen …</b>), ausprobieren (<b>Warteschlange
+simulieren</b>) und erst dann wirklich ausführen (<b>Warteschlange anwenden …</b>).</li>
 <li><b>Jede Frage sagt in einfachen Worten, was passieren wird</b>, was das für dich bedeutet, und darunter den
 genauen Befehl. Die Eingabetaste startet nie eine Änderung: Du musst die Schaltfläche wählen, die sie ausführt.</li>
 <li><b>Du siehst immer, was zypper sagt.</b> Das Terminal unten (<b>Terminal anzeigen</b>, in der Seitenleiste)
@@ -27,21 +27,27 @@ Aktualisierungen gibt, wie es um deine Paketquellen steht und was du dir ansehen
 <p>Ein Paket installieren, entfernen oder sperren, eine Paketquelle hinzufügen oder einen Schlüssel importieren:
 Jede dieser Aktionen ist eine <b>Änderung</b> und wartet in der Warteschlange, bis du sie anwendest. Die Leiste
 unten zeigt, wie viele es sind und welche Befehle sie ausführen werden.</p>
+<p>Die Farbe einer Schaltfläche sagt dir, was sie tut. Eine grüne Schaltfläche ändert den Computer sofort, immer
+nach einer Frage; eine Schaltfläche, die nur etwas in die Warteschlange stellt, ist nie grün, und vor ihr steht
+<b>In die Warteschlange:</b>, oder ihre Beschriftung sagt es selbst. Nichts in der Warteschlange ändert den
+Computer, bevor du <b>Warteschlange anwenden …</b> drückst.</p>
 <ul>
-<li><b>Überprüfen</b> listet die Änderungen in Worten auf, in der Reihenfolge, in der sie ausgeführt werden. Jede
-hat eine eigene Schaltfläche, um sie aus der Warteschlange zu nehmen. Wenn eine Änderung eine andere braucht (ein
-Programm braucht die Paketquelle, aus der es kommt, und die Paketquelle braucht ihren Schlüssel), steht das in der
-Liste, und Zypp Desk fragt nach, bevor du etwas herausnimmst, das andere brauchen.</li>
-<li><b>Simulieren</b> fragt zypper, was es wirklich tun würde, ohne etwas zu ändern: was es sonst noch installieren
-oder entfernen würde, wie viel es herunterladen würde und ob es ein Problem gibt. Wenn ja, kannst du eine Lösung
-wählen, die in einfachen Worten beschrieben ist.</li>
-<li><b>Anwenden</b> zeigt die Änderungen noch einmal und führt sie aus. Wenn ein Schritt fehlschlägt, hält Zypp Desk
-dort an: Was erledigt ist, bleibt erledigt, und der Rest bleibt in der Warteschlange, damit du es noch einmal
-versuchen kannst.</li>
-<li><b>Leeren</b> leert die Warteschlange. Es macht nichts rückgängig, denn noch hat sich nichts geändert.</li>
+<li><b>Warteschlange überprüfen …</b> listet die Änderungen in Worten auf, in der Reihenfolge, in der sie
+ausgeführt werden. Jede hat eine eigene Schaltfläche, um sie aus der Warteschlange zu nehmen. Wenn eine Änderung
+eine andere braucht (ein Programm braucht die Paketquelle, aus der es kommt, und die Paketquelle braucht ihren
+Schlüssel), steht das in der Liste, und Zypp Desk fragt nach, bevor du etwas herausnimmst, das andere
+brauchen.</li>
+<li><b>Warteschlange simulieren</b> fragt zypper, was es wirklich tun würde, ohne etwas zu ändern: was es sonst
+noch installieren oder entfernen würde, wie viel es herunterladen würde und ob es ein Problem gibt. Wenn ja, kannst
+du eine Lösung wählen, die in einfachen Worten beschrieben ist.</li>
+<li><b>Warteschlange anwenden …</b> zeigt die Änderungen noch einmal und führt sie aus. Wenn ein Schritt
+fehlschlägt, hält Zypp Desk dort an: Was erledigt ist, bleibt erledigt, und der Rest bleibt in der Warteschlange,
+damit du es noch einmal versuchen kannst.</li>
+<li><b>Warteschlange leeren</b> nimmt alle Änderungen aus der Warteschlange. Es macht nichts rückgängig, denn noch
+hat sich nichts geändert.</li>
 </ul>
-<p><b>Simulieren</b> probiert nur die Änderungen an Paketen aus: Änderungen an Paketquellen, Sperren, Sprachen und
-Flatpak-Apps haben keinen Probelauf und werden erst ausgeführt, wenn du sie anwendest.</p>
+<p><b>Warteschlange simulieren</b> probiert nur die Änderungen an Paketen aus: Änderungen an Paketquellen, Sperren,
+Sprachen und Flatpak-Apps haben keinen Probelauf und werden erst ausgeführt, wenn du sie anwendest.</p>
 
 <!-- topic: update | Das System aktuell halten -->
 <h2>Das System aktuell halten</h2>
@@ -49,18 +55,28 @@ Flatpak-Apps haben keinen Probelauf und werden erst ausgeführt, wenn du sie anw
 <a href="page:updates">Aktualisierungen</a> findest du:</p>
 <ul>
 <li><b>Deine Routine</b>: die Schritte, die du zum Aktualisieren normalerweise ausführst, zum Beispiel die
-Paketquellen neu laden, die Aktualisierungen herunterladen und sie dann installieren. <b>Routine ausführen</b>
-führt sie nacheinander aus und zeigt jeden Schritt. <b>Routine bearbeiten …</b> ändert sie mit Schaltflächen oder
-als Text, so wie du sie in einem Terminal eingeben würdest.</li>
+Paketquellen neu laden, die Aktualisierungen herunterladen und sie dann installieren.
+<b>Alles aktualisieren …</b> mit der Anzahl der Aktualisierungen (zum Beispiel <b>Alles aktualisieren (97) …</b>)
+führt sie nacheinander aus und zeigt jeden Schritt. Während sie läuft, lässt <b>Nach diesem Schritt anhalten</b>
+den laufenden Schritt zu Ende laufen und führt keinen weiteren aus: Die Schaltfläche zeigt dann <b>Hält nach diesem
+Schritt an</b>, und das Terminal sagt dir, was nicht mehr ausgeführt wird. <b>Routine bearbeiten …</b> ändert die
+Routine mit Schaltflächen oder als Text, so wie du sie in einem Terminal eingeben würdest.</li>
 <li><b>Was es zu aktualisieren gibt</b>: Pakete aus den Paketquellen, Flatpak-Apps, Programme aus dem Web und
 Firmware, mit einem Kästchen, um jedes einzeln anzuhaken. <b>Alle markieren</b> und <b>Alle abwählen</b> unter
-der Liste haken alle auf einmal an oder ab. Die Karte rechts erklärt dir das Paket, das du auswählst.</li>
+der Liste haken alle auf einmal an oder ab. Die Karte rechts erklärt dir das Paket, das du auswählst. Die
+Schaltflächen unter der Liste wirken nur auf das, was du angehakt hast, und ihre Beschriftung sagt es: zum
+Beispiel <b>Nur digikam simulieren</b> oder <b>digikam in die Warteschlange stellen</b>.</li>
 <li>Die Liste zeigt, was der Computer beim letzten Neuladen der Paketquellen erfahren hat: <b>Erneut suchen</b>
 liest sie noch einmal. <b>Paketquellen neu laden</b> fragt zuerst jede Paketquelle, was es Neues gibt (mit dem
 Administratorpasswort), und sucht dann erneut.</li>
-<li><b>dup simulieren …</b>: die vollständige Systemaktualisierung von Tumbleweed (<code>zypper dup</code>) in
-einem eigenen Fenster, mit ihren Optionen.</li>
+<li><b>Vollständige Aktualisierung simulieren …</b>: die vollständige Systemaktualisierung von Tumbleweed
+(<code>zypper dup</code>) in einem eigenen Fenster, mit ihren Optionen.</li>
 </ul>
+<p>Deine Routine aktualisiert das ganze System: Auf die Haken achtet sie nicht. Wenn du also einige Zeilen
+angehakt und andere nicht angehakt hast, fragt <b>Alles aktualisieren …</b> zuerst <b>Das ganze System
+aktualisieren?</b> Dort ändert <b>Noch nicht</b> nichts; die Schaltfläche mit dem Namen dessen, was du angehakt
+hast, etwa <b>Nur digikam</b>, stellt nur das in die Warteschlange und fragt dich, bevor es angewendet wird; und
+<b>Ja, alles aktualisieren</b> führt die Routine aus.</p>
 <h3>Vorgeschlagene Routinen</h3>
 <p>Beim Bearbeiten der Routine zeigt <b>Vorgeschlagene Routinen …</b> einige fertige Routinen, jede mit dem, was
 sie tut, warum, und der Zeile, die sie in einem Terminal wäre. Die erste ist für diesen Computer gemacht: Außer dem
@@ -68,12 +84,13 @@ System aktualisiert sie die Flatpak-Apps, falls du welche hast, und die Firmware
 entfernt alte Kernel und heruntergeladene Pakete, wenn auf der Festplatte wenig Platz ist, und sagt dir am Ende,
 welche Programme neu gestartet werden müssen. Die anderen sind die übliche (alles herunterladen und nur
 installieren, wenn alles heruntergeladen wurde), eine, die nur herunterlädt, und eine schnelle. Die gewählte kommt
-in den Editor, wo du sie noch ändern kannst; gespeichert wird erst, wenn du <b>Speichern</b> drückst.</p>
+in den Editor, wo du sie noch ändern kannst; gespeichert wird erst, wenn du <b>Routine speichern</b> drückst.</p>
 <h3>Eine große Aktualisierung</h3>
 <p>Wenn eine Aktualisierung groß ist oder das neue Tumbleweed vor weniger als einem Tag erschienen ist, fragt dich
 Zypp Desk, ob es sich lohnt zu warten. Es sagt dir, wie groß sie ist, wie neu die Version ist und ob der Computer
-mit Akku läuft. Du kannst jetzt aktualisieren, <b>sie jetzt nur herunterladen</b> (später geht das Installieren
-viel schneller) oder <b>dich morgen erinnern lassen</b>: Das Symbol neben der Uhr sagt dir dann Bescheid.</p>
+mit Akku läuft. Du kannst jetzt aktualisieren (<b>Jetzt alles aktualisieren</b>), <b>Nur die Aktualisierung
+herunterladen</b> wählen (später geht das Installieren viel schneller) oder <b>Morgen erinnern</b>: Das Symbol
+neben der Uhr sagt dir dann Bescheid.</p>
 <h3>Wenig Platz auf der Festplatte</h3>
 <p>Wenn die Aktualisierung nicht mit genug Reserve auf die Festplatte passt, bietet Zypp Desk an, zuerst Platz
 freizumachen (aufbewahrte Pakete von früheren Downloads, alte Kernel) und <b>in Etappen</b> zu aktualisieren.
@@ -113,10 +130,12 @@ verschieben.</li>
 <p>Wenn das Programm nicht in deinen Paketquellen ist, sucht <b>Online suchen …</b> im openSUSE Build Service, in
 Fedora COPR und auf Flathub danach und erklärt, wie sehr du jeder Quelle vertrauen kannst.</p>
 <h3>Eine App schützen</h3>
-<p><b>Schützen</b> auf der Karte einer Anwendung unter Anwendungen ist für ein Programm, das du nie versehentlich
-verlieren willst: Solange es geschützt ist, weigert sich die Warteschlange, es zu entfernen, egal von welcher Seite
-aus. Sonst ändert sich nichts, und Aktualisierungen kommen weiterhin. <b>Nicht mehr schützen</b> nimmt die
-Markierung wieder weg.</p>
+<p>Die Schaltflächen einer Karte unter Anwendungen nennen den Namen des Programms, wenn er hineinpasst, zum
+Beispiel <b>digikam schützen …</b>; sonst steht dort <b>Schützen …</b>, die Form, die diese Hilfe verwendet.</p>
+<p><b>Schützen …</b> auf der Karte einer Anwendung unter Anwendungen ist für ein Programm, das du nie versehentlich
+verlieren willst: Zypp Desk fragt zuerst, und solange das Programm geschützt ist, weigert sich die Warteschlange,
+es zu entfernen, egal von welcher Seite aus. Sonst ändert sich nichts, und Aktualisierungen kommen weiterhin.
+<b>Schutz aufheben</b> nimmt die Markierung wieder weg.</p>
 <p>Eine Flatpak-App kann aus ihrer Flatpak-Quelle verschwinden, wenn niemand sie mehr pflegt oder verteilt.
 <b>Kopie speichern …</b> speichert die installierte App als eine einzige <code>.flatpak</code>-Datei
 (<code>flatpak build-bundle</code>), damit du sie aus dieser Datei wieder installieren kannst, auch wenn die
@@ -148,7 +167,7 @@ funktioniert.</li>
 <li>Die alte Version bleibt als <code>.old</code>-Datei daneben, bis die neue einmal aus Zypp Desk heraus
 geöffnet wurde; dann kommt sie in den Papierkorb. Bis dahin holt <b>Zur vorherigen Version zurück …</b> die alte
 wieder.</li>
-<li><b>Schützen</b> funktioniert wie bei jeder anderen App, und <b>Entfernen …</b> verschiebt die Datei, ihre
+<li><b>Schützen …</b> funktioniert wie bei jeder anderen App, und <b>Entfernen …</b> verschiebt die Datei, ihre
 alte Version, ihren Menüeintrag und ihre Symbole in den Papierkorb. Ihre Einstellungen und Daten in deinem
 persönlichen Ordner bleiben.</li>
 <li><b>AppImage hinzufügen …</b> oben auf der Seite nimmt eine heruntergeladene Datei, verschiebt oder kopiert
@@ -202,7 +221,7 @@ und Rechtschreibprüfungen), und zypper installiert sie nur für die Sprachen, u
 Computer auf eine Sprache eingestellt, um die zypper nie gebeten wurde, kommen diese Pakete nie, und Teile deiner
 Programme erscheinen auf Englisch. In diesem Fall sagt dir das die Seite <a href="page:home">Start</a> und bietet
 an, die Sprache des Computers mit einer Schaltfläche hinzuzufügen: Sie kommt in die Warteschlange.</p>
-<p><a href="page:locales">Sprachen</a> enthält alle Sprachen, die zypper kennt. <b>Deine</b> zeigt die, um die
+<p><a href="page:locales">Sprachen</a> enthält alle Sprachen, die zypper kennt. <b>Vorhandene</b> zeigt die, um die
 zypper gebeten wurde, <b>Alle</b> zeigt alle, und das Suchfeld findet eine Sprache über ihren Namen oder ihren
 Code. Hake eine Sprache an, um sie hinzuzufügen, oder nimm den Haken weg, um sie zu entfernen: Die Änderung kommt
 in die Warteschlange (<code>zypper addlocale</code> oder <code>removelocale</code>), und nichts passiert, bevor du
@@ -228,11 +247,13 @@ betrifft, und lässt dich sie aufheben. Sperren und Entsperren kommen in die War
 <li><b>Paket sperren …</b> sucht nach Paketen: Hake mehrere an und sperre sie auf einmal. Ein Name mit
 Platzhaltern wie <code>vlc-*</code> sperrt jedes Paket, dessen Name darauf passt, auch die, die später
 dazukommen.</li>
-<li><b>Unnötige Sperren entfernen</b> entfernt die Sperren, auf die kein Paket mehr passt.</li>
+<li><b>Unnötige Sperren entfernen …</b> entfernt nach einer Frage die Sperren, auf die kein Paket mehr
+passt.</li>
 <li>Wenn du dich entscheidest, den Rest zu aktualisieren und einige Pakete so zu lassen, wie sie sind (siehe
 „Wenn etwas schiefgeht“), sperrt Zypp Desk sie. Diese Sperren sind als vorübergehend markiert, mit ihrem Datum. Ein
 Streifen oben sagt dir, wann ihre Paketquelle wieder etwas veröffentlicht hat, sodass du sie wahrscheinlich
-entsperren kannst, und <b>Entsperren</b> entsperrt sie alle auf einmal.</li>
+entsperren kannst, und seine Schaltfläche (zum Beispiel <b>Die 3 Entsperrungen in die Warteschlange
+stellen</b>) stellt das Entsperren von allen auf einmal in die Warteschlange.</li>
 </ul>
 
 <!-- topic: move | Auf einen anderen Computer umziehen -->
@@ -267,12 +288,13 @@ sind) und Pakete aus einem lokalen Ordner, dem „Programme aus dem Web“ nicht
 </ul>
 <h3>Auf dem anderen Computer</h3>
 <p>Kopiere die Datei auf den anderen Computer und doppelklicke sie: Sie öffnet sich mit Zypp Desk. Du kannst auch
-an denselben Stellen <b>Aus einer Datei importieren …</b> wählen. Zypp Desk vergleicht die Datei mit diesem Computer und
-zeigt, was es tun würde: die Paketquellen, die es hinzufügen würde, mit ihren Schlüsseln und Fingerabdrücken, die
-Pakete und Flatpak-Apps, die es installieren würde, die Sperren und Sprachen, die es hinzufügen würde, und wie
-viel schon da ist. <b>Auswählen …</b> lässt dich einiges abwählen. Mit <b>In die Warteschlange stellen</b> kommt
-dann alles in die Warteschlange, wo du es überprüfst, simulierst und anwendest wie jede andere Änderung. Bevor du sie anwendest,
-ändert sich nichts.</p>
+an denselben Stellen <b>Datei eines anderen Computers öffnen …</b> wählen. Zypp Desk vergleicht die Datei mit
+diesem Computer und zeigt, was es tun würde: die Paketquellen, die es hinzufügen würde, mit ihren Schlüsseln und
+Fingerabdrücken, die Pakete und Flatpak-Apps, die es installieren würde, die Sperren und Sprachen, die es
+hinzufügen würde, und wie viel schon da ist. <b>Paketquellen auswählen …</b>, <b>Pakete auswählen …</b> und
+<b>Apps auswählen …</b> lassen dich einiges abwählen. Mit der Schaltfläche, die sagt, wie viele Änderungen es sind,
+zum Beispiel <b>Die 312 Änderungen in die Warteschlange stellen</b>, kommt dann alles in die Warteschlange, wo du
+es überprüfst, simulierst und anwendest wie jede andere Änderung. Bevor du sie anwendest, ändert sich nichts.</p>
 <ul>
 <li>Deine Routine, die Einstellungen von zypper (<code>zypp.conf</code>), die geschützten Apps und die Programme
 aus dem Web ändern sich nur, wenn du es sagst. Bevor etwas in die Warteschlange kommt, zeigt eine Frage jedes
@@ -301,7 +323,7 @@ alles in der Datei und lässt weg, was die Prüfung nicht besteht, bevor es dir 
 und sagt dir, was einen Blick wert ist, das Wichtigste zuerst. Jeder Fund hat einen Satz, der ihn erklärt, und
 unter <b>Details</b> die Namen. Das Nachsehen ändert nichts: Die Schaltfläche eines Fundes öffnet die
 passende Seite oder stellt eine Frage und stellt die Änderungen in die Warteschlange, die dir die genauen Befehle
-zeigt. <b>Erneut prüfen</b> sieht noch einmal nach, zum Beispiel nachdem du etwas installiert oder entfernt
+zeigt. <b>Computer erneut prüfen</b> sieht noch einmal nach, zum Beispiel nachdem du etwas installiert oder entfernt
 hast.</p>
 <p>Was es finden kann:</p>
 <ul>
@@ -351,7 +373,7 @@ NVIDIA-Karten.</li>
 Paket ist, woher es kommt, ob es proprietär ist und was mit Secure Boot passiert, mit den genauen Befehlen. Nichts
 ändert sich, bevor du die Warteschlange anwendest, und der Treiber arbeitet nach dem nächsten Neustart. Steckst du
 ein Dock oder einen Adapter an, sieht sich die Seite die Hardware noch einmal an, wenn du zu ihr zurückkehrst;
-<b>Erneut suchen</b> tut es sofort.</p>
+<b>Hardware erneut untersuchen</b> tut es sofort.</p>
 <h3>NVIDIA</h3>
 <p>Mit einer NVIDIA-Karte startet Linux mit nouveau, einem freien Treiber, der mit den meisten Karten langsam ist.
 Zypp Desk schlägt den NVIDIA-Treiber vor, der für deine Karte gemacht ist:</p>
@@ -398,8 +420,9 @@ angesteckt werden (Docks, USB-Netzwerkadapter, Kameras).</p>
 <li>Eine Gruppe ist angehakt, wenn das Entfernen sicher ist. Druckertreiber und Treiber für USB-Geräte, die
 vielleicht nur gerade nicht angesteckt sind, sind nicht angehakt: Behalte sie, wenn du so ein Gerät benutzen
 könntest.</li>
-<li>Die Schaltfläche zum Entfernen der Pakete zeigt, was wegfällt, und die genauen Befehle, und stellt das
-Entfernen in die Warteschlange. Du kannst es auch in die Warteschlange stellen und sie sofort simulieren.</li>
+<li><b>Pakete entfernen …</b> zeigt, was wegfällt, und die genauen Befehle. <b>In die Warteschlange
+stellen</b> stellt das Entfernen in die Warteschlange; <b>In die Warteschlange stellen und simulieren</b> simuliert
+die Warteschlange außerdem sofort.</li>
 <li>openSUSE installiert die ganze Firmware über ein einziges Paket, <code>kernel-firmware-all</code>, das der
 Kernel empfiehlt. Wenn es entfernt wird, sperrt Zypp Desk es auch: Sonst würde jeder neue Kernel es wieder
 installieren und mit ihm die ganze Firmware. Die Sperre steht unter <a href="page:locks">Paketsperren</a>, wo du
@@ -456,12 +479,13 @@ und wie viel Platz es belegt. Auf dieser Seite läuft nichts als Administrator.<
 <ul>
 <li><b>Deinstallieren …</b> führt das eigene Deinstallationsprogramm des Programms aus, falls es eines hat, unter
 deinem Benutzerkonto, in einem Terminalfenster, in dem du seine Fragen beantworten kannst. Hat es keines und liegt
-es in deinem persönlichen Ordner, verschiebt Zypp Desk seinen Ordner, seine Menüeinträge und Symbole in den
-Papierkorb; von dort kannst du sie zurückholen.</li>
+es in deinem persönlichen Ordner, heißt die Schaltfläche <b>In den Papierkorb verschieben …</b>: Zypp Desk
+verschiebt seinen Ordner, seine Menüeinträge und Symbole in den Papierkorb; von dort kannst du sie
+zurückholen.</li>
 <li>Ein Programm, das für den ganzen Computer installiert ist (in <code>/opt</code> oder <code>/usr/local</code>),
-braucht zum Entfernen das Administratorpasswort. Zypp Desk macht das nicht: Es erklärt, warum, und gibt dir die
-Befehle, die du in einem Terminal ausführen kannst.</li>
-<li><b>Aus einem Ordner installieren …</b> führt den Installer eines Programms aus, das du heruntergeladen hast
+braucht zum Entfernen das Administratorpasswort. Zypp Desk macht das nicht: <b>So entfernst du es …</b> erklärt,
+warum, und gibt dir die Befehle, die du in einem Terminal ausführen kannst.</li>
+<li><b>Installationsprogramm ausführen …</b> führt den Installer eines Programms aus, das du heruntergeladen hast
 (eine <code>.sh</code>- oder <code>.run</code>-Datei oder ein <code>.tgz</code>- oder <code>.zip</code>-Archiv mit
 einem Installer darin; ein Archiv wird in einen eigenen Ordner von Zypp Desk entpackt). Zypp Desk fragt, bevor es
 ihn ausführt, und startet ihn unter deinem Benutzerkonto, ohne Administratorpasswort, in einem Terminalfenster.
@@ -482,8 +506,9 @@ Befehl, der ausgeführt wird. Du kannst auch eine Zeile wie in einem Terminal ei
 unter deinem Benutzerkonto, ohne Passwort, und ihre Ausgabe erscheint im Terminal.</li>
 <li>Befehle, die das System ändern, fragen zuerst in Worten nach und dann nach dem Administratorpasswort. Sie
 laufen immer mit <code>-n</code>: Hier kann niemand zypper antworten, deshalb nimmt es seine Standardantworten.
-Wenn ein Befehl einen Probelauf hat, zeigt <b>Simulieren</b>, was er tun würde. Installationen, Entfernungen,
-Sperren, Sprachen und Änderungen an Paketquellen können auch in die Warteschlange.</li>
+Wenn ein Befehl einen Probelauf hat, zeigt <b>Diesen Befehl simulieren</b>, was er tun würde. Installationen,
+Entfernungen, Sperren, Sprachen und Änderungen an Paketquellen können auch in die Warteschlange, mit <b>Diesen
+Befehl in die Warteschlange stellen</b>.</li>
 <li>Manche Zeilen werden abgelehnt, bevor irgendetwas läuft, und die Meldung sagt, warum: mehr als ein Befehl auf
 einmal (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>, <code>&gt;</code>), alles, was nicht zypper ist,
 Befehle, die darauf warten, dass du etwas eingibst (<code>zypper shell</code>), Befehle, die das Hilfsprogramm
