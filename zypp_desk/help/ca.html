@@ -7,8 +7,8 @@
 openSUSE. Tot el que fa Zypp Desk, ho fa amb zypper, i sempre t'ensenya l'ordre exacta.</p>
 <p>Tres idees fan que sigui segur:</p>
 <ul>
-<li><b>No canvia res fins que no ho apliques.</b> El que tries va a la <b>cua</b>, a baix de la finestra. Hi
-pots mirar (<b>Revisa</b>), provar-ho (<b>Simula</b>) i només llavors fer-ho de debò (<b>Aplica</b>).</li>
+<li><b>No canvia res fins que no ho apliques.</b> El que tries va a la <b>cua</b>, a la part de baix de la finestra. Ho pots mirar (<b>Revisa</b>), provar
+(<b>Simula</b>) i només llavors fer-ho de debò (<b>Aplica</b>).</li>
 <li><b>Cada pregunta diu en paraules què passarà</b>, què vol dir per a tu i, a sota, l'ordre exacta. Prémer
 Enter no comença mai un canvi: has de triar el botó que el fa.</li>
 <li><b>Sempre pots veure què diu zypper.</b> El terminal de baix (<b>Mostra el terminal</b>, a la barra lateral)
@@ -28,16 +28,15 @@ que faran servir.</p>
 <ul>
 <li><b>Revisa</b> fa la llista dels canvis en l'ordre en què es faran, en paraules. Cadascun té el seu botó per
 treure'l de la cua. Quan un canvi en necessita un altre (un programa necessita el repositori d'on ve, i el
-repositori necessita la seva clau), la llista ho diu, i Zypp Desk pregunta abans que treguis una cosa que en
-necessiten d'altres.</li>
+repositori necessita la seva clau), la llista ho diu, i Zypp Desk pregunta abans que treguis un canvi que en necessiten d'altres.</li>
 <li><b>Simula</b> pregunta a zypper què faria de debò, sense canviar res: què més instal·laria o trauria, quant
 baixaria i si hi ha algun problema. Si n'hi ha, pots triar una solució explicada en paraules.</li>
 <li><b>Aplica</b> t'ensenya els canvis un cop més i els fa. Si un pas falla, Zypp Desk s'atura allà: el que
 s'ha fet queda fet, i la resta es queda a la cua per tornar-ho a provar.</li>
 <li><b>Buida</b> deixa la cua buida. No desfà res, perquè encara no ha canviat res.</li>
 </ul>
-<p>Els bloquejos i els canvis de repositoris no es poden simular: zypper no té cap simulació per a ells. La
-pregunta d'abans d'aplicar t'ho diu.</p>
+<p><b>Simula</b> només prova els canvis de paquets: els canvis de repositoris, els bloquejos, les llengües i les
+aplicacions Flatpak no es poden simular, i només es fan quan apliques la cua.</p>
 
 <!-- topic: update | Mantenir el sistema al dia -->
 <h2>Mantenir el sistema al dia</h2>
@@ -46,14 +45,15 @@ trobaràs:</p>
 <ul>
 <li><b>La teva rutina</b>: els passos que fas sempre per actualitzar, per exemple refrescar els repositoris,
 baixar les actualitzacions i després instal·lar-les. <b>Executa la rutina</b> els fa un darrere l'altre i
-t'ensenya cada pas. <b>Edita la rutina…</b> la canvia amb botons, o escrita com en un terminal.</li>
+t'ensenya cada pas. <b>Edita la rutina…</b> la canvia amb botons, o escrivint-la com en un terminal.</li>
 <li><b>Què hi ha per actualitzar</b>: paquets dels repositoris, aplicacions Flatpak, programes de la web i
 firmware, amb una casella per marcar cadascun. La fitxa de la dreta t'explica el paquet que tries.</li>
 <li><b>Simula el dup…</b>: l'actualització completa de Tumbleweed (<code>zypper dup</code>) en una finestra
 pròpia, amb les seves opcions.</li>
 </ul>
 <h3>Una actualització gran</h3>
-<p>Quan una actualització és gran, o la versió nova de Tumbleweed fa poques hores que ha sortit, Zypp Desk et
+<p>Quan una actualització és gran, o fa menys d'un dia que ha sortit la versió nova de
+Tumbleweed, Zypp Desk et
 pregunta si val la pena esperar. Et diu com és de gran, de quan és la versió i si l'ordinador va amb bateria.
 Pots actualitzar ara, <b>només baixar-ho ara</b> (després s'instal·la molt més de pressa) o <b>que t'ho
 recordi demà</b>: t'avisarà la icona del costat del rellotge.</p>
@@ -68,7 +68,7 @@ acaba el que queda.</p>
 <h2>Instal·lar i treure programes</h2>
 <ul>
 <li>Escriu un nom al cercador de l'<a href="page:home">Inici</a> o de <a href="page:packages">Paquets</a>.
-Paquets també pot buscar a les descripcions, en el que un paquet proporciona o necessita, en els seus fitxers,
+Paquets també pot buscar a les descripcions, al que un paquet proporciona o necessita, als seus fitxers,
 i a les llistes de paquets orfes o que ja no calen.</li>
 <li><a href="page:apps">Aplicacions</a> ensenya els programes que tens, vinguin d'on vinguin (un repositori,
 Flatpak o la web), i els que tenen actualització. <b>Descobreix per temes</b> ensenya els catàlegs d'openSUSE i
@@ -139,11 +139,12 @@ l'ordinador.</li>
 <!-- topic: tray | Avisos i configuració -->
 <h2>Avisos i configuració</h2>
 <p>Una icona petita al costat del rellotge t'avisa quan hi ha actualitzacions. S'engega quan entres a la sessió;
-la pots apagar, o canviar cada quan mira, a <a href="page:settings">Configuració</a>. Zypp Desk instal·la un
+la pots desactivar, o canviar cada quan mira, a <a href="page:settings">Configuració</a>. Zypp Desk instal·la un
 temporitzador que refresca els repositoris cada sis hores, perquè el recompte estigui al dia. Mai no instal·la
-res pel seu compte. Si ho actives a Configuració, també baixa per endavant la propera actualització, només quan
-l'ordinador està endollat.</p>
-<p>A Configuració també hi ha les opcions de <code>zypp.conf</code> (paquets recomanats, quants nuclis es
-guarden, baixades en paral·lel…), el terminal i la carpeta dels programes de la web.</p>
+res pel seu compte. Si ho actives a Configuració, també baixa per endavant la propera actualització, només quan l'ordinador està endollat i no fa servir una
+connexió amb límit de dades (com la d'un mòbil).</p>
+<p>A Configuració també hi ha les opcions de <code>zypp.conf</code> (paquets recomanats, quants nuclis es guarden,
+connexions per baixada…), el terminal i quin programa obre els fitxers <code>.rpm</code>. La carpeta dels programes
+de la web es canvia a Programes de la web (<b>Canvia la carpeta…</b>).</p>
 <p>Zypp Desk parla català, anglès, alemany i francès. Per traduir-lo a la teva llengua, mira
 <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>

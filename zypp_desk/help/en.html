@@ -38,8 +38,8 @@ solution in plain words.</li>
 stays done, and the rest stays in the queue to try again.</li>
 <li><b>Clear</b> empties the queue. It undoes nothing, because nothing has changed yet.</li>
 </ul>
-<p>Locks and changes to repositories cannot be simulated: zypper has no dry run for them. The question before
-Apply tells you so.</p>
+<p><b>Simulate</b> only tries the package changes: changes to repositories, locks, languages and Flatpak apps have
+no dry run, and they run only when you apply.</p>
 
 <!-- topic: update | Keeping the system up to date -->
 <h2>Keeping the system up to date</h2>
@@ -48,14 +48,15 @@ find:</p>
 <ul>
 <li><b>Your routine</b>: the steps you usually run to update, for example refresh the repositories, download
 the updates, then install them. <b>Run the routine</b> runs them one after the other and shows each step.
-<b>Edit the routine…</b> changes it with buttons, or written as in a terminal.</li>
+<b>Edit the routine…</b> changes it with buttons, or as text, as you would
+type it in a terminal.</li>
 <li><b>What there is to update</b>: packages from the repositories, Flatpak apps, programs from the web and
 firmware, with a box to tick each one. The card on the right tells you about the package you choose.</li>
 <li><b>Simulate the dup…</b>: the full upgrade of Tumbleweed (<code>zypper dup</code>) in its own window, with
 its options.</li>
 </ul>
 <h3>A big update</h3>
-<p>When an update is big, or the new Tumbleweed came out only a few hours ago, Zypp Desk asks whether it is worth
+<p>When an update is big, or the new Tumbleweed came out less than a day ago, Zypp Desk asks whether it is worth
 waiting. It tells you how big it is, how new the version is and whether the computer is on battery. You can
 update now, <b>only download it now</b> (installing it later is much faster), or <b>be reminded tomorrow</b>:
 the icon next to the clock will tell you.</p>
@@ -141,9 +142,10 @@ cache and tells you which programs still use old files and whether the computer 
 <p>A small icon next to the clock tells you when there are updates. It starts when you log in; you can turn it
 off, or change how often it looks, in <a href="page:settings">Settings</a>. Zypp Desk installs a timer that
 refreshes the repositories every six hours, so the count is up to date. It never installs anything by itself.
-If you turn it on in Settings, it also downloads the next update in advance, only when the computer is plugged
-in.</p>
+If you turn it on in Settings, it also downloads the next update in advance, only when the computer is plugged in and not on a
+metered connection (a phone hotspot).</p>
 <p>Settings also has the options of <code>zypp.conf</code> (recommended packages, how many kernels to keep,
-parallel downloads…), the terminal, and the folder for programs from the web.</p>
+connections per download…), the terminal, and which program opens <code>.rpm</code> files. The folder for programs
+from the web is changed in Programs from the web (<b>Change the folder…</b>).</p>
 <p>Zypp Desk speaks English, Catalan, German and French. To translate it into your language, see
 <a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>

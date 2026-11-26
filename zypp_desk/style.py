@@ -34,6 +34,17 @@ QPushButton[primary="true"]:pressed {{ background: {GREEN_DARK}; }}
 QPushButton[primary="true"]:disabled {{ background: palette(button); color: palette(placeholder-text);
   border: 1px solid rgba(127, 140, 141, 0.35); }}
 
+/* the keyboard focus on the green button must show (visual review 0.5, #14) */
+QPushButton[primary="true"]:focus {{ border: 2px solid {BLUE}; }}
+
+/* the sidebar scrolls when the window is low: a thin bar, not the thick black one (visual review 0.5, #1) */
+QListWidget#sidebar QScrollBar:vertical {{ width: 8px; background: transparent; margin: 0; }}
+QListWidget#sidebar QScrollBar::handle:vertical {{ background: rgba(127, 140, 141, 0.45); border-radius: 4px;
+  min-height: 30px; }}
+QListWidget#sidebar QScrollBar::add-line:vertical, QListWidget#sidebar QScrollBar::sub-line:vertical {{ height: 0; }}
+QListWidget#sidebar QScrollBar::add-page:vertical, QListWidget#sidebar QScrollBar::sub-page:vertical {{
+  background: transparent; }}
+
 /* small rounded toggle buttons (search options, filters): a border that shows in light and dark */
 QToolButton[chip="true"] {{ border: 1px solid rgba(127, 140, 141, 0.45); border-radius: 10px; padding: 2px 9px; }}
 QToolButton[chip="true"]:checked {{ background: palette(highlight); color: palette(highlighted-text);

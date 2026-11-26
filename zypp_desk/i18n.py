@@ -23,6 +23,9 @@ def _load():
 _t = _load()
 _ = _t.gettext
 ngettext = _t.ngettext
+# a context for the same English words used in two roles ("Remove {name}" as a button and as a change in a list:
+# Catalan says "Treu" for the first and "Treure" for the second)
+pgettext = _t.pgettext
 
 
 def user_lang() -> str:

@@ -13,7 +13,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
-                               QTextBrowser, QVBoxLayout, QWidget)
+                               QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
 from .. import APP_ID, APP_NAME, VERSION
 from ..i18n import _
@@ -69,6 +69,9 @@ class _Browser(QTextBrowser):
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.document().setDefaultStyleSheet(STYLE)
         self.document().setDocumentMargin(18)
+        # short lines, also in a wide window (Jordi does not want long lines; visual review 0.5, #11)
+        self.setLineWrapMode(QTextEdit.LineWrapMode.FixedPixelWidth)
+        self.setLineWrapColumnOrWidth(self.fontMetrics().averageCharWidth() * 88)
         self.anchorClicked.connect(self._open)
 
     def _open(self, url):

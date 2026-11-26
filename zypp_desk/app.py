@@ -226,6 +226,7 @@ def main(argv=None):
     args, qt_args = parser.parse_known_args(argv[1:])
 
     app = QApplication([argv[0], *qt_args])
+    tasks.collect_in_gui_thread(app)  # never in a worker thread (window and tray alike)
     app.setApplicationName("zypp-desk")
     app.setApplicationDisplayName(APP_NAME)
     app.setApplicationVersion(VERSION)

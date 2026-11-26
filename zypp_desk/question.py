@@ -72,9 +72,12 @@ class _More(QLabel):
         super().__init__(text_closed, parent)
         self._closed, self._open, self._target = text_closed, text_open, target
         self.setTextFormat(Qt.TextFormat.PlainText)
-        self.setStyleSheet(f"color: {BLUE};")
+        # the keyboard focus must show (visual review 0.5, #14): a soft blue background
+        self.setStyleSheet(f"QLabel {{ color: {BLUE}; padding: 1px 3px; border-radius: 4px; }} "
+                           "QLabel:focus { background: rgba(29, 153, 243, 0.18); }")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        self.setAccessibleName(text_closed)
 
     def _toggle(self):
         on = not self._target.isVisible()
@@ -229,7 +232,7 @@ class Question(QDialog):
 
     def __init__(self, parent, title, *, window_title=None, icon_name="system-software-update", lead=None,
                  items=(), means=None, warning=None, extra=(), commands_=None, commands_title=None, password=True,
-                 buttons=None, width=660):
+                 buttons=None, width=660, help_topic=None):
         super().__init__(parent)
         self.setWindowTitle(window_title or title)
         self.setModal(True)
@@ -290,6 +293,12 @@ class Question(QDialog):
         line.setFrameShadow(QFrame.Shadow.Sunken)
         outer.addWidget(line)
         bh = QHBoxLayout()
+        if help_topic:  # "What does this mean?": the topic of the help, in a small window over this one
+            hb = QPushButton(theme_icon("help-contents", "help-about"), _("Help"))
+            hb.setAutoDefault(False)
+            hb.setFlat(True)
+            hb.clicked.connect(lambda: show_help(self, help_topic))
+            bh.addWidget(hb)
         bh.addStretch(1)
         buttons = buttons or [("no", _("Not yet"), False), ("yes", _("Yes"), True)]
         default_set = False
@@ -335,11 +344,13 @@ class Question(QDialog):
         widgets really are (wrapped labels: their height depends on the width they get)."""
         scr = (self.screen() or QGuiApplication.primaryScreen()).availableGeometry()
         lay = self._body.layout()
-        bottom = 0
-        for i in range(lay.count()):
-            w = lay.itemAt(i).widget()
-            if w is not None and not w.isHidden():
-                bottom = max(bottom, w.geometry().bottom() + 1)
+        # the height the content needs at the width it gets without a scroll bar (the geometry of the widgets is
+        # not laid out again yet when the scroll bar has just gone: that left an empty band, visual review #13)
+        width = self._scroll.width()
+        if lay.hasHeightForWidth():
+            bottom = lay.totalHeightForWidth(width)
+        else:
+            bottom = lay.totalSizeHint().height()
         rest = self.height() - self._scroll.height()
         want = min(bottom + 2, max(160, int(scr.height() * 0.85) - rest))
         self._scroll.setMinimumHeight(want)
@@ -348,6 +359,27 @@ class Question(QDialog):
     def exec(self):
         super().exec()
         return self.result_key
+
+
+def show_help(parent, topic):
+    """A topic of the help in a small window (from a question's Help button)."""
+    from PySide6.QtWidgets import QDialogButtonBox, QTextBrowser
+    from .pages.help import STYLE, topics
+    found = next(((t, h) for tid, t, h in topics() if tid == topic), None)
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(found[0] if found else _("Help"))
+    dlg.resize(620, 560)
+    v = QVBoxLayout(dlg)
+    view = QTextBrowser(dlg)
+    view.setOpenExternalLinks(True)  # page: links do nothing here: the question is still open
+    view.document().setDefaultStyleSheet(STYLE)
+    view.setHtml(found[1] if found else "")
+    v.addWidget(view, 1)
+    bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, dlg)
+    bb.rejected.connect(dlg.reject)
+    v.addWidget(bb)
+    dlg.exec()
+    dlg.deleteLater()
 
 
 More = _More  # public name: the queue review uses it for "Show the exact commands"

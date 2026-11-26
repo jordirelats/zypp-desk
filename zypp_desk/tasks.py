@@ -74,3 +74,31 @@ def run_async(fn, *args, on_done, **kwargs):
                 disp.done.emit(on_done, result, error)
 
     threading.Thread(target=work, daemon=True, name=getattr(fn, "__name__", "job")).start()
+
+
+def collect_in_gui_thread(app):
+    """Run Python's cycle collector only in the GUI thread, from a timer.
+
+    Left to itself, the collector runs in whichever thread happens to allocate. A run_async worker could then
+    finalise Qt wrappers that the GUI thread was destroying at that very moment (rebuilding the rows of the queue
+    review, cards, the routine band): a random segfault (code review 0.5, #1: core dump of 26/11, reproduced in
+    1 of 4 runs of 90 s; none in 6 runs with this). Plain reference counting still frees everything else at once."""
+    import gc
+
+    from PySide6.QtCore import QTimer
+    gc.disable()
+    timer = QTimer(app)
+    timer.setInterval(1000)
+    ticks = [0]
+
+    def tick():
+        ticks[0] += 1
+        if ticks[0] % 60 == 0:
+            gc.collect()
+        elif gc.get_count()[0] > 700:  # the collector's own default threshold for the youngest generation
+            gc.collect(0)
+
+    timer.timeout.connect(tick)
+    timer.start()
+    app._zypp_desk_gc_timer = timer
+    return timer

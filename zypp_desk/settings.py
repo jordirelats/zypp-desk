@@ -3,6 +3,7 @@
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from .routine import DEFAULT_ROUTINE
@@ -26,6 +27,8 @@ DEFAULTS = {
     # "Remind me tomorrow" before a big upgrade or one with many problems: a Unix time, 0 = none. The tray
     # icon (tray.py) notifies once it is past, then sets it back to 0.
     "update_reminder_at": 0,
+    # why: "big" (a big update, Remind me tomorrow) or "problems" (an update with problems): the reminder's words
+    "update_reminder_reason": "",
     # repositories for Fedora (/etc/yum.repos.d) whose banner was answered "Not now": "<file>#<section>"
     "yum_dismissed": [],
 }
@@ -47,6 +50,16 @@ class Settings(dict):
     def save(self):
         p = _path()
         p.parent.mkdir(parents=True, exist_ok=True)
-        tmp = p.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self, indent=2, ensure_ascii=False), encoding="utf-8")
-        tmp.replace(p)
+        # a temp name of its own: the window and the tray may save at the same moment (code review 0.5, #7)
+        fd, tmp = tempfile.mkstemp(prefix=".settings-", suffix=".tmp", dir=p.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(json.dumps(self, indent=2, ensure_ascii=False))
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, p)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise

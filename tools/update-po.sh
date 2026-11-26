@@ -5,7 +5,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 find zypp_desk -name '*.py' | LC_ALL=C sort > po/POTFILES
-xgettext --language=Python --from-code=UTF-8 --keyword=_ --keyword=ngettext:1,2 \
+xgettext --language=Python --from-code=UTF-8 --keyword=_ --keyword=ngettext:1,2 --keyword=pgettext:1c,2 \
   --add-comments=TRANSLATORS --sort-by-file --package-name="Zypp Desk" \
   --msgid-bugs-address="https://github.com/jordirelats/zypp-desk/issues" \
   --files-from=po/POTFILES --output=po/zypp-desk.pot
