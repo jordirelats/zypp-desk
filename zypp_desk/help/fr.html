@@ -33,6 +33,7 @@ indique combien il y en a et les commandes qu'elles exécuteront.</p>
 une question ; un bouton qui ne fait qu'ajouter à la file d'attente n'est jamais vert, et il est précédé de
 <b>Vers la file d'attente :</b> ou le dit lui-même. Rien de ce qui est dans la file d'attente ne modifie
 l'ordinateur tant que vous n'appuyez pas sur <b>Appliquer la file d'attente…</b>.</p>
+<p>Quand la file d'attente supprime des paquets, <b>Appliquer la file d'attente…</b> la simule d'abord : zypper supprime aussi, sans demander, tout paquet installé qui a besoin d'un de ceux que vous supprimez. S'il supprimerait des paquets que vous n'avez pas choisis, la simulation le dit en rouge, les marque « pas dans la file d'attente » et son bouton demande avant de les supprimer aussi. Dans Paquets, un paquet orphelin dont un paquet installé a encore besoin ne peut pas être coché : il indique qui en a besoin.</p>
 <ul>
 <li><b>Revoir la file d'attente…</b> liste en clair les modifications, dans l'ordre où elles seront exécutées.
 Chacune a son propre bouton pour la retirer de la file d'attente. Quand une modification en nécessite une autre (un

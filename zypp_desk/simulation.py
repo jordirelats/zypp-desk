@@ -5,6 +5,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from PySide6.QtCore import QLocale, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFrame, QLabel, QPlainTextEdit, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout)
 
@@ -724,13 +725,18 @@ class SimulationDialog(QDialog):
     chosen, the dialog closes with RESOLVE and self.chosen holds the chosen solutions (see problem_items()).
     problem_label and problem_note are passed to ProblemDialog as apply_label and note, and now says whether
     the chosen solutions run at once (True) or go to the queue (False: the queue's simulation, the default).
-    extra_steps: the commands of the queue that could not be simulated (runner.Step or strings)."""
+    extra_steps: the commands of the queue that could not be simulated (runner.Step or strings).
+    unasked: the packages it would remove that are not in the queue (zypper takes away what needs a package you
+    remove). Then a red box says so, they are marked in the list, and Apply asks first; cleaning: some of them may
+    be what only the removed packages needed, which was asked for ("also remove what only it needed")."""
 
     RESOLVE = 2
+    TAKE_OUT = 3  # "Take the removals out of the queue"
 
     def __init__(self, result, command, *, can_apply=True, extra_steps=(), parent=None, problem_label=None,
-                 problem_note=None, now=False):
+                 problem_note=None, now=False, unasked=(), cleaning=False, queue_count=None, not_simulated=0):
         super().__init__(parent)
+        self.unasked = list(unasked)
         self.sim_result = result  # not 'result': that would hide QDialog.result()
         self.chosen = []
         self.problem_label, self.problem_note, self.now = problem_label, problem_note, now
@@ -770,6 +776,23 @@ class SimulationDialog(QDialog):
             counts.append(_("Nothing to do."))
         if counts:  # an empty line would only leave a gap
             bl.addWidget(QLabel("  ·  ".join(counts), banner))
+        if queue_count:  # what was simulated is the whole queue, not only what was ticked last
+            if not_simulated:
+                text = ngettext("Simulated: {done} of the {n} changes of the queue. The other {left} cannot be "
+                                "simulated (repositories, locks, languages, Flatpak): they are listed below.",
+                                "Simulated: {done} of the {n} changes of the queue. The other {left} cannot be "
+                                "simulated (repositories, locks, languages, Flatpak): they are listed below.",
+                                queue_count).format(done=queue_count - not_simulated, n=queue_count,
+                                                    left=not_simulated)
+            else:
+                text = ngettext("Simulated: the whole queue, {n} change.",
+                                "Simulated: the whole queue, {n} changes.", queue_count).format(n=queue_count)
+            whole = QLabel(text, banner)
+            whole.setWordWrap(True)
+            fw = whole.font()
+            fw.setBold(True)
+            whole.setFont(fw)
+            bl.addWidget(whole)
         cmd = QLabel(command, banner)
         cmd.setTextFormat(Qt.TextFormat.PlainText)  # package and repository names come from outside
         cmd.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -777,6 +800,33 @@ class SimulationDialog(QDialog):
         cmd.setWordWrap(True)
         bl.addWidget(cmd)
         lay.addWidget(banner)
+
+        if self.unasked:
+            warn = QFrame(self)
+            warn.setObjectName("unasked")
+            warn.setStyleSheet("#unasked { border: 2px solid rgba(218,68,83,0.75); border-radius: 6px;"
+                               " background: rgba(218,68,83,0.10); }")
+            wl = QVBoxLayout(warn)
+            n = len(self.unasked)
+            head = QLabel(ngettext("{n} package you did not choose would be removed too",
+                                   "{n} packages you did not choose would be removed too", n).format(n=n), warn)
+            fh = head.font()
+            fh.setBold(True)
+            fh.setPointSizeF(fh.pointSizeF() * 1.1)
+            head.setFont(fh)
+            wl.addWidget(head)
+            shown = ", ".join(self.unasked[:15]) + (" …" if n > 15 else "")
+            text = _("They need a package of the queue, so zypper would take them away with it: {names}. Nothing has "
+                     "been removed. Usually the right thing is to take that package out of the queue: something "
+                     "you use still needs it.").format(names=shown)
+            if cleaning:
+                text += " " + _("Some of them may be what only the removed packages needed, which you asked to "
+                                "remove too.")
+            body = QLabel(text, warn)
+            body.setWordWrap(True)
+            body.setTextFormat(Qt.TextFormat.PlainText)  # package names come from outside
+            wl.addWidget(body)
+            lay.addWidget(warn)
 
         if result["problems"]:
             lay.addWidget(QLabel("<b>" + _("Problems") + "</b>", self))
@@ -806,7 +856,11 @@ class SimulationDialog(QDialog):
                 if it.get("old_vendor") and it.get("vendor"):
                     ver += f"  ({it['old_vendor']} → {it['vendor']})"
                 repo = _("installed") if it["repo"] == "@System" else it["repo"]
-                QTreeWidgetItem(top, [it["name"], ver, repo])
+                row = QTreeWidgetItem(top, [it["name"], ver, repo])
+                if key == "to-remove" and it["name"] in self.unasked:  # not in the queue: zypper adds it
+                    row.setText(0, _("{name}  (not in the queue)").format(name=it["name"]))
+                    for col in range(3):
+                        row.setForeground(col, QColor(218, 68, 83))
             top.setExpanded(True)
         tree.resizeColumnToContents(0)
         tree.resizeColumnToContents(1)
@@ -825,9 +879,28 @@ class SimulationDialog(QDialog):
             lay.addWidget(cmds)
 
         buttons = QDialogButtonBox(self)
-        self.apply_btn = buttons.addButton(_("Apply"), QDialogButtonBox.ButtonRole.AcceptRole)
+        if self.unasked:
+            # never one click: a question first, with "Not yet" on Enter; the button is not green
+            self.apply_btn = buttons.addButton(ngettext("Remove this one too…", "Remove these {n} too…",
+                                                        len(self.unasked)).format(n=len(self.unasked)),
+                                               QDialogButtonBox.ButtonRole.ActionRole)
+            self.apply_btn.clicked.connect(self._confirm_unasked)
+        else:
+            # it applies at once, what this window shows (no other question): no "…"
+            self.apply_btn = buttons.addButton(_("Apply the queue"), QDialogButtonBox.ButtonRole.AcceptRole)
+            self.apply_btn.setProperty("primary", True)
+            self.apply_btn.setToolTip(_("Makes the changes this window shows, now (with the administrator "
+                                        "password)."))
         self.apply_btn.setEnabled(can_apply and ok)
-        buttons.addButton(_("Close"), QDialogButtonBox.ButtonRole.RejectRole)
+        if self.unasked:
+            # not going ahead must really take them out: closing leaves the queue as it is
+            out = buttons.addButton(_("Take the removals out of the queue"), QDialogButtonBox.ButtonRole.ActionRole)
+            out.setToolTip(_("Takes every removal out of the queue, so that nothing is removed when the queue is "
+                             "applied. The rest of the queue stays."))
+            out.clicked.connect(lambda: self.done(self.TAKE_OUT))
+        close = buttons.addButton(_("Close (the queue stays as it is)"), QDialogButtonBox.ButtonRole.RejectRole)
+        close.setToolTip(_("Nothing changes, and every change stays in the queue: Apply the queue does it later."))
+        close.setDefault(bool(self.unasked))
         self.resolve_btn = None
         if solvable:
             self.resolve_btn = buttons.addButton(_("Choose a solution…"), QDialogButtonBox.ButtonRole.ActionRole)
@@ -839,6 +912,21 @@ class SimulationDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         lay.addWidget(buttons)
+
+    def _confirm_unasked(self):
+        from . import question
+        n = len(self.unasked)
+        if question.confirm(
+                self, ngettext("Also remove {n} package you did not choose?",
+                               "Also remove {n} packages you did not choose?", n).format(n=n),
+                ngettext("Yes, remove it too", "Yes, remove these {n} too", n).format(n=n),
+                window_title=_("Simulation"), icon_name="dialog-warning",
+                items=[("dialog-warning", name, _("not in the queue")) for name in self.unasked[:60]]
+                + ([("dialog-warning", _("… and {n} more").format(n=n - 60), "")] if n > 60 else []),
+                warning=_("They need a package of the queue. Removing them may take away programs you use."),
+                means=_("zypper removes the queue's packages and these ones with them, now."),
+                help_topic="queue"):
+            self.accept()
 
     def choose_solution(self):
         dlg = ProblemDialog(self.sim_result.get("problem_items", []), parent=self, apply_label=self.problem_label,

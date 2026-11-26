@@ -1,4 +1,23 @@
 -------------------------------------------------------------------
+Thu Nov 26 21:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.6: removals can no longer take away more than you chose
+  * 'zypper remove' also removes, without asking, every installed
+    package that needs one you remove (--no-force-resolution does not
+    stop it): a queue of 13 orphaned and unneeded packages took away
+    341 more. Now Apply simulates the whole queue first when it
+    removes packages, and applies exactly what was simulated
+  * The simulation window says it simulated the whole queue (or how
+    many changes cannot be simulated), shows in red the packages it
+    would remove that are not in the queue, and then "Remove these
+    too…" asks first; "Take the removals out of the queue" takes them
+    out; "Close (the queue stays as it is)" says that closing keeps
+    the queue
+  * Packages, Orphaned: an orphan that something installed still needs
+    cannot be ticked, and says who needs it ("orphaned" only means
+    that no repository has it any more)
+
+-------------------------------------------------------------------
 Thu Nov 26 19:00:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.5:

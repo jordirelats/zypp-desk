@@ -60,6 +60,13 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.6" date="2026-11-26">
+      <description>
+        <p>Removing packages can no longer take away more than you chose: Apply simulates the whole queue first,
+          shows in red what would be removed without being in the queue and asks before removing it, and an orphan
+          that something installed still needs cannot be ticked.</p>
+      </description>
+    </release>
     <release version="0.5.5" date="2026-11-26">
       <description>
         <p>The tray's "Look for new updates" asks every repository for what is new before counting, without a

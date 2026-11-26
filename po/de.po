@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 17:10+0100\n"
+"POT-Creation-Date: 2026-11-26 21:49+0100\n"
 "PO-Revision-Date: 2026-11-25 14:00+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: German\n"
@@ -66,31 +66,31 @@ msgstr "{file} ist kein AppImage."
 msgid "zypper exited with code {code}."
 msgstr "zypper wurde mit dem Code {code} beendet."
 
-#: zypp_desk/backend.py:52 zypp_desk/simulation.py:608
+#: zypp_desk/backend.py:52 zypp_desk/simulation.py:609
 msgid "zypper returned no output."
 msgstr "zypper hat keine Ausgabe geliefert."
 
-#: zypp_desk/backend.py:349
+#: zypp_desk/backend.py:384
 msgid "No lock has been removed."
 msgstr "Es wurde keine Sperre entfernt."
 
-#: zypp_desk/backend.py:403
+#: zypp_desk/backend.py:438
 msgid "PackageKit (Discover)"
 msgstr "PackageKit (Discover)"
 
-#: zypp_desk/backend.py:403
+#: zypp_desk/backend.py:438
 msgid "zypper in a terminal"
 msgstr "zypper in einem Terminal"
 
-#: zypp_desk/backend.py:463
+#: zypp_desk/backend.py:498
 msgid "Zypp Desk itself"
 msgstr "Zypp Desk selbst"
 
-#: zypp_desk/backend.py:469
+#: zypp_desk/backend.py:504
 msgid "Zypp Desk's timer, downloading the updates ahead"
 msgstr "Timer von Zypp Desk (lädt Aktualisierungen vorab herunter)"
 
-#: zypp_desk/backend.py:470
+#: zypp_desk/backend.py:505
 msgid "Zypp Desk's timer, refreshing the repositories"
 msgstr "Timer von Zypp Desk (lädt die Paketquellen neu)"
 
@@ -1729,7 +1729,7 @@ msgstr "Warteschlange leeren"
 #: zypp_desk/pages/localrpm.py:548 zypp_desk/pages/locks.py:1072
 #: zypp_desk/pages/scripts.py:249 zypp_desk/pages/system.py:422
 #: zypp_desk/pages/system.py:649 zypp_desk/pages/system.py:650
-#: zypp_desk/pages/updates.py:1839 zypp_desk/simulation.py:830
+#: zypp_desk/pages/updates.py:1839
 msgid "Close"
 msgstr "Schließen"
 
@@ -1891,193 +1891,204 @@ msgstr "Simulieren"
 msgid "Simulation of the queue"
 msgstr "Simulation der Warteschlange"
 
-#: zypp_desk/mainwindow.py:927 zypp_desk/simulation.py:147
-#: zypp_desk/simulation.py:714
+#: zypp_desk/mainwindow.py:937 zypp_desk/simulation.py:148
+#: zypp_desk/simulation.py:715
 #, python-brace-format
 msgid "Problem: {text}"
 msgstr "Problem: {text}"
 
-#: zypp_desk/mainwindow.py:929
+#: zypp_desk/mainwindow.py:939
 msgid "A lock or an unlock you choose runs at once (a simulation only knows the locks that exist); the rest goes to the queue."
 msgstr "Eine Sperre oder Entsperrung, die du wählst, wird sofort ausgeführt (eine Simulation kennt nur die bestehenden Sperren); der Rest kommt in die Warteschlange."
 
-#: zypp_desk/mainwindow.py:967 zypp_desk/mainwindow.py:987
+#: zypp_desk/mainwindow.py:954
+#, python-brace-format
+msgid "{n} removal taken out of the queue: nothing will be removed."
+msgid_plural "{n} removals taken out of the queue: nothing will be removed."
+msgstr[0] "{n} Entfernung aus der Warteschlange genommen: Es wird nichts entfernt."
+msgstr[1] "{n} Entfernungen aus der Warteschlange genommen: Es wird nichts entfernt."
+
+#: zypp_desk/mainwindow.py:988 zypp_desk/mainwindow.py:1008
 #: zypp_desk/pages/problems.py:483 zypp_desk/pages/problems.py:990
 msgid "Choose a solution"
 msgstr "Lösung wählen"
 
-#: zypp_desk/mainwindow.py:974
+#: zypp_desk/mainwindow.py:995
 msgid "an upgrade has no queue, so these changes are made now."
 msgstr "Eine Systemaktualisierung läuft nicht über die Warteschlange, daher werden diese Änderungen jetzt vorgenommen."
 
-#: zypp_desk/mainwindow.py:975
+#: zypp_desk/mainwindow.py:996
 msgid "locks and unlocks are made now, not in the queue, because a simulation only knows the locks that exist."
 msgstr "Sperren und Entsperrungen werden jetzt vorgenommen, nicht über die Warteschlange, weil eine Simulation nur die bestehenden Sperren kennt."
 
-#: zypp_desk/mainwindow.py:978
+#: zypp_desk/mainwindow.py:999
 msgid "The other choices went to the queue."
 msgstr "Die übrigen gewählten Lösungen sind in die Warteschlange gekommen."
 
-#: zypp_desk/mainwindow.py:982 zypp_desk/pages/problems.py:729
+#: zypp_desk/mainwindow.py:1003 zypp_desk/pages/problems.py:729
 msgid "You can unlock it later in Locks."
 msgid_plural "You can unlock them later in Locks."
 msgstr[0] "Du kannst es später unter Paketsperren wieder entsperren."
 msgstr[1] "Du kannst sie später unter Paketsperren wieder entsperren."
 
-#: zypp_desk/mainwindow.py:984
+#: zypp_desk/mainwindow.py:1005
 msgid "Do this now, then simulate again?"
 msgstr "Jetzt ausführen und dann erneut simulieren?"
 
-#: zypp_desk/mainwindow.py:984
+#: zypp_desk/mainwindow.py:1005
 msgid "Zypp Desk will do this now, then simulate again:"
 msgstr "Zypp Desk macht jetzt Folgendes und simuliert dann erneut:"
 
-#: zypp_desk/mainwindow.py:986
+#: zypp_desk/mainwindow.py:1007
 msgid "Do this now?"
 msgstr "Jetzt ausführen?"
 
-#: zypp_desk/mainwindow.py:986
+#: zypp_desk/mainwindow.py:1007
 msgid "Zypp Desk will do this now:"
 msgstr "Zypp Desk macht jetzt Folgendes:"
 
-#: zypp_desk/mainwindow.py:987
+#: zypp_desk/mainwindow.py:1008
 msgid "Yes, do it now"
 msgstr "Ja, jetzt ausführen"
 
-#: zypp_desk/mainwindow.py:1014
+#: zypp_desk/mainwindow.py:1029
+msgid "The queue removes packages: it is simulated first, so that you see everything that would be removed."
+msgstr "Die Warteschlange entfernt Pakete: Sie wird zuerst simuliert, damit du alles siehst, was entfernt würde."
+
+#: zypp_desk/mainwindow.py:1043
 msgid "Applying the queue"
 msgstr "Warteschlange wird angewendet"
 
-#: zypp_desk/mainwindow.py:1025
+#: zypp_desk/mainwindow.py:1054
 msgid "The queue changed after the simulation: this is what it holds now."
 msgstr "Die Warteschlange hat sich nach der Simulation geändert: Das ist jetzt darin."
 
-#: zypp_desk/mainwindow.py:1028
+#: zypp_desk/mainwindow.py:1057
 msgid "The queue changed while the question was open: this is what it holds now."
 msgstr "Die Warteschlange hat sich geändert, während die Frage offen war: Das ist jetzt darin."
 
-#: zypp_desk/mainwindow.py:1032
+#: zypp_desk/mainwindow.py:1061
 msgid "it is what you put in the queue."
 msgstr "Es ist das, was du in die Warteschlange gestellt hast."
 
-#: zypp_desk/mainwindow.py:1034
+#: zypp_desk/mainwindow.py:1063
 msgid "If a step fails, Zypp Desk stops there: what was done stays done, and the rest stays in the queue."
 msgstr "Wenn ein Schritt fehlschlägt, hält Zypp Desk dort an: Was erledigt ist, bleibt erledigt, und der Rest bleibt in der Warteschlange."
 
-#: zypp_desk/mainwindow.py:1037
+#: zypp_desk/mainwindow.py:1066
 msgid "If it fails, it stays in the queue."
 msgstr "Wenn es fehlschlägt, bleibt es in der Warteschlange."
 
-#: zypp_desk/mainwindow.py:1039
+#: zypp_desk/mainwindow.py:1068
 msgid "“Simulate” shows first what else zypper would install or remove with these changes."
 msgstr "„Simulieren“ zeigt vorher, was zypper mit diesen Änderungen sonst noch installieren oder entfernen würde."
 
-#: zypp_desk/mainwindow.py:1044
+#: zypp_desk/mainwindow.py:1073
 #, python-brace-format
 msgid "Without the repository “{name}”, Tumbleweed is not updated."
 msgstr "Ohne die Paketquelle „{name}“ wird Tumbleweed nicht aktualisiert."
 
-#: zypp_desk/mainwindow.py:1049
+#: zypp_desk/mainwindow.py:1078
 #, python-brace-format
 msgid "This file is not signed, so nothing can check who made it: {files}."
 msgid_plural "These files are not signed, so nothing can check who made them: {files}."
 msgstr[0] "Diese Datei ist nicht signiert, daher kann nichts prüfen, wer sie erstellt hat: {files}."
 msgstr[1] "Diese Dateien sind nicht signiert, daher kann nichts prüfen, wer sie erstellt hat: {files}."
 
-#: zypp_desk/mainwindow.py:1053
+#: zypp_desk/mainwindow.py:1082
 msgid "Keep the computer plugged in and do not turn it off while the firmware is updated."
 msgstr "Lass den Computer am Strom und schalte ihn nicht aus, während die Firmware aktualisiert wird."
 
-#: zypp_desk/mainwindow.py:1056
+#: zypp_desk/mainwindow.py:1085
 #, python-brace-format
 msgid "Make this change to the computer?"
 msgid_plural "Make these {n} changes to the computer?"
 msgstr[0] "Diese Änderung am Computer vornehmen?"
 msgstr[1] "Diese {n} Änderungen am Computer vornehmen?"
 
-#: zypp_desk/mainwindow.py:1057
+#: zypp_desk/mainwindow.py:1086
 #, python-brace-format
 msgid "Yes, make the change"
 msgid_plural "Yes, make the {n} changes"
 msgstr[0] "Ja, Änderung vornehmen"
 msgstr[1] "Ja, die {n} Änderungen vornehmen"
 
-#: zypp_desk/mainwindow.py:1058 zypp_desk/mainwindow.py:1072
-#: zypp_desk/mainwindow.py:1075 zypp_desk/simulation.py:828
+#: zypp_desk/mainwindow.py:1087 zypp_desk/mainwindow.py:1101
+#: zypp_desk/mainwindow.py:1104
 msgid "Apply"
 msgstr "Anwenden"
 
-#: zypp_desk/mainwindow.py:1059 zypp_desk/pages/drivers.py:438
+#: zypp_desk/mainwindow.py:1088 zypp_desk/pages/drivers.py:438
 msgid "Zypp Desk will do this, in this order:"
 msgstr "Zypp Desk macht Folgendes, in dieser Reihenfolge:"
 
-#: zypp_desk/mainwindow.py:1059
+#: zypp_desk/mainwindow.py:1088
 msgid "Zypp Desk will do this:"
 msgstr "Zypp Desk macht Folgendes:"
 
-#: zypp_desk/mainwindow.py:1072
+#: zypp_desk/mainwindow.py:1101
 #, python-brace-format
 msgid "{file} cannot be read any more: {error}"
 msgstr "{file} kann nicht mehr gelesen werden: {error}"
 
-#: zypp_desk/mainwindow.py:1075
+#: zypp_desk/mainwindow.py:1104
 #, python-brace-format
 msgid "{file} changed after it was checked, so it is not installed. Take it out of the queue and download it again."
 msgstr "{file} wurde nach der Prüfung verändert und wird deshalb nicht installiert. Nimm die Datei aus der Warteschlange und lade sie erneut herunter."
 
-#: zypp_desk/mainwindow.py:1100
+#: zypp_desk/mainwindow.py:1129
 #, python-brace-format
 msgid "{file} could not be copied to {folder}: {error}"
 msgstr "{file} konnte nicht nach {folder} kopiert werden: {error}"
 
-#: zypp_desk/mainwindow.py:1107
+#: zypp_desk/mainwindow.py:1136
 #, python-brace-format
 msgid "{file} could not be moved to {folder}: {error}"
 msgstr "{file} konnte nicht nach {folder} verschoben werden: {error}"
 
-#: zypp_desk/mainwindow.py:1151
+#: zypp_desk/mainwindow.py:1180
 msgid "Package manager free"
 msgstr "Paketverwaltung nicht belegt"
 
-#: zypp_desk/mainwindow.py:1151
+#: zypp_desk/mainwindow.py:1180
 #, python-brace-format
 msgid "Package manager in use by {proc}"
 msgstr "Paketverwaltung belegt durch {proc}"
 
-#: zypp_desk/mainwindow.py:1152
+#: zypp_desk/mainwindow.py:1181
 msgid "No restart needed"
 msgstr "Kein Neustart nötig"
 
-#: zypp_desk/mainwindow.py:1152 zypp_desk/tray.py:884 zypp_desk/tray.py:1278
+#: zypp_desk/mainwindow.py:1181 zypp_desk/tray.py:884 zypp_desk/tray.py:1278
 msgid "Restart needed"
 msgstr "Neustart nötig"
 
-#: zypp_desk/mainwindow.py:1159
+#: zypp_desk/mainwindow.py:1188
 msgid "older than 0.4.1"
 msgstr "älter als 0.4.1"
 
-#: zypp_desk/mainwindow.py:1161
+#: zypp_desk/mainwindow.py:1190
 msgid "Run install.sh from the source folder again."
 msgstr "Führe install.sh im Ordner mit dem Quellcode erneut aus."
 
-#: zypp_desk/mainwindow.py:1163
+#: zypp_desk/mainwindow.py:1192
 msgid "Update the zypp-desk package."
 msgstr "Aktualisiere das Paket zypp-desk."
 
-#: zypp_desk/mainwindow.py:1164
+#: zypp_desk/mainwindow.py:1193
 #, python-brace-format
 msgid "The helper that runs zypper as root ({path}) is from another version of Zypp Desk: helper {found}, window {version}. Some changes will fail until both match."
 msgstr "Das Hilfsprogramm, das zypper als root ausführt ({path}), stammt aus einer anderen Version von Zypp Desk: Hilfsprogramm {found}, Fenster {version}. Manche Änderungen schlagen fehl, bis beide übereinstimmen."
 
-#: zypp_desk/mainwindow.py:1170
+#: zypp_desk/mainwindow.py:1199
 msgid "The helper that runs zypper as root is not installed, so the window can search and show information but cannot change anything yet. Run install.sh from the source folder."
 msgstr "Das Hilfsprogramm, das zypper als root ausführt, ist nicht installiert. Deshalb kann das Fenster suchen und Informationen anzeigen, aber noch nichts ändern. Führe install.sh im Ordner mit dem Quellcode aus."
 
-#: zypp_desk/mainwindow.py:1177
+#: zypp_desk/mainwindow.py:1206
 msgid "zypper is still working. Wait until it finishes before closing the window."
 msgstr "zypper arbeitet noch. Warte, bis es fertig ist, bevor du das Fenster schließt."
 
-#: zypp_desk/mainwindow.py:1183
+#: zypp_desk/mainwindow.py:1212
 msgid "A program from the web is still downloading. Close anyway? The download stops and nothing is added to the queue."
 msgstr "Ein Programm aus dem Web wird noch heruntergeladen. Trotzdem schließen? Der Download wird abgebrochen und nichts kommt in die Warteschlange."
 
@@ -2120,7 +2131,7 @@ msgstr "ihre Adresse ist keine, die Zypp Desk verwenden kann (http oder https, o
 #: zypp_desk/migrate.py:760 zypp_desk/migrate.py:766 zypp_desk/migrate.py:772
 #: zypp_desk/pages/history.py:620 zypp_desk/pages/packages.py:125
 #: zypp_desk/pages/pkgdetails.py:210 zypp_desk/pages/updates.py:1826
-#: zypp_desk/simulation.py:794
+#: zypp_desk/simulation.py:844
 msgid "Repository"
 msgstr "Paketquelle"
 
@@ -2155,7 +2166,7 @@ msgstr "Pakete"
 #: zypp_desk/migrate.py:812 zypp_desk/pages/apps.py:1561
 #: zypp_desk/pages/apps.py:1566 zypp_desk/pages/apps.py:1884
 #: zypp_desk/pages/findrepo.py:136 zypp_desk/pages/findrepo.py:137
-#: zypp_desk/pages/updates.py:1826 zypp_desk/simulation.py:794
+#: zypp_desk/pages/updates.py:1826 zypp_desk/simulation.py:844
 msgid "Package"
 msgstr "Paket"
 
@@ -2708,7 +2719,8 @@ msgstr "Rollenspiele"
 msgid "Shooters"
 msgstr "Shooter"
 
-#: zypp_desk/pages/apps.py:76 zypp_desk/simulation.py:742
+#: zypp_desk/pages/apps.py:76 zypp_desk/simulation.py:748
+#: zypp_desk/simulation.py:923
 msgid "Simulation"
 msgstr "Simulation"
 
@@ -2976,8 +2988,8 @@ msgstr "in der Warteschlange"
 
 #: zypp_desk/pages/apps.py:787 zypp_desk/pages/apps.py:1889
 #: zypp_desk/pages/findrepo.py:302 zypp_desk/pages/findrepo.py:309
-#: zypp_desk/pages/pkgdetails.py:440 zypp_desk/simulation.py:311
-#: zypp_desk/simulation.py:808
+#: zypp_desk/pages/pkgdetails.py:440 zypp_desk/simulation.py:312
+#: zypp_desk/simulation.py:858
 msgid "installed"
 msgstr "installiert"
 
@@ -3189,7 +3201,7 @@ msgstr "Größe"
 #: zypp_desk/pages/flatpak.py:142 zypp_desk/pages/packages.py:125
 #: zypp_desk/pages/pkgdetails.py:210 zypp_desk/pages/pkgdetails.py:477
 #: zypp_desk/pages/updates.py:1826 zypp_desk/pages/websources.py:335
-#: zypp_desk/pages/websources.py:776 zypp_desk/simulation.py:794
+#: zypp_desk/pages/websources.py:776 zypp_desk/simulation.py:844
 msgid "Version"
 msgstr "Version"
 
@@ -3593,9 +3605,9 @@ msgid "the program goes away from this computer; its settings and data in your h
 msgstr "Das Programm verschwindet von diesem Computer; seine Einstellungen und Daten in deinem persönlichen Ordner bleiben. Der Papierkorb behält die Dateien, bis du ihn leerst."
 
 #: zypp_desk/pages/apps.py:1366 zypp_desk/pages/apps.py:1611
-#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:438
+#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:481
 #: zypp_desk/pages/removedlg.py:26 zypp_desk/pages/removedlg.py:36
-#: zypp_desk/simulation.py:374
+#: zypp_desk/simulation.py:375
 #, python-brace-format
 msgid "Remove {name}"
 msgstr "{name} entfernen"
@@ -3825,7 +3837,7 @@ msgstr "In der Warteschlange: {change}."
 #: zypp_desk/pages/apps.py:1588 zypp_desk/pages/apps.py:1841
 #: zypp_desk/pages/apps.py:1900 zypp_desk/pages/findrepo.py:382
 #: zypp_desk/pages/flatpak.py:269 zypp_desk/pages/flatpak.py:304
-#: zypp_desk/pages/packages.py:466 zypp_desk/pages/repos.py:1405
+#: zypp_desk/pages/packages.py:509 zypp_desk/pages/repos.py:1405
 msgid "Nothing changes until you apply the queue."
 msgstr "Nichts ändert sich, bis du die Warteschlange anwendest."
 
@@ -3983,25 +3995,25 @@ msgstr "Nichts gefunden. Versuche es mit einem anderen Wort oder mit allen Quell
 
 #: zypp_desk/pages/apps.py:1831 zypp_desk/pages/apps.py:1926
 #: zypp_desk/pages/findrepo.py:390 zypp_desk/pages/findrepo.py:435
-#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:438
+#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:481
 #, python-brace-format
 msgid "Install {name}"
 msgstr "{name} installieren"
 
-#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:441
+#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:484
 #, python-brace-format
 msgid "Install the ticked one"
 msgid_plural "Install the {n} ticked"
 msgstr[0] "Angehaktes installieren"
 msgstr[1] "Die {n} angehakten installieren"
 
-#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:455
+#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:498
 #, python-brace-format
 msgid "Puts {names} in the queue to be installed ({command})."
 msgstr "Stellt {names} zum Installieren in die Warteschlange ({command})."
 
 #: zypp_desk/pages/apps.py:1843 zypp_desk/pages/locks.py:1185
-#: zypp_desk/pages/packages.py:430
+#: zypp_desk/pages/packages.py:473
 #, python-brace-format
 msgid "{n} marked"
 msgid_plural "{n} marked"
@@ -6720,6 +6732,7 @@ msgstr[0] "Nicht alles wird zurückgesetzt: {folders} ist nicht in den Snapshots
 msgstr[1] "Nicht alles wird zurückgesetzt: {folders} sind nicht in den Snapshots enthalten, daher bleibt das, was diese Änderung dort geschrieben hat, so, wie es jetzt ist."
 
 #: zypp_desk/pages/history.py:1020 zypp_desk/pages/localrpm.py:934
+#: zypp_desk/pages/packages.py:338
 #, python-brace-format
 msgid "and {n} more"
 msgid_plural "and {n} more"
@@ -7558,6 +7571,7 @@ msgid "{file}, in your folder"
 msgstr "{file}, in deinem Ordner"
 
 #: zypp_desk/pages/keys.py:994 zypp_desk/pages/updates.py:281
+#: zypp_desk/simulation.py:925
 #, python-brace-format
 msgid "… and {n} more"
 msgstr "… und {n} weitere"
@@ -8759,7 +8773,7 @@ msgid "showing the first {shown}"
 msgstr "die ersten {shown} werden angezeigt"
 
 #: zypp_desk/pages/locks.py:1181 zypp_desk/pages/migrate.py:469
-#: zypp_desk/pages/packages.py:439 zypp_desk/pages/system.py:1053
+#: zypp_desk/pages/packages.py:482 zypp_desk/pages/system.py:1053
 #, python-brace-format
 msgid "Lock {name}"
 msgstr "{name} sperren"
@@ -8783,7 +8797,7 @@ msgstr "In die Warteschlange:"
 msgid "These buttons only add to the queue: nothing changes until you apply the queue."
 msgstr "Diese Schaltflächen fügen nur etwas zur Warteschlange hinzu: Nichts ändert sich, bis du die Warteschlange anwendest."
 
-#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:414
+#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:457
 #: zypp_desk/pages/updates.py:887
 msgid "Unmark all"
 msgstr "Alle abwählen"
@@ -8933,6 +8947,14 @@ msgstr ""
 "\n"
 "Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei)."
 "Gespeichert in {file}.\n"
+"\n"
+"Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei).Gespeichert in {file}.\n"
+"\n"
+"Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei).Gespeichert in {file}.\n"
+"\n"
+"Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei).Gespeichert in {file}.\n"
+"\n"
+"Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei).Gespeichert in {file}.\n"
 "\n"
 "Kopiere die Datei auf den anderen Computer und öffne sie dort mit Zypp Desk (Einstellungen → Auf einen anderen Computer umziehen, oder öffne die Datei).Gespeichert in {file}.\n"
 "\n"
@@ -9663,7 +9685,7 @@ msgstr "Empfohlen"
 msgid "Suggested"
 msgstr "Vorgeschlagen"
 
-#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:414
+#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:457
 #: zypp_desk/pages/updates.py:885
 msgid "Mark all"
 msgstr "Alle markieren"
@@ -9701,63 +9723,80 @@ msgstr "{n} Versionen verfügbar"
 msgid "Nothing was found."
 msgstr "Es wurde nichts gefunden."
 
-#: zypp_desk/pages/packages.py:420 zypp_desk/txqueue.py:1069
+#: zypp_desk/pages/packages.py:339
+#, python-brace-format
+msgid "Still needed by {names}"
+msgstr "Wird noch gebraucht von {names}"
+
+#: zypp_desk/pages/packages.py:341
+#, python-brace-format
+msgid "No repository has {name} any more, but these installed packages still need it: {names}. Removing it would remove them too. It usually stops being needed after the next update of the system."
+msgstr "Keine Paketquelle hat {name} mehr, aber diese installierten Pakete brauchen es noch: {names}. Wenn du es entfernst, werden sie auch entfernt. Meist wird es nach der nächsten Systemaktualisierung nicht mehr gebraucht."
+
+#: zypp_desk/pages/packages.py:350
+#, python-brace-format
+msgid "{n} is still needed by other packages: it cannot be ticked"
+msgid_plural "{n} are still needed by other packages: they cannot be ticked"
+msgstr[0] "{n} wird noch von anderen Paketen gebraucht: kann nicht angehakt werden"
+msgstr[1] "{n} werden noch von anderen Paketen gebraucht: können nicht angehakt werden"
+
+#: zypp_desk/pages/packages.py:463 zypp_desk/txqueue.py:1069
 #, python-brace-format
 msgid "{n} to install"
 msgid_plural "{n} to install"
 msgstr[0] "{n} zu installieren"
 msgstr[1] "{n} zu installieren"
 
-#: zypp_desk/pages/packages.py:422
+#: zypp_desk/pages/packages.py:465
 #, python-brace-format
 msgid "{n} you have"
 msgid_plural "{n} you have"
 msgstr[0] "{n} schon installiert"
 msgstr[1] "{n} schon installiert"
 
-#: zypp_desk/pages/packages.py:442
+#: zypp_desk/pages/packages.py:485
 #, python-brace-format
 msgid "Remove the ticked one"
 msgid_plural "Remove the {n} ticked"
 msgstr[0] "Markiertes Paket entfernen"
 msgstr[1] "Die {n} markierten entfernen"
 
-#: zypp_desk/pages/packages.py:443
+#: zypp_desk/pages/packages.py:486
 #, python-brace-format
 msgid "Lock the ticked one"
 msgid_plural "Lock the {n} ticked"
 msgstr[0] "Markiertes Paket sperren"
 msgstr[1] "Die {n} markierten sperren"
 
-#: zypp_desk/pages/packages.py:444
+#: zypp_desk/pages/packages.py:487
 #, python-brace-format
 msgid "Install the one not installed"
 msgid_plural "Install the {n} not installed"
 msgstr[0] "Nicht installiertes Paket installieren"
 msgstr[1] "Die {n} nicht installierten installieren"
 
-#: zypp_desk/pages/packages.py:445
+#: zypp_desk/pages/packages.py:488
 #, python-brace-format
 msgid "Remove the one installed"
 msgid_plural "Remove the {n} installed"
 msgstr[0] "Installiertes Paket entfernen"
 msgstr[1] "Die {n} installierten entfernen"
 
-#: zypp_desk/pages/packages.py:446
+#: zypp_desk/pages/packages.py:489
 #, python-brace-format
 msgid "Lock the one not locked"
 msgid_plural "Lock the {n} not locked"
 msgstr[0] "Nicht gesperrtes Paket sperren"
 msgstr[1] "Die {n} nicht gesperrten sperren"
 
-#: zypp_desk/pages/packages.py:457
+#: zypp_desk/pages/packages.py:500
 #, python-brace-format
 msgid "Puts the removal of {names} in the queue ({command}). Simulate shows what else would go with it."
 msgid_plural "Puts the removal of {names} in the queue ({command}). Simulate shows what else would go with them."
 msgstr[0] "Stellt das Entfernen von {names} in die Warteschlange ({command}). Eine Simulation zeigt, was sonst noch mit entfernt würde."
 msgstr[1] "Stellt das Entfernen von {names} in die Warteschlange ({command}). Eine Simulation zeigt, was sonst noch mit entfernt würde."
 
-#: zypp_desk/pages/packages.py:462
+#: zypp_desk/pages/packages.py:505
 #, python-brace-format
 msgid "Puts a lock on {names} in the queue ({command}): then zypper does not install, update or remove it until you unlock it."
 msgid_plural "Puts a lock on {names} in the queue ({command}): then zypper does not install, update or remove them until you unlock them."
@@ -13561,8 +13600,8 @@ msgstr "Aktualisiert das ganze System mit den Optionen oben. Zuerst wird die Akt
 msgid "Shows what updating the whole system with the options above would install, update or remove. Nothing changes."
 msgstr "Zeigt, was die Aktualisierung des ganzen Systems mit den Optionen oben installieren, aktualisieren oder entfernen würde. Nichts ändert sich."
 
-#: zypp_desk/pages/updates.py:2004 zypp_desk/simulation.py:710
-#: zypp_desk/simulation.py:766
+#: zypp_desk/pages/updates.py:2004 zypp_desk/simulation.py:711
+#: zypp_desk/simulation.py:772
 #, python-brace-format
 msgid "Download: {size}"
 msgstr "Download: {size}"
@@ -14669,40 +14708,40 @@ msgstr "Diese Werte schreibt Zypp Desk nicht: {list}. Wähle einen aus der Liste
 msgid "Zypp Desk's file ({file}) will be deleted when you apply the queue, and the values of openSUSE and of libzypp apply again."
 msgstr "Die Datei von Zypp Desk ({file}) wird gelöscht, wenn du die Warteschlange anwendest, und dann gelten wieder die Werte von openSUSE und libzypp."
 
-#: zypp_desk/problemgroups.py:450 zypp_desk/simulation.py:385
+#: zypp_desk/problemgroups.py:450 zypp_desk/simulation.py:386
 #, python-brace-format
 msgid "Keep {pkg} as it is"
 msgstr "{pkg} unverändert lassen"
 
-#: zypp_desk/problemgroups.py:451 zypp_desk/simulation.py:503
+#: zypp_desk/problemgroups.py:451 zypp_desk/simulation.py:504
 #, python-brace-format
 msgid "Keep {list} as they are"
 msgstr "{list} unverändert lassen"
 
-#: zypp_desk/problemgroups.py:452 zypp_desk/simulation.py:504
+#: zypp_desk/problemgroups.py:452 zypp_desk/simulation.py:505
 msgid "The rest goes ahead. They stay at their versions and are locked: they will not change until you unlock them."
 msgstr "Der Rest wird ausgeführt. Sie bleiben bei ihren Versionen und werden gesperrt: Sie ändern sich nicht, bis du sie entsperrst."
 
-#: zypp_desk/problemgroups.py:460 zypp_desk/simulation.py:507
+#: zypp_desk/problemgroups.py:460 zypp_desk/simulation.py:508
 #, python-brace-format
 msgid "Remove {list}"
 msgstr "{list} entfernen"
 
-#: zypp_desk/problemgroups.py:461 zypp_desk/simulation.py:508
+#: zypp_desk/problemgroups.py:461 zypp_desk/simulation.py:509
 msgid "They are uninstalled: whatever uses them may lose some functions. The next simulation shows if anything else would go too."
 msgstr "Sie werden deinstalliert: Was davon abhängt, verliert vielleicht einige Funktionen. Die nächste Simulation zeigt, ob noch etwas anderes wegfallen würde."
 
-#: zypp_desk/problemgroups.py:463 zypp_desk/simulation.py:510
+#: zypp_desk/problemgroups.py:463 zypp_desk/simulation.py:511
 msgid "They are uninstalled now, but only if nothing else needs them: otherwise zypper refuses and nothing changes. Whatever uses them may lose some functions."
 msgstr "Sie werden jetzt deinstalliert, aber nur, wenn nichts anderes sie braucht: Sonst lehnt zypper ab, und nichts ändert sich. Was davon abhängt, verliert vielleicht einige Funktionen."
 
-#: zypp_desk/problemgroups.py:470 zypp_desk/simulation.py:396
+#: zypp_desk/problemgroups.py:470 zypp_desk/simulation.py:397
 #, python-brace-format
 msgid "Do not install {name}"
 msgstr "{name} nicht installieren"
 
 #: zypp_desk/problemgroups.py:471 zypp_desk/problemgroups.py:472
-#: zypp_desk/simulation.py:397
+#: zypp_desk/simulation.py:398
 #, python-brace-format
 msgid "{name} leaves the queue; the rest goes ahead."
 msgstr "{name} kommt aus der Warteschlange; der Rest wird ausgeführt."
@@ -15499,481 +15538,573 @@ msgstr "siehe „man zypper“, EXIT CODES"
 msgid "it is not inside your folder"
 msgstr "es liegt nicht in deinem persönlichen Ordner"
 
-#: zypp_desk/simulation.py:20
+#: zypp_desk/simulation.py:21
 msgid "To install"
 msgstr "Wird installiert"
 
-#: zypp_desk/simulation.py:21
+#: zypp_desk/simulation.py:22
 msgid "To upgrade"
 msgstr "Wird aktualisiert"
 
-#: zypp_desk/simulation.py:22
+#: zypp_desk/simulation.py:23
 msgid "To downgrade"
 msgstr "Wird auf eine ältere Version zurückgesetzt"
 
-#: zypp_desk/simulation.py:23
+#: zypp_desk/simulation.py:24
 msgid "To reinstall"
 msgstr "Wird neu installiert"
 
-#: zypp_desk/simulation.py:24
+#: zypp_desk/simulation.py:25
 msgid "To change vendor"
 msgstr "Wechselt den Anbieter"
 
-#: zypp_desk/simulation.py:25
+#: zypp_desk/simulation.py:26
 msgid "To change architecture"
 msgstr "Wechselt die Architektur"
 
-#: zypp_desk/simulation.py:26
+#: zypp_desk/simulation.py:27
 msgid "To remove"
 msgstr "Wird entfernt"
 
-#: zypp_desk/simulation.py:56
+#: zypp_desk/simulation.py:57
 #, python-brace-format
 msgid "Frees {size} on disk"
 msgstr "Gibt {size} Speicherplatz frei"
 
-#: zypp_desk/simulation.py:57
+#: zypp_desk/simulation.py:58
 #, python-brace-format
 msgid "Uses {size} more on disk"
 msgstr "Belegt {size} mehr Speicherplatz"
 
-#: zypp_desk/simulation.py:68
+#: zypp_desk/simulation.py:69
 #, python-brace-format
 msgid "{pkg} needs {what}, and no repository provides it"
 msgstr "{pkg} benötigt {what}, und keine Paketquelle stellt das bereit"
 
-#: zypp_desk/simulation.py:70
+#: zypp_desk/simulation.py:71
 #, python-brace-format
 msgid "the installed {pkg} needs {what}, and no repository provides it"
 msgstr "das installierte Paket {pkg} benötigt {what}, und keine Paketquelle stellt das bereit"
 
-#: zypp_desk/simulation.py:72 zypp_desk/simulation.py:74
+#: zypp_desk/simulation.py:73 zypp_desk/simulation.py:75
 #, python-brace-format
 msgid "{new} cannot be installed together with the installed {old}"
 msgstr "{new} kann nicht zusammen mit dem installierten {old} installiert werden"
 
-#: zypp_desk/simulation.py:76 zypp_desk/simulation.py:286
+#: zypp_desk/simulation.py:77 zypp_desk/simulation.py:287
 #, python-brace-format
 msgid "The installed {pkg} needs {dep}, and after this change nothing would provide it."
 msgstr "Das installierte Paket {pkg} benötigt {dep}, und nach dieser Änderung würde nichts das bereitstellen."
 
-#: zypp_desk/simulation.py:79 zypp_desk/simulation.py:284
+#: zypp_desk/simulation.py:80 zypp_desk/simulation.py:285
 #, python-brace-format
 msgid "{pkg}, which would be installed, needs {dep}, and nothing that can be installed with it provides it."
 msgstr "{pkg}, das installiert werden soll, benötigt {dep}, und nichts, was sich zusammen damit installieren lässt, stellt das bereit."
 
-#: zypp_desk/simulation.py:82
+#: zypp_desk/simulation.py:83
 #, python-brace-format
 msgid "{pkg} needs {what}, which cannot be installed"
 msgstr "{pkg} benötigt {what}, das nicht installiert werden kann"
 
-#: zypp_desk/simulation.py:83
+#: zypp_desk/simulation.py:84
 msgid "All of these:"
 msgstr "Alles Folgende:"
 
-#: zypp_desk/simulation.py:85
+#: zypp_desk/simulation.py:86
 #, python-brace-format
 msgid "install {pkg} anyway, ignoring some of its dependencies (it may not work)"
 msgstr "{pkg} trotzdem installieren und dabei einige seiner Abhängigkeiten ignorieren (es funktioniert dann vielleicht nicht)"
 
-#: zypp_desk/simulation.py:86 zypp_desk/simulation.py:87
+#: zypp_desk/simulation.py:87 zypp_desk/simulation.py:88
 #, python-brace-format
 msgid "remove {pkg}"
 msgstr "{pkg} entfernen"
 
-#: zypp_desk/simulation.py:88
+#: zypp_desk/simulation.py:89
 #, python-brace-format
 msgid "do not install {pkg}"
 msgstr "{pkg} nicht installieren"
 
-#: zypp_desk/simulation.py:89
+#: zypp_desk/simulation.py:90
 #, python-brace-format
 msgid "keep the old {pkg}"
 msgstr "das alte Paket {pkg} behalten"
 
-#: zypp_desk/simulation.py:90
+#: zypp_desk/simulation.py:91
 #, python-brace-format
 msgid "go back from {old} to {new}"
 msgstr "von {old} zurück zu {new} wechseln"
 
-#: zypp_desk/simulation.py:112
+#: zypp_desk/simulation.py:113
 #, python-brace-format
 msgid "Today it comes from {list}; this change replaces or removes it."
 msgid_plural "Today it comes from {list}; this change replaces or removes them."
 msgstr[0] "Derzeit stellt {list} es bereit; diese Änderung ersetzt oder entfernt das Paket."
 msgstr[1] "Derzeit stellen {list} es bereit; diese Änderung ersetzt oder entfernt sie."
 
-#: zypp_desk/simulation.py:115
+#: zypp_desk/simulation.py:116
 #, python-brace-format
 msgid "{list} would provide it, but it cannot be installed together with the rest of the changes."
 msgid_plural "{list} would provide it, but none of them can be installed together with the rest of the changes."
 msgstr[0] "{list} würde es bereitstellen, kann aber nicht zusammen mit den übrigen Änderungen installiert werden."
 msgstr[1] "{list} würden es bereitstellen, aber keines davon kann zusammen mit den übrigen Änderungen installiert werden."
 
-#: zypp_desk/simulation.py:140 zypp_desk/simulation.py:270
+#: zypp_desk/simulation.py:141 zypp_desk/simulation.py:271
 msgid "Maybe a repository that it needs is missing or disabled."
 msgstr "Vielleicht fehlt eine Paketquelle, die es braucht, oder sie ist deaktiviert."
 
-#: zypp_desk/simulation.py:146
+#: zypp_desk/simulation.py:147
 #, python-brace-format
 msgid "Problem {n}: {text}"
 msgstr "Problem {n}: {text}"
 
-#: zypp_desk/simulation.py:149
+#: zypp_desk/simulation.py:150
 #, python-brace-format
 msgid "Possible solution {n}: {text}"
 msgstr "Mögliche Lösung {n}: {text}"
 
-#: zypp_desk/simulation.py:218
+#: zypp_desk/simulation.py:219
 #, python-brace-format
 msgid "{pkg} from {repo}"
 msgstr "{pkg} aus {repo}"
 
-#: zypp_desk/simulation.py:230
+#: zypp_desk/simulation.py:231
 #, python-brace-format
 msgid "{name} {version}"
 msgstr "{name} {version}"
 
-#: zypp_desk/simulation.py:230
+#: zypp_desk/simulation.py:231
 #, python-brace-format
 msgid "{name} {version} or newer"
 msgstr "{name} {version} oder neuer"
 
-#: zypp_desk/simulation.py:231
+#: zypp_desk/simulation.py:232
 #, python-brace-format
 msgid "{name} newer than {version}"
 msgstr "{name} neuer als {version}"
 
-#: zypp_desk/simulation.py:231
+#: zypp_desk/simulation.py:232
 #, python-brace-format
 msgid "{name} {version} or older"
 msgstr "{name} {version} oder älter"
 
-#: zypp_desk/simulation.py:232
+#: zypp_desk/simulation.py:233
 #, python-brace-format
 msgid "{name} older than {version}"
 msgstr "{name} älter als {version}"
 
-#: zypp_desk/simulation.py:237
+#: zypp_desk/simulation.py:238
 #, python-brace-format
 msgid "the library {lib}"
 msgstr "die Bibliothek {lib}"
 
-#: zypp_desk/simulation.py:239
+#: zypp_desk/simulation.py:240
 #, python-brace-format
 msgid "the file {path}"
 msgstr "die Datei {path}"
 
-#: zypp_desk/simulation.py:281
+#: zypp_desk/simulation.py:282
 #, python-brace-format
 msgid "{pkg}, which would be installed, needs {dep}."
 msgstr "{pkg}, das installiert werden soll, benötigt {dep}."
 
-#: zypp_desk/simulation.py:282
+#: zypp_desk/simulation.py:283
 #, python-brace-format
 msgid "The installed {pkg} needs {dep}."
 msgstr "Das installierte Paket {pkg} benötigt {dep}."
 
-#: zypp_desk/simulation.py:282
+#: zypp_desk/simulation.py:283
 #, python-brace-format
 msgid "{pkg} needs {dep}."
 msgstr "{pkg} benötigt {dep}."
 
-#: zypp_desk/simulation.py:287
+#: zypp_desk/simulation.py:288
 #, python-brace-format
 msgid "{pkg} needs {dep}, and nothing that can be installed provides it."
 msgstr "{pkg} benötigt {dep}, und nichts, was sich installieren lässt, stellt das bereit."
 
-#: zypp_desk/simulation.py:297
+#: zypp_desk/simulation.py:298
 #, python-brace-format
 msgid "The installed {pkg} needs {dep}, and no enabled repository has it any more."
 msgstr "Das installierte Paket {pkg} benötigt {dep}, und keine aktive Paketquelle hat das noch."
 
-#: zypp_desk/simulation.py:300
+#: zypp_desk/simulation.py:301
 #, python-brace-format
 msgid "{pkg} needs {dep}, and no enabled repository has it. Maybe a repository is missing, or the package is broken."
 msgstr "{pkg} benötigt {dep}, und keine aktive Paketquelle hat das. Vielleicht fehlt eine Paketquelle, oder das Paket ist defekt."
 
-#: zypp_desk/simulation.py:303
+#: zypp_desk/simulation.py:304
 #, python-brace-format
 msgid "You asked for {dep}, but no enabled repository has it."
 msgstr "Du hast {dep} angefordert, aber keine aktive Paketquelle hat das."
 
-#: zypp_desk/simulation.py:305
+#: zypp_desk/simulation.py:306
 #, python-brace-format
 msgid "The package {pkg} that you asked for is not in any enabled repository."
 msgstr "Das angeforderte Paket {pkg} ist in keiner aktiven Paketquelle."
 
-#: zypp_desk/simulation.py:307
+#: zypp_desk/simulation.py:308
 #, python-brace-format
 msgid "{pkg} conflicts with itself ({dep}): the package is broken."
 msgstr "{pkg} steht im Konflikt mit sich selbst ({dep}): Das Paket ist defekt."
 
-#: zypp_desk/simulation.py:311
+#: zypp_desk/simulation.py:312
 msgid "would be installed"
 msgstr "soll installiert werden"
 
-#: zypp_desk/simulation.py:312
+#: zypp_desk/simulation.py:313
 #, python-brace-format
 msgid "These two cannot be on the system together: {a} ({a_state}) and {b} ({b_state})."
 msgstr "Diese beiden können nicht gleichzeitig auf dem System sein: {a} ({a_state}) und {b} ({b_state})."
 
-#: zypp_desk/simulation.py:315
+#: zypp_desk/simulation.py:316
 #, python-brace-format
 msgid "{a} conflicts with {dep}, which {b} provides."
 msgstr "{a} steht im Konflikt mit {dep}, das {b} bereitstellt."
 
-#: zypp_desk/simulation.py:318
+#: zypp_desk/simulation.py:319
 #, python-brace-format
 msgid "{a} replaces {dep}, which {b} provides."
 msgstr "{a} ersetzt {dep}, das {b} bereitstellt."
 
-#: zypp_desk/simulation.py:321
+#: zypp_desk/simulation.py:322
 #, python-brace-format
 msgid "These two cannot be on the system together: {a} and {b}."
 msgstr "Diese beiden können nicht gleichzeitig auf dem System sein: {a} und {b}."
 
-#: zypp_desk/simulation.py:323
+#: zypp_desk/simulation.py:324
 #, python-brace-format
 msgid "{a} and {b} cannot be installed at the same time."
 msgstr "{a} und {b} können nicht gleichzeitig installiert werden."
 
-#: zypp_desk/simulation.py:325
+#: zypp_desk/simulation.py:326
 #, python-brace-format
 msgid "The installed {pkg} can neither stay as it is nor be updated."
 msgstr "Das installierte Paket {pkg} kann weder bleiben, wie es ist, noch aktualisiert werden."
 
-#: zypp_desk/simulation.py:326
+#: zypp_desk/simulation.py:327
 #, python-brace-format
 msgid "There is a problem with {pkg}, which would be installed."
 msgstr "Es gibt ein Problem mit {pkg}, das installiert werden soll."
 
-#: zypp_desk/simulation.py:329
+#: zypp_desk/simulation.py:330
 #, python-brace-format
 msgid "The installed {pkg} is not in any of your repositories any more, so the upgrade has to replace it."
 msgstr "Das installierte Paket {pkg} ist in keiner deiner Paketquellen mehr, daher muss die Aktualisierung es ersetzen."
 
-#: zypp_desk/simulation.py:332
+#: zypp_desk/simulation.py:333
 #, python-brace-format
 msgid "{pkg} comes from a repository that this upgrade does not use."
 msgstr "{pkg} kommt aus einer Paketquelle, die diese Aktualisierung nicht benutzt."
 
-#: zypp_desk/simulation.py:334
+#: zypp_desk/simulation.py:335
 #, python-brace-format
 msgid "{pkg} is built for an older type of processor than the other versions available."
 msgstr "{pkg} ist für einen älteren Prozessortyp gebaut als die anderen verfügbaren Versionen."
 
-#: zypp_desk/simulation.py:337
+#: zypp_desk/simulation.py:338
 #, python-brace-format
 msgid "{pkg} cannot be installed on this computer."
 msgstr "{pkg} kann auf diesem Computer nicht installiert werden."
 
-#: zypp_desk/simulation.py:339
+#: zypp_desk/simulation.py:340
 #, python-brace-format
 msgid "{dep} is part of the system and cannot be removed."
 msgstr "{dep} gehört zum System und kann nicht entfernt werden."
 
-#: zypp_desk/simulation.py:341
+#: zypp_desk/simulation.py:342
 msgid "The changes asked for contradict each other."
 msgstr "Die angeforderten Änderungen widersprechen sich."
 
-#: zypp_desk/simulation.py:343
+#: zypp_desk/simulation.py:344
 msgid "There is a dependency problem."
 msgstr "Es gibt ein Abhängigkeitsproblem."
 
-#: zypp_desk/simulation.py:345
+#: zypp_desk/simulation.py:346
 msgid "zypper cannot do what was asked."
 msgstr "zypper kann nicht tun, was angefordert wurde."
 
-#: zypp_desk/simulation.py:347
+#: zypp_desk/simulation.py:348
 msgid "This change would break your system."
 msgstr "Diese Änderung würde dein System beschädigen."
 
-#: zypp_desk/simulation.py:367
+#: zypp_desk/simulation.py:368
 msgid "This cannot be done safely from here."
 msgstr "Das lässt sich von hier aus nicht sicher erledigen."
 
-#: zypp_desk/simulation.py:375
+#: zypp_desk/simulation.py:376
 #, python-brace-format
 msgid "{pkg} is uninstalled: whatever uses it may lose some functions. The next simulation shows if anything else would go too."
 msgstr "{pkg} wird deinstalliert: Was davon abhängt, verliert vielleicht einige Funktionen. Die nächste Simulation zeigt, ob noch etwas anderes wegfallen würde."
 
-#: zypp_desk/simulation.py:378
+#: zypp_desk/simulation.py:379
 #, python-brace-format
 msgid "{pkg} is uninstalled now, but only if nothing else needs it: otherwise zypper refuses and nothing changes. Whatever uses it may lose some functions."
 msgstr "{pkg} wird jetzt deinstalliert, aber nur, wenn nichts anderes es braucht: Sonst lehnt zypper ab, und nichts ändert sich. Was davon abhängt, verliert vielleicht einige Funktionen."
 
-#: zypp_desk/simulation.py:387
+#: zypp_desk/simulation.py:388
 #, python-brace-format
 msgid "Do not update {name}"
 msgstr "{name} nicht aktualisieren"
 
-#: zypp_desk/simulation.py:388
+#: zypp_desk/simulation.py:389
 #, python-brace-format
 msgid "The rest goes ahead. {name} stays at version {version} and is locked: it will not change until you unlock it."
 msgstr "Der Rest wird ausgeführt. {name} bleibt bei Version {version} und wird gesperrt: Es ändert sich nicht, bis du es entsperrst."
 
-#: zypp_desk/simulation.py:390
+#: zypp_desk/simulation.py:391
 #, python-brace-format
 msgid "The rest goes ahead. {name} stays as it is and is locked: it will not change until you unlock it."
 msgstr "Der Rest wird ausgeführt. {name} bleibt, wie es ist, und wird gesperrt: Es ändert sich nicht, bis du es entsperrst."
 
-#: zypp_desk/simulation.py:399
+#: zypp_desk/simulation.py:400
 #, python-brace-format
 msgid "{name} is locked, so the upgrade leaves it out: it will not be installed or changed until you unlock it."
 msgstr "{name} wird gesperrt, daher lässt die Aktualisierung es aus: Es wird nicht installiert oder geändert, bis du es entsperrst."
 
-#: zypp_desk/simulation.py:404
+#: zypp_desk/simulation.py:405
 #, python-brace-format
 msgid "Do not remove {name}"
 msgstr "{name} nicht entfernen"
 
-#: zypp_desk/simulation.py:405
+#: zypp_desk/simulation.py:406
 #, python-brace-format
 msgid "{name} stays installed and its removal leaves the queue; the rest goes ahead."
 msgstr "{name} bleibt installiert, und sein Entfernen kommt aus der Warteschlange; der Rest wird ausgeführt."
 
-#: zypp_desk/simulation.py:407
+#: zypp_desk/simulation.py:408
 #, python-brace-format
 msgid "{name} stays installed and is locked, so the upgrade cannot remove it until you unlock it."
 msgstr "{name} bleibt installiert und wird gesperrt, daher kann die Aktualisierung es nicht entfernen, bis du es entsperrst."
 
-#: zypp_desk/simulation.py:412
+#: zypp_desk/simulation.py:413
 #, python-brace-format
 msgid "{name} is locked. Without the lock, zypper can remove it."
 msgstr "{name} ist gesperrt. Ohne die Sperre kann zypper es entfernen."
 
-#: zypp_desk/simulation.py:413
+#: zypp_desk/simulation.py:414
 #, python-brace-format
 msgid "{name} is locked. Without the lock, zypper can install it."
 msgstr "{name} ist gesperrt. Ohne die Sperre kann zypper es installieren."
 
-#: zypp_desk/simulation.py:414
+#: zypp_desk/simulation.py:415
 #, python-brace-format
 msgid "Unlock {name}"
 msgstr "{name} entsperren"
 
-#: zypp_desk/simulation.py:418
+#: zypp_desk/simulation.py:419
 #, python-brace-format
 msgid "Go back to {pkg}"
 msgstr "Zurück zu {pkg}"
 
-#: zypp_desk/simulation.py:419
+#: zypp_desk/simulation.py:420
 #, python-brace-format
 msgid "{name} goes back from version {old} to the older {new}, so that everything fits."
 msgstr "{name} geht von Version {old} auf die ältere {new} zurück, damit alles zusammenpasst."
 
-#: zypp_desk/simulation.py:430
+#: zypp_desk/simulation.py:431
 #, python-brace-format
 msgid "Switch {name} to the package from {vendor}"
 msgstr "{name} auf das Paket von {vendor} umstellen"
 
-#: zypp_desk/simulation.py:431
+#: zypp_desk/simulation.py:432
 #, python-brace-format
 msgid "{pkg} from {vendor} replaces the one from {old_vendor}. This changes the vendor: from now on {name} is updated from {vendor}."
 msgstr "{pkg} von {vendor} ersetzt das von {old_vendor}. Damit wechselt der Anbieter: Ab jetzt wird {name} von {vendor} aktualisiert."
 
-#: zypp_desk/simulation.py:438
+#: zypp_desk/simulation.py:439
 #, python-brace-format
 msgid "Replace {old} with {new}"
 msgstr "{old} durch {new} ersetzen"
 
-#: zypp_desk/simulation.py:439
+#: zypp_desk/simulation.py:440
 #, python-brace-format
 msgid "{new} is installed in place of {old}."
 msgstr "{new} wird anstelle von {old} installiert."
 
-#: zypp_desk/simulation.py:444
+#: zypp_desk/simulation.py:445
 #, python-brace-format
 msgid "Install {pkg} anyway"
 msgstr "{pkg} trotzdem installieren"
 
-#: zypp_desk/simulation.py:445
+#: zypp_desk/simulation.py:446
 msgid "It comes from a repository that this upgrade leaves out, but it is taken from there anyway."
 msgstr "Es kommt aus einer Paketquelle, die diese Aktualisierung auslässt, wird aber trotzdem von dort genommen."
 
-#: zypp_desk/simulation.py:449
+#: zypp_desk/simulation.py:450
 #, python-brace-format
 msgid "Install {name} anyway, ignoring some of its dependencies"
 msgstr "{name} trotzdem installieren und dabei einige seiner Abhängigkeiten ignorieren"
 
-#: zypp_desk/simulation.py:451
+#: zypp_desk/simulation.py:452
 #, python-brace-format
 msgid "This cannot be done safely from here: {name} might not work."
 msgstr "Das lässt sich von hier aus nicht sicher erledigen: {name} funktioniert dann vielleicht nicht."
 
-#: zypp_desk/simulation.py:454
+#: zypp_desk/simulation.py:455
 #, python-brace-format
 msgid "Change {name} to another architecture"
 msgstr "{name} auf eine andere Architektur umstellen"
 
-#: zypp_desk/simulation.py:456
+#: zypp_desk/simulation.py:457
 #, python-brace-format
 msgid "Install {pkg}, built for an older type of processor"
 msgstr "{pkg} installieren, gebaut für einen älteren Prozessortyp"
 
-#: zypp_desk/simulation.py:458
+#: zypp_desk/simulation.py:459
 #, python-brace-format
 msgid "Install {pkg}, although its vendor withdrew it"
 msgstr "{pkg} installieren, obwohl sein Anbieter es zurückgezogen hat"
 
-#: zypp_desk/simulation.py:460
+#: zypp_desk/simulation.py:461
 #, python-brace-format
 msgid "Install {pkg}, although it is blocked"
 msgstr "{pkg} installieren, obwohl es blockiert ist"
 
-#: zypp_desk/simulation.py:462
+#: zypp_desk/simulation.py:463
 #, python-brace-format
 msgid "Install the temporary fix (PTF) {pkg}"
 msgstr "Vorläufige Korrektur (PTF) {pkg} installieren"
 
-#: zypp_desk/simulation.py:464
+#: zypp_desk/simulation.py:465
 msgid "Ignore the warning that the system would break"
 msgstr "Die Warnung ignorieren, dass das System beschädigt würde"
 
-#: zypp_desk/simulation.py:466
+#: zypp_desk/simulation.py:467
 msgid "Ignore some dependencies"
 msgstr "Einige Abhängigkeiten ignorieren"
 
-#: zypp_desk/simulation.py:467
+#: zypp_desk/simulation.py:468
 msgid "Zypp Desk does not know this solution, so it cannot be chosen here."
 msgstr "Zypp Desk kennt diese Lösung nicht, daher kann sie hier nicht gewählt werden."
 
-#: zypp_desk/simulation.py:642
+#: zypp_desk/simulation.py:643
 msgid "A license must be accepted. Turn on “Accept licenses without asking” in Settings, or install it from a terminal."
 msgstr "Eine Lizenz muss akzeptiert werden. Schalte „Lizenzen ohne Nachfrage akzeptieren“ in den Einstellungen ein oder installiere es in einem Terminal."
 
-#: zypp_desk/simulation.py:716 zypp_desk/simulation.py:770
+#: zypp_desk/simulation.py:717 zypp_desk/simulation.py:776
 msgid "Nothing to do."
 msgstr "Nichts zu tun."
 
-#: zypp_desk/simulation.py:753
+#: zypp_desk/simulation.py:759
 msgid "It can be done. Nothing has been changed."
 msgstr "Das ist machbar. Es wurde nichts geändert."
 
-#: zypp_desk/simulation.py:754
+#: zypp_desk/simulation.py:760
 msgid "zypper found a problem. Nothing has been changed."
 msgstr "zypper hat ein Problem gefunden. Es wurde nichts geändert."
 
-#: zypp_desk/simulation.py:782
+#: zypp_desk/simulation.py:781
+#, python-brace-format
+msgid "Simulated: {done} of the {n} changes of the queue. The other {left} cannot be simulated (repositories, locks, languages, Flatpak): they are listed below."
+msgid_plural "Simulated: {done} of the {n} changes of the queue. The other {left} cannot be simulated (repositories, locks, languages, Flatpak): they are listed below."
+msgstr[0] "Simuliert: {done} der {n} Änderungen der Warteschlange. Die anderen {left} lassen sich nicht simulieren (Paketquellen, Sperren, Sprachen, Flatpak): Sie stehen unten."
+msgstr[1] "Simuliert: {done} der {n} Änderungen der Warteschlange. Die anderen {left} lassen sich nicht simulieren (Paketquellen, Sperren, Sprachen, Flatpak): Sie stehen unten."
+
+#: zypp_desk/simulation.py:788
+#, python-brace-format
+msgid "Simulated: the whole queue, {n} change."
+msgid_plural "Simulated: the whole queue, {n} changes."
+msgstr[0] "Simuliert: die ganze Warteschlange, {n} Änderung."
+msgstr[1] "Simuliert: die ganze Warteschlange, {n} Änderungen."
+
+#: zypp_desk/simulation.py:811
+#, python-brace-format
+msgid "{n} package you did not choose would be removed too"
+msgid_plural "{n} packages you did not choose would be removed too"
+msgstr[0] "{n} Paket, das du nicht gewählt hast, würde auch entfernt"
+msgstr[1] "{n} Pakete, die du nicht gewählt hast, würden auch entfernt"
+
+#: zypp_desk/simulation.py:819
+#, python-brace-format
+msgid "They need a package of the queue, so zypper would take them away with it: {names}. Nothing has been removed. Usually the right thing is to take that package out of the queue: something you use still needs it."
+msgstr "Sie brauchen ein Paket aus der Warteschlange, deshalb würde zypper sie mit entfernen: {names}. Es wurde nichts entfernt. Meist ist es richtig, dieses Paket aus der Warteschlange zu nehmen: Etwas, das du benutzt, braucht es noch."
+
+#: zypp_desk/simulation.py:823
+msgid "Some of them may be what only the removed packages needed, which you asked to remove too."
+msgstr "Einige davon sind vielleicht das, was nur die entfernten Pakete brauchten, und das hast du ebenfalls entfernen lassen."
+
+#: zypp_desk/simulation.py:832
 msgid "Problems"
 msgstr "Probleme"
 
-#: zypp_desk/simulation.py:787
+#: zypp_desk/simulation.py:837
 msgid "Choose one of the solutions that zypper offers, or change the queue yourself (for example, lock or remove a package) and simulate again."
 msgstr "Wähle eine der Lösungen, die zypper anbietet, oder ändere die Warteschlange selbst (zum Beispiel ein Paket sperren oder entfernen) und simuliere erneut."
 
-#: zypp_desk/simulation.py:789
+#: zypp_desk/simulation.py:839
 msgid "Change the queue (for example, lock or remove a package) and simulate again."
 msgstr "Ändere die Warteschlange (zum Beispiel ein Paket sperren oder entfernen) und simuliere erneut."
 
-#: zypp_desk/simulation.py:817
+#: zypp_desk/simulation.py:861
+#, python-brace-format
+msgid "{name}  (not in the queue)"
+msgstr "{name}  (nicht in der Warteschlange)"
+
+#: zypp_desk/simulation.py:871
 msgid "These commands are also in the queue, but they cannot be simulated:"
 msgstr "Diese Befehle sind auch in der Warteschlange, können aber nicht simuliert werden:"
 
-#: zypp_desk/simulation.py:833
+#: zypp_desk/simulation.py:884
+#, python-brace-format
+msgid "Remove this one too…"
+msgid_plural "Remove these {n} too…"
+msgstr[0] "Dieses auch entfernen …"
+msgstr[1] "Diese {n} auch entfernen …"
+
+#: zypp_desk/simulation.py:890
+msgid "Apply the queue"
+msgstr "Warteschlange anwenden"
+
+#: zypp_desk/simulation.py:892
+msgid "Makes the changes this window shows, now (with the administrator password)."
+msgstr "Führt die Änderungen, die dieses Fenster zeigt, jetzt aus (mit dem Administratorpasswort)."
+
+#: zypp_desk/simulation.py:897
+msgid "Take the removals out of the queue"
+msgstr "Entfernungen aus der Warteschlange nehmen"
+
+#: zypp_desk/simulation.py:898
+msgid "Takes every removal out of the queue, so that nothing is removed when the queue is applied. The rest of the queue stays."
+msgstr "Nimmt jede Entfernung aus der Warteschlange, damit beim Anwenden nichts entfernt wird. Der Rest der Warteschlange bleibt."
+
+#: zypp_desk/simulation.py:901
+msgid "Close (the queue stays as it is)"
+msgstr "Schließen (die Warteschlange bleibt, wie sie ist)"
+
+#: zypp_desk/simulation.py:902
+msgid "Nothing changes, and every change stays in the queue: Apply the queue does it later."
+msgstr "Nichts ändert sich, und alle Änderungen bleiben in der Warteschlange: „Warteschlange anwenden“ führt sie später aus."
+
+#: zypp_desk/simulation.py:906
 msgid "Choose a solution…"
 msgstr "Lösung wählen …"
+
+#: zypp_desk/simulation.py:920
+#, python-brace-format
+msgid "Also remove {n} package you did not choose?"
+msgid_plural "Also remove {n} packages you did not choose?"
+msgstr[0] "Auch {n} Paket entfernen, das du nicht gewählt hast?"
+msgstr[1] "Auch {n} Pakete entfernen, die du nicht gewählt hast?"
+
+#: zypp_desk/simulation.py:922
+#, python-brace-format
+msgid "Yes, remove it too"
+msgid_plural "Yes, remove these {n} too"
+msgstr[0] "Ja, auch entfernen"
+msgstr[1] "Ja, diese {n} auch entfernen"
+
+#: zypp_desk/simulation.py:924
+msgid "not in the queue"
+msgstr "nicht in der Warteschlange"
+
+#: zypp_desk/simulation.py:926
+msgid "They need a package of the queue. Removing them may take away programs you use."
+msgstr "Sie brauchen ein Paket aus der Warteschlange. Sie zu entfernen kann Programme entfernen, die du benutzt."
+
+#: zypp_desk/simulation.py:927
+msgid "zypper removes the queue's packages and these ones with them, now."
+msgstr "zypper entfernt jetzt die Pakete der Warteschlange und diese mit ihnen."
 
 #: zypp_desk/terminal.py:167
 #, python-brace-format

@@ -237,6 +237,41 @@ def rpm_query(args):
     return p.stdout if p.returncode == 0 else ""
 
 
+def needed_by(names, limit=300):
+    """{name: [installed packages that need it]} for these installed packages: what requires something one of them
+    provides (a library's soname, its name...), leaving out the packages of the list itself (removed together,
+    they do not count). "Orphaned" only means that no repository has a package any more: something installed may
+    still need it (an older library that a package not updated yet still uses), and 'zypper remove' would take that
+    away too, without asking. One rpm query per package; read-only."""
+    names = [n for n in names if n and not n.startswith("-")][:limit]
+    if not names:
+        return {}
+    try:
+        p = subprocess.run(["rpm", "-q", "--qf", "[%{=NAME}\t%{PROVIDENAME}\n]", "--", *names], capture_output=True,
+                           text=True, errors="replace", env=ENV_C, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    provides = {}
+    for line in p.stdout.splitlines():
+        name, _sep, cap = line.partition("\t")
+        if cap and not cap.startswith("config("):  # config(x) is only required by x itself
+            provides.setdefault(name, set()).add(cap)
+    together = set(names)
+    out = {}
+    for name, caps in provides.items():
+        try:
+            q = subprocess.run(["rpm", "-q", "--whatrequires", "--qf", "%{NAME}\n", "--", *sorted(caps)],
+                               capture_output=True, text=True, errors="replace", env=ENV_C, timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        # "no package requires X" lines have spaces; package names do not
+        who = {ln.strip() for ln in q.stdout.splitlines() if ln.strip() and " " not in ln.strip()}
+        who -= together
+        if who:
+            out[name] = sorted(who)
+    return out
+
+
 def installed_among(names):
     """The names, among these package names, of the packages that are installed (one rpm call)."""
     names = [n for n in names if n and not n.startswith("-")]

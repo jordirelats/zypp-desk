@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLineEdit, QTreeWidget, QT
 
 from .. import appicons, backend
 from ..i18n import _, ngettext
-from ..style import BLUE, GREEN, RED, dot
+from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action
 from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted, tool
@@ -313,6 +313,43 @@ class PackagesPage(Page):
         names = [d["name"] for d in results if d["installed"] and d["name"] not in self.desktop][:400]
         if names:
             run_async(appicons.desktop_icons, names, on_done=self._desktop_icons_loaded)
+        if special == "orphaned" and results:
+            # "orphaned" only means that no repository has it any more: something installed may still need it
+            # (removing it would take that away too), so those cannot be ticked
+            run_async(backend.needed_by, [d["name"] for d in results if d["installed"]],
+                      on_done=lambda res, err, s=sid: self._orphans_needed(s, res or {}))
+
+    def _orphans_needed(self, sid, needed):
+        if sid != self.search_id or not needed:
+            return
+        n = 0
+        self.tree.blockSignals(True)
+        try:
+            for i in range(self.tree.topLevelItemCount()):
+                it = self.tree.topLevelItem(i)
+                d = it.data(0, Qt.ItemDataRole.UserRole) or {}
+                who = needed.get(d.get("name"))
+                if not who:
+                    continue
+                n += 1
+                it.setCheckState(0, Qt.CheckState.Unchecked)
+                it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
+                it.setData(0, Qt.ItemDataRole.CheckStateRole, None)  # no box: it cannot be removed from here
+                shown = ", ".join(who[:3]) + (" " + _("and {n} more").format(n=len(who) - 3) if len(who) > 3 else "")
+                it.setText(2, _("Still needed by {names}").format(names=shown))
+                it.setForeground(2, QColor(ORANGE))
+                tip = _("No repository has {name} any more, but these installed packages still need it: {names}. "
+                        "Removing it would remove them too. It usually stops being needed after the next update of "
+                        "the system.").format(name=d.get("name"), names=", ".join(who[:30]))
+                for col in range(self.tree.columnCount()):
+                    it.setToolTip(col, tip)
+        finally:
+            self.tree.blockSignals(False)
+        if n:
+            self.info.setText(self.info.text() + " · " + ngettext(
+                "{n} is still needed by other packages: it cannot be ticked",
+                "{n} are still needed by other packages: they cannot be ticked", n).format(n=n))
+        self._update_markbar()
 
     def _desktop_icons_loaded(self, icons, err):
         if icons:
@@ -382,7 +419,13 @@ class PackagesPage(Page):
 
     # ------------------------------------------------------------ marking several
     def _items(self):
-        return [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
+        """The rows that can be ticked (an orphan something installed still needs cannot)."""
+        out = []
+        for i in range(self.tree.topLevelItemCount()):
+            it = self.tree.topLevelItem(i)
+            if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                out.append(it)
+        return out
 
     def marked(self):
         """The packages ticked in the list (their dicts)."""

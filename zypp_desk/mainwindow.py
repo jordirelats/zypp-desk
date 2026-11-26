@@ -918,6 +918,16 @@ class MainWindow(QMainWindow):
             return
         self.run(sims, _("Simulation of the queue"), on_done=lambda ok: self._simulated(sims, others, snapshot, preview))
 
+    def _unasked_removals(self, res):
+        """The packages a simulation would remove that are not in the queue: zypper takes away what needs a package
+        you remove (and, with "also remove what only it needed", what nothing needs any more)."""
+        asked = set()
+        for a in self.queue.of("remove"):
+            target = a.opts.get("package") or a.target
+            asked.add(target.split(":", 1)[-1].split("=", 1)[0])
+        gone = [it["name"] for it in res.get("groups", {}).get("to-remove", [])]
+        return sorted({n for n in gone if n not in asked})
+
     def _simulated(self, sims, others, snapshot, preview):
         if any(st.code in (126, 127) for st in sims):
             return  # the password was not given: nothing was simulated, nothing to show
@@ -927,12 +937,23 @@ class MainWindow(QMainWindow):
             self.terminal.view.note(line, "error" if res["problems"] and line.startswith(_("Problem: {text}").split("{")[0]) else "ok")
         dlg = SimulationDialog(res, preview, extra_steps=others, parent=self,
                                problem_note=_("A lock or an unlock you choose runs at once (a simulation only knows "
-                                              "the locks that exist); the rest goes to the queue."))
+                                              "the locks that exist); the rest goes to the queue."),
+                               unasked=self._unasked_removals(res),
+                               cleaning=any(a.opts.get("clean_deps") for a in self.queue.of("remove")),
+                               queue_count=len(snapshot),
+                               not_simulated=len([a for a in snapshot if a.kind not in PKG_KINDS])
+                               + len(self.queue.not_simulable()))
         rc = dlg.exec()
         chosen = getattr(dlg, "chosen", None) or []
         dlg.deleteLater()
         if rc == QDialog.DialogCode.Accepted:
             self.apply_queue(confirm=False, expected=snapshot)
+        elif rc == getattr(SimulationDialog, "TAKE_OUT", 3):
+            gone = self.queue.of("remove")
+            self.queue.discard_actions(gone)
+            self.terminal.view.note(ngettext("{n} removal taken out of the queue: nothing will be removed.",
+                                             "{n} removals taken out of the queue: nothing will be removed.",
+                                             len(gone)).format(n=len(gone)), "info")
         elif rc == getattr(SimulationDialog, "RESOLVE", 2):
             # the problem window already showed what runs now and asked: no second question
             self.apply_solutions(chosen, then=self.simulate_queue, confirmed=True)
@@ -1000,6 +1021,14 @@ class MainWindow(QMainWindow):
         actions = list(self.queue.actions)
         steps = self.queue.steps()
         if not steps:
+            return
+        if expected is None and self.queue.of("remove"):
+            # 'zypper remove' also takes away, without asking, every installed package that needs one of these
+            # (--no-force-resolution does not stop it). So removals are always simulated first: the simulation
+            # window shows everything that would go and does not apply more than the queue without a clear yes.
+            self.terminal.view.note(_("The queue removes packages: it is simulated first, so that you see "
+                                      "everything that would be removed."), "info")
+            self.simulate_queue()
             return
         if expected is not None and actions != expected:
             # something joined or left the queue after the simulation (a download finished): show it and ask again

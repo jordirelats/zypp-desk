@@ -31,6 +31,7 @@ the commands they will run.</p>
 <p>The colour of a button tells you what it does. A green button changes the computer now, always after a
 question; a button that only adds to the queue is never green, and it has <b>To the queue:</b> in front of it or
 says so in its label. Nothing in the queue changes the computer until you press <b>Apply the queue…</b>.</p>
+<p>When the queue removes packages, <b>Apply the queue…</b> simulates it first: zypper also removes, without asking, every installed package that needs one you remove. If it would remove packages you did not choose, the simulation says so in red, marks them as “not in the queue”, and its button asks before removing them too. In Packages, an orphan that something installed still needs cannot be ticked: it says who needs it.</p>
 <ul>
 <li><b>Review the queue…</b> lists the changes in the order they will run, in words. Each one has its own button to
 take it out of the queue. When a change needs another one (a program needs the repository it comes from, and the
