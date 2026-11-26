@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 10:13+0100\n"
+"POT-Creation-Date: 2026-11-26 10:33+0100\n"
 "PO-Revision-Date: 2026-11-25 14:00+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: German\n"
@@ -86,7 +86,7 @@ msgstr "openSUSE hat {package} {version}, und das ist nicht das, was es verlangt
 #: zypp_desk/bridge.py:566
 #, python-brace-format
 msgid "Zypp Desk cannot tell which version of {package} openSUSE has."
-msgstr ""
+msgstr "Zypp Desk kann nicht feststellen, welche Version von {package} openSUSE hat."
 
 #: zypp_desk/bridge.py:583
 #, python-brace-format
@@ -431,19 +431,19 @@ msgstr "Die Datei ist beschädigt oder wurde nach ihrer Erstellung verändert: I
 
 #: zypp_desk/localrpm.py:270
 msgid "The file belongs to another user of this computer, who can change it."
-msgstr ""
+msgstr "Die Datei gehört einem anderen Benutzer dieses Computers, der sie ändern kann."
 
 #: zypp_desk/localrpm.py:272
 msgid "Other users of this computer can change the file: anybody can write to it."
-msgstr ""
+msgstr "Andere Benutzer dieses Computers können die Datei ändern: Jeder darf hineinschreiben."
 
 #: zypp_desk/localrpm.py:273
 msgid "Other users of this computer can change the file: its group can write to it."
-msgstr ""
+msgstr "Andere Benutzer dieses Computers können die Datei ändern: Ihre Gruppe darf hineinschreiben."
 
 #: zypp_desk/localrpm.py:276
 msgid "Other users of this computer can put another file in its place: they can write in its folder."
-msgstr ""
+msgstr "Andere Benutzer dieses Computers können eine andere Datei an ihre Stelle setzen: Sie dürfen in ihren Ordner schreiben."
 
 #: zypp_desk/localrpm.py:299 zypp_desk/localrpm.py:394
 msgid "This is not a file."
@@ -485,7 +485,7 @@ msgstr "Dieses Paket ist für Computer mit einem {arch}-Prozessor gemacht. Der P
 msgid "Sources"
 msgstr "Quellen"
 
-#: zypp_desk/mainwindow.py:39 zypp_desk/pages/apps.py:45
+#: zypp_desk/mainwindow.py:39 zypp_desk/pages/apps.py:46
 msgid "System"
 msgstr "System"
 
@@ -619,11 +619,11 @@ msgstr "✕ Aus der Warteschlange nehmen"
 
 #: zypp_desk/mainwindow.py:395
 msgid "✕ Take them out of the queue"
-msgstr ""
+msgstr "✕ Aus der Warteschlange nehmen"
 
 #: zypp_desk/mainwindow.py:515
 msgid "Help (F1)"
-msgstr ""
+msgstr "Hilfe (F1)"
 
 #: zypp_desk/mainwindow.py:520
 msgid "Show the terminal"
@@ -724,7 +724,7 @@ msgstr "Lösung wählen"
 
 #: zypp_desk/mainwindow.py:872
 msgid "an upgrade has no queue, so these changes are made now."
-msgstr "eine Systemaktualisierung läuft nicht über die Warteschlange, daher werden diese Änderungen jetzt vorgenommen."
+msgstr "Eine Systemaktualisierung läuft nicht über die Warteschlange, daher werden diese Änderungen jetzt vorgenommen."
 
 #: zypp_desk/mainwindow.py:873
 msgid "locks and unlocks are made now, not in the queue, because a simulation only knows the locks that exist."
@@ -770,11 +770,11 @@ msgstr "Die Warteschlange hat sich nach der Simulation geändert: Das ist jetzt 
 
 #: zypp_desk/mainwindow.py:925
 msgid "The queue changed while the question was open: this is what it holds now."
-msgstr ""
+msgstr "Die Warteschlange hat sich geändert, während die Frage offen war: Das ist jetzt darin."
 
 #: zypp_desk/mainwindow.py:929
 msgid "it is what you put in the queue."
-msgstr "es ist das, was du in die Warteschlange gestellt hast."
+msgstr "Es ist das, was du in die Warteschlange gestellt hast."
 
 #: zypp_desk/mainwindow.py:931
 msgid "If a step fails, Zypp Desk stops there: what was done stays done, and the rest stays in the queue."
@@ -786,19 +786,19 @@ msgstr "Wenn es fehlschlägt, bleibt es in der Warteschlange."
 
 #: zypp_desk/mainwindow.py:936
 msgid "“Simulate” shows first what else zypper would install or remove with these changes."
-msgstr ""
+msgstr "„Simulieren“ zeigt vorher, was zypper mit diesen Änderungen sonst noch installieren oder entfernen würde."
 
 #: zypp_desk/mainwindow.py:941
 #, python-brace-format
 msgid "Without the repository “{name}”, Tumbleweed is not updated."
-msgstr ""
+msgstr "Ohne die Paketquelle „{name}“ wird Tumbleweed nicht aktualisiert."
 
 #: zypp_desk/mainwindow.py:946
 #, python-brace-format
 msgid "This file is not signed, so nothing can check who made it: {files}."
 msgid_plural "These files are not signed, so nothing can check who made them: {files}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Diese Datei ist nicht signiert, daher kann nichts prüfen, wer sie erstellt hat: {files}."
+msgstr[1] "Diese Dateien sind nicht signiert, daher kann nichts prüfen, wer sie erstellt hat: {files}."
 
 #: zypp_desk/mainwindow.py:950
 msgid "Keep the computer plugged in and do not turn it off while the firmware is updated."
@@ -940,695 +940,709 @@ msgstr "Die Paketquelle veröffentlicht keinen einzelnen lesbaren Signaturschlü
 msgid "The key could not be read: {error}"
 msgstr "Der Schlüssel konnte nicht gelesen werden: {error}"
 
-#: zypp_desk/pages/apps.py:36
+#: zypp_desk/pages/apps.py:37
 msgid "Music and video"
 msgstr "Musik und Video"
 
-#: zypp_desk/pages/apps.py:37
+#: zypp_desk/pages/apps.py:38
 msgid "Graphics and photos"
 msgstr "Grafik und Fotos"
 
-#: zypp_desk/pages/apps.py:38
+#: zypp_desk/pages/apps.py:39
 msgid "Office"
 msgstr "Büro"
 
-#: zypp_desk/pages/apps.py:39
+#: zypp_desk/pages/apps.py:40
 msgid "Internet"
 msgstr "Internet"
 
-#: zypp_desk/pages/apps.py:40
+#: zypp_desk/pages/apps.py:41
 msgid "Games"
 msgstr "Spiele"
 
-#: zypp_desk/pages/apps.py:41
+#: zypp_desk/pages/apps.py:42
 msgid "Education"
 msgstr "Bildung"
 
-#: zypp_desk/pages/apps.py:42
+#: zypp_desk/pages/apps.py:43
 msgid "Science"
 msgstr "Wissenschaft"
 
-#: zypp_desk/pages/apps.py:43
+#: zypp_desk/pages/apps.py:44
 msgid "Programming"
 msgstr "Programmierung"
 
-#: zypp_desk/pages/apps.py:44
+#: zypp_desk/pages/apps.py:45
 msgid "Utilities"
 msgstr "Dienstprogramme"
 
-#: zypp_desk/pages/apps.py:46 zypp_desk/pages/system.py:724
+#: zypp_desk/pages/apps.py:47 zypp_desk/pages/system.py:724
 #: zypp_desk/tray.py:816 zypp_desk/tray.py:817
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Audio"
 msgstr "Audio"
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Players"
 msgstr "Wiedergabe"
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Recording"
 msgstr "Aufnahme"
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Video"
 msgstr "Video"
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Audio and video editing"
 msgstr "Audio- und Videobearbeitung"
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "MIDI"
 msgstr "MIDI"
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Mixers"
 msgstr "Mixer"
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Music"
 msgstr "Musik"
 
-#: zypp_desk/pages/apps.py:53
+#: zypp_desk/pages/apps.py:54
 msgid "Sequencers"
 msgstr "Sequenzer"
 
-#: zypp_desk/pages/apps.py:53
+#: zypp_desk/pages/apps.py:54
 msgid "TV"
 msgstr "Fernsehen"
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "2D graphics"
 msgstr "2D-Grafik"
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "3D graphics"
 msgstr "3D-Grafik"
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "Painting and photo editing"
 msgstr "Malen und Bildbearbeitung"
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Photography"
 msgstr "Fotografie"
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Scanning"
 msgstr "Scannen"
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Vector drawing"
 msgstr "Vektorgrafik"
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Publishing"
 msgstr "Publizieren"
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Text recognition"
 msgstr "Texterkennung"
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Viewers"
 msgstr "Betrachter"
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Chat"
 msgstr "Chat"
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Email"
 msgstr "E-Mail"
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Messaging"
 msgstr "Sofortnachrichten"
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Web browsers"
 msgstr "Webbrowser"
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "File transfer"
 msgstr "Dateiübertragung"
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "Peer to peer"
 msgstr "Peer-to-Peer"
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "Remote access"
 msgstr "Fernzugriff"
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Feeds"
 msgstr "Newsfeeds"
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "News"
 msgstr "Nachrichten"
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Telephony"
 msgstr "Telefonie"
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Video calls"
 msgstr "Videoanrufe"
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Presentations"
 msgstr "Präsentationen"
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Spreadsheets"
 msgstr "Tabellenkalkulation"
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Word processors"
 msgstr "Textverarbeitung"
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Calendars"
 msgstr "Kalender"
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Contacts"
 msgstr "Kontakte"
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Finance"
 msgstr "Finanzen"
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Databases"
 msgstr "Datenbanken"
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Dictionaries"
 msgstr "Wörterbücher"
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Project management"
 msgstr "Projektmanagement"
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Debuggers"
 msgstr "Debugger"
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Development environments"
 msgstr "Entwicklungsumgebungen"
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Version control"
 msgstr "Versionsverwaltung"
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Text editors"
 msgstr "Texteditoren"
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Translation"
 msgstr "Übersetzung"
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Web development"
 msgstr "Webentwicklung"
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Action"
 msgstr "Aktion"
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Adventure"
 msgstr "Abenteuer"
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Arcade"
 msgstr "Arcade"
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Blocks"
 msgstr "Blockspiele"
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Board games"
 msgstr "Brettspiele"
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Card games"
 msgstr "Kartenspiele"
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "For children"
 msgstr "Für Kinder"
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Logic"
 msgstr "Logik"
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Role playing"
 msgstr "Rollenspiele"
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Shooters"
 msgstr "Shooter"
 
-#: zypp_desk/pages/apps.py:68 zypp_desk/simulation.py:742
+#: zypp_desk/pages/apps.py:69 zypp_desk/simulation.py:742
 msgid "Simulation"
 msgstr "Simulation"
 
-#: zypp_desk/pages/apps.py:68
+#: zypp_desk/pages/apps.py:69
 msgid "Sports"
 msgstr "Sport"
 
-#: zypp_desk/pages/apps.py:68
+#: zypp_desk/pages/apps.py:69
 msgid "Strategy"
 msgstr "Strategie"
 
-#: zypp_desk/pages/apps.py:69
+#: zypp_desk/pages/apps.py:70
 msgid "Emulators"
 msgstr "Emulatoren"
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Astronomy"
 msgstr "Astronomie"
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Chemistry"
 msgstr "Chemie"
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Mathematics"
 msgstr "Mathematik"
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Physics"
 msgstr "Physik"
 
-#: zypp_desk/pages/apps.py:71
+#: zypp_desk/pages/apps.py:72
 msgid "Biology"
 msgstr "Biologie"
 
-#: zypp_desk/pages/apps.py:71
+#: zypp_desk/pages/apps.py:72
 msgid "Geography"
 msgstr "Geografie"
 
-#: zypp_desk/pages/apps.py:71 zypp_desk/pages/system.py:289
+#: zypp_desk/pages/apps.py:72 zypp_desk/pages/system.py:289
 msgid "Languages"
 msgstr "Sprachen"
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Electronics"
 msgstr "Elektronik"
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Engineering"
 msgstr "Ingenieurwesen"
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Medicine"
 msgstr "Medizin"
 
-#: zypp_desk/pages/apps.py:73
+#: zypp_desk/pages/apps.py:74
 msgid "Data visualization"
 msgstr "Datenvisualisierung"
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "File managers"
 msgstr "Dateiverwaltung"
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "Monitoring"
 msgstr "Überwachung"
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "Terminals"
 msgstr "Terminals"
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "Archives"
 msgstr "Archive"
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "File tools"
 msgstr "Dateiwerkzeuge"
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "Security"
 msgstr "Sicherheit"
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Calculators"
 msgstr "Taschenrechner"
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Clocks"
 msgstr "Uhren"
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Compression"
 msgstr "Komprimierung"
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Accessibility"
 msgstr "Barrierefreiheit"
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Desktop"
 msgstr "Arbeitsfläche"
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Maps"
 msgstr "Landkarten"
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Hardware"
 msgstr "Hardware"
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Package managers"
 msgstr "Paketverwaltung"
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Printing"
 msgstr "Drucken"
 
-#: zypp_desk/pages/apps.py:297
+#: zypp_desk/pages/apps.py:319
 msgid "Choose a program from the list."
 msgstr "Wähle ein Programm aus der Liste."
 
-#: zypp_desk/pages/apps.py:331
+#: zypp_desk/pages/apps.py:353
 msgid "Applications"
 msgstr "Anwendungen"
 
-#: zypp_desk/pages/apps.py:355
+#: zypp_desk/pages/apps.py:377
 msgid "My applications"
 msgstr "Meine Anwendungen"
 
-#: zypp_desk/pages/apps.py:358
+#: zypp_desk/pages/apps.py:380
 msgid "Discover by theme"
 msgstr "Nach Themen entdecken"
 
-#: zypp_desk/pages/apps.py:370 zypp_desk/pages/apps.py:480
+#: zypp_desk/pages/apps.py:392 zypp_desk/pages/apps.py:502
 msgid "Filter by name…"
 msgstr "Nach Name filtern …"
 
-#: zypp_desk/pages/apps.py:411 zypp_desk/pages/apps.py:522
+#: zypp_desk/pages/apps.py:433 zypp_desk/pages/apps.py:554
 msgid "Looking at what is installed…"
 msgstr "Es wird nachgesehen, was installiert ist …"
 
-#: zypp_desk/pages/apps.py:431
+#: zypp_desk/pages/apps.py:453
 msgid "Search every program, for example a photo editor…"
 msgstr "Alle Programme durchsuchen, zum Beispiel nach Fotobearbeitung …"
 
-#: zypp_desk/pages/apps.py:465
+#: zypp_desk/pages/apps.py:487
 msgid "All themes"
 msgstr "Alle Themen"
 
-#: zypp_desk/pages/apps.py:473
+#: zypp_desk/pages/apps.py:495
 msgid "Every source"
 msgstr "Alle Quellen"
 
-#: zypp_desk/pages/apps.py:526
+#: zypp_desk/pages/apps.py:558
 msgid "Looking at what is installed… it takes a few seconds the first time."
 msgstr "Es wird nachgesehen, was installiert ist … beim ersten Mal dauert das ein paar Sekunden."
 
-#: zypp_desk/pages/apps.py:543
+#: zypp_desk/pages/apps.py:575
 #, python-brace-format
 msgid "Could not read the installed programs: {error}"
 msgstr "Die installierten Programme konnten nicht gelesen werden: {error}"
 
-#: zypp_desk/pages/apps.py:568 zypp_desk/pages/apps.py:897
+#: zypp_desk/pages/apps.py:600 zypp_desk/pages/apps.py:929
 msgid "Reading the catalogues of the repositories and of Flathub…"
 msgstr "Die Kataloge der Paketquellen und von Flathub werden gelesen …"
 
-#: zypp_desk/pages/apps.py:575
+#: zypp_desk/pages/apps.py:607
 #, python-brace-format
 msgid "Could not read the catalogues: {error}"
 msgstr "Die Kataloge konnten nicht gelesen werden: {error}"
 
-#: zypp_desk/pages/apps.py:581
+#: zypp_desk/pages/apps.py:613
 #, python-brace-format
 msgid "{n} program to discover"
 msgid_plural "{n} programs to discover"
 msgstr[0] "{n} Programm zum Entdecken"
 msgstr[1] "{n} Programme zum Entdecken"
 
-#: zypp_desk/pages/apps.py:583
+#: zypp_desk/pages/apps.py:615
 #, python-brace-format
 msgid "{rpm} from the openSUSE repositories, {fp} from Flathub"
 msgstr "{rpm} aus den openSUSE-Paketquellen, {fp} von Flathub"
 
-#: zypp_desk/pages/apps.py:647
+#: zypp_desk/pages/apps.py:679
 #, python-brace-format
 msgid "Flatpak · {remote}"
 msgstr "Flatpak · {remote}"
 
-#: zypp_desk/pages/apps.py:651
+#: zypp_desk/pages/apps.py:683
 #, python-brace-format
 msgid "Web · {site}"
 msgstr "Web · {site}"
 
-#: zypp_desk/pages/apps.py:652
+#: zypp_desk/pages/apps.py:684
 msgid "Local file"
 msgstr "Lokale Datei"
 
-#: zypp_desk/pages/apps.py:659 zypp_desk/pages/zyppconf.py:288
+#: zypp_desk/pages/apps.py:691 zypp_desk/pages/zyppconf.py:288
 msgid "in the queue"
 msgstr "in der Warteschlange"
 
-#: zypp_desk/pages/apps.py:662 zypp_desk/pages/apps.py:940
+#: zypp_desk/pages/apps.py:694 zypp_desk/pages/apps.py:1024
 #: zypp_desk/pages/findrepo.py:293 zypp_desk/pages/findrepo.py:300
 #: zypp_desk/pages/pkgdetails.py:367 zypp_desk/simulation.py:311
 #: zypp_desk/simulation.py:808
 msgid "installed"
 msgstr "installiert"
 
-#: zypp_desk/pages/apps.py:664 zypp_desk/pages/apps.py:772
+#: zypp_desk/pages/apps.py:696 zypp_desk/pages/apps.py:804
 msgid "update"
 msgstr "Aktualisierung"
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/apps.py:883
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/apps.py:915
 msgid "All"
 msgstr "Alle"
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/flatpak.py:73
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/flatpak.py:73
 #: zypp_desk/routine.py:153 zypp_desk/tray.py:682
 msgid "Flatpak"
 msgstr "Flatpak"
 
-#: zypp_desk/pages/apps.py:686
+#: zypp_desk/pages/apps.py:718
 msgid "From the web"
 msgstr "Aus dem Web"
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/home.py:120
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/home.py:120
 #: zypp_desk/pages/repos.py:365 zypp_desk/pages/system.py:204
 msgid "Repositories"
 msgstr "Paketquellen"
 
-#: zypp_desk/pages/apps.py:687
+#: zypp_desk/pages/apps.py:719
 msgid "With updates"
 msgstr "Mit Aktualisierungen"
 
-#: zypp_desk/pages/apps.py:712
+#: zypp_desk/pages/apps.py:744
 msgid "Nothing here."
 msgstr "Hier ist nichts."
 
-#: zypp_desk/pages/apps.py:722 zypp_desk/pages/apps.py:937
+#: zypp_desk/pages/apps.py:754 zypp_desk/pages/apps.py:1021
 #, python-brace-format
 msgid "Flatpak, from the remote {remote}"
 msgstr "Flatpak, aus der Quelle {remote}"
 
-#: zypp_desk/pages/apps.py:722 zypp_desk/pages/apps.py:727
-#: zypp_desk/pages/apps.py:732 zypp_desk/pages/flatpak.py:97
+#: zypp_desk/pages/apps.py:754 zypp_desk/pages/apps.py:759
+#: zypp_desk/pages/apps.py:764 zypp_desk/pages/flatpak.py:97
 msgid "Origin"
 msgstr "Herkunft"
 
-#: zypp_desk/pages/apps.py:723 zypp_desk/pages/apps.py:938
+#: zypp_desk/pages/apps.py:755 zypp_desk/pages/apps.py:1022
 msgid "App ID"
 msgstr "App-ID"
 
-#: zypp_desk/pages/apps.py:724 zypp_desk/pages/flatpak.py:97
+#: zypp_desk/pages/apps.py:756 zypp_desk/pages/flatpak.py:97
 #: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/repos.py:466
 msgid "Installation"
 msgstr "Installation"
 
-#: zypp_desk/pages/apps.py:724 zypp_desk/txqueue.py:654
+#: zypp_desk/pages/apps.py:756 zypp_desk/txqueue.py:654
 msgid "for every user"
 msgstr "für alle Benutzer"
 
-#: zypp_desk/pages/apps.py:725 zypp_desk/txqueue.py:654
+#: zypp_desk/pages/apps.py:757 zypp_desk/txqueue.py:654
 msgid "only for you"
 msgstr "nur für dich"
 
-#: zypp_desk/pages/apps.py:727
+#: zypp_desk/pages/apps.py:759
 msgid "a file downloaded from the web, installed from a local folder"
 msgstr "eine aus dem Web heruntergeladene Datei, installiert aus einem lokalen Ordner"
 
-#: zypp_desk/pages/apps.py:728 zypp_desk/pages/apps.py:733
-#: zypp_desk/pages/apps.py:935 zypp_desk/pages/findrepo.py:130
+#: zypp_desk/pages/apps.py:760 zypp_desk/pages/apps.py:765
+#: zypp_desk/pages/apps.py:1019 zypp_desk/pages/findrepo.py:130
 #: zypp_desk/pages/findrepo.py:131 zypp_desk/pages/updates.py:1476
 #: zypp_desk/simulation.py:794
 msgid "Package"
 msgstr "Paket"
 
-#: zypp_desk/pages/apps.py:730
+#: zypp_desk/pages/apps.py:762
 msgid "New versions from"
 msgstr "Neue Versionen von"
 
-#: zypp_desk/pages/apps.py:732
+#: zypp_desk/pages/apps.py:764
 #, python-brace-format
 msgid "the repository {name}"
 msgstr "die Paketquelle {name}"
 
-#: zypp_desk/pages/apps.py:734 zypp_desk/pages/findrepo.py:130
+#: zypp_desk/pages/apps.py:766 zypp_desk/pages/findrepo.py:130
 #: zypp_desk/pages/findrepo.py:131 zypp_desk/pages/flatpak.py:24
 #: zypp_desk/pages/flatpak.py:97 zypp_desk/pages/flatpak.py:124
-#: zypp_desk/pages/packages.py:105 zypp_desk/pages/pkgdetails.py:190
+#: zypp_desk/pages/packages.py:110 zypp_desk/pages/pkgdetails.py:190
 #: zypp_desk/pages/pkgdetails.py:404 zypp_desk/pages/updates.py:1476
 #: zypp_desk/pages/websources.py:314 zypp_desk/pages/websources.py:664
 #: zypp_desk/simulation.py:794
 msgid "Version"
 msgstr "Version"
 
-#: zypp_desk/pages/apps.py:736 zypp_desk/pages/pkgdetails.py:402
+#: zypp_desk/pages/apps.py:768 zypp_desk/pages/pkgdetails.py:402
 #: zypp_desk/pages/updates.py:1298 zypp_desk/pages/updates.py:1327
 msgid "New version"
 msgstr "Neue Version"
 
-#: zypp_desk/pages/apps.py:739
+#: zypp_desk/pages/apps.py:771
 msgid "Not followed in Web sources."
 msgstr "Wird unter „Programme aus dem Web“ nicht beobachtet."
 
-#: zypp_desk/pages/apps.py:741
+#: zypp_desk/pages/apps.py:773
 msgid "Nobody looks for new versions of this program. In Web sources you can say where it is published."
 msgstr "Niemand sucht nach neuen Versionen dieses Programms. Unter „Programme aus dem Web“ kannst du angeben, wo es veröffentlicht wird."
 
-#: zypp_desk/pages/apps.py:744
+#: zypp_desk/pages/apps.py:776
 msgid "Web sources looks for new versions of this program."
 msgstr "„Programme aus dem Web“ sucht nach neuen Versionen dieses Programms."
 
-#: zypp_desk/pages/apps.py:746 zypp_desk/pages/apps.py:947
+#: zypp_desk/pages/apps.py:778 zypp_desk/pages/apps.py:1031
 #, python-brace-format
 msgid "In the queue: {change}."
 msgstr "In der Warteschlange: {change}."
 
-#: zypp_desk/pages/apps.py:751
+#: zypp_desk/pages/apps.py:783
 msgid "Get the new version…"
 msgstr "Neue Version holen …"
 
-#: zypp_desk/pages/apps.py:755 zypp_desk/pages/flatpak.py:103
+#: zypp_desk/pages/apps.py:787 zypp_desk/pages/flatpak.py:103
 #: zypp_desk/pages/pkgdetails.py:177
 msgid "Update"
 msgstr "Aktualisieren"
 
-#: zypp_desk/pages/apps.py:757 zypp_desk/pages/apps.py:951
+#: zypp_desk/pages/apps.py:789 zypp_desk/pages/apps.py:1035
 msgid "Drop from the queue"
 msgstr "Aus der Warteschlange nehmen"
 
-#: zypp_desk/pages/apps.py:759 zypp_desk/pages/apps.py:954
+#: zypp_desk/pages/apps.py:791 zypp_desk/pages/apps.py:1038
 #: zypp_desk/pages/flatpak.py:145 zypp_desk/pages/repos.py:528
 #: zypp_desk/pages/repos.py:1264 zypp_desk/pages/system.py:303
 #: zypp_desk/pages/websources.py:440 zypp_desk/pages/websources.py:764
 msgid "Remove"
 msgstr "Entfernen"
 
-#: zypp_desk/pages/apps.py:759 zypp_desk/pages/apps.py:954
+#: zypp_desk/pages/apps.py:791 zypp_desk/pages/apps.py:1038
 #: zypp_desk/pages/flatpak.py:107
 msgid "Uninstall"
 msgstr "Deinstallieren"
 
-#: zypp_desk/pages/apps.py:762
+#: zypp_desk/pages/apps.py:794
 msgid "Open Web sources"
 msgstr "Programme aus dem Web öffnen"
 
-#: zypp_desk/pages/apps.py:764
+#: zypp_desk/pages/apps.py:796
 msgid "Show in Flatpak"
 msgstr "Unter Flatpak anzeigen"
 
-#: zypp_desk/pages/apps.py:766 zypp_desk/pages/apps.py:963
+#: zypp_desk/pages/apps.py:798 zypp_desk/pages/apps.py:1047
 msgid "Show in Packages"
 msgstr "Unter Pakete anzeigen"
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "install"
 msgstr "Installation"
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "install or update"
 msgstr "Installation oder Aktualisierung"
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "remove"
 msgstr "Entfernen"
 
-#: zypp_desk/pages/apps.py:772
+#: zypp_desk/pages/apps.py:804
 msgid "uninstall"
 msgstr "Deinstallation"
 
-#: zypp_desk/pages/apps.py:821
+#: zypp_desk/pages/apps.py:853
 #, python-brace-format
 msgid "For example: {names}"
 msgstr "Zum Beispiel: {names}"
 
-#: zypp_desk/pages/apps.py:821
+#: zypp_desk/pages/apps.py:853
 #, python-brace-format
 msgid "You have: {names}"
 msgstr "Du hast: {names}"
 
-#: zypp_desk/pages/apps.py:823 zypp_desk/pages/apps.py:919
+#: zypp_desk/pages/apps.py:855 zypp_desk/pages/apps.py:955
 #, python-brace-format
 msgid "{n} program"
 msgid_plural "{n} programs"
 msgstr[0] "{n} Programm"
 msgstr[1] "{n} Programme"
 
-#: zypp_desk/pages/apps.py:848
+#: zypp_desk/pages/apps.py:880
 msgid "Search in every theme"
 msgstr "In allen Themen suchen"
 
-#: zypp_desk/pages/apps.py:923
+#: zypp_desk/pages/apps.py:959
 msgid "Nothing found. Try another word, or every source."
 msgstr "Nichts gefunden. Versuche es mit einem anderen Wort oder mit allen Quellen."
 
-#: zypp_desk/pages/apps.py:934 zypp_desk/pages/apps.py:937
+#: zypp_desk/pages/apps.py:977 zypp_desk/pages/packages.py:395
+#, python-brace-format
+msgid "{n} marked"
+msgid_plural "{n} marked"
+msgstr[0] "{n} markiert"
+msgstr[1] "{n} markiert"
+
+#: zypp_desk/pages/apps.py:978 zypp_desk/pages/packages.py:392
+#, python-brace-format
+msgid "Install it"
+msgid_plural "Install the {n}"
+msgstr[0] "Installieren"
+msgstr[1] "Die {n} installieren"
+
+#: zypp_desk/pages/apps.py:1018 zypp_desk/pages/apps.py:1021
 #: zypp_desk/pages/flatpak.py:26 zypp_desk/pages/pkgdetails.py:413
 #: zypp_desk/pages/updates.py:1299 zypp_desk/pages/updates.py:1330
 msgid "Comes from"
 msgstr "Stammt aus"
 
-#: zypp_desk/pages/apps.py:934
+#: zypp_desk/pages/apps.py:1018
 msgid "the openSUSE repositories"
 msgstr "den openSUSE-Paketquellen"
 
-#: zypp_desk/pages/apps.py:939
+#: zypp_desk/pages/apps.py:1023
 msgid "Themes"
 msgstr "Themen"
 
-#: zypp_desk/pages/apps.py:940 zypp_desk/pages/flatpak.py:98
-#: zypp_desk/pages/packages.py:105 zypp_desk/pages/pkgdetails.py:190
+#: zypp_desk/pages/apps.py:1024 zypp_desk/pages/flatpak.py:98
+#: zypp_desk/pages/packages.py:110 zypp_desk/pages/pkgdetails.py:190
 #: zypp_desk/pages/websources.py:401
 msgid "Status"
 msgstr "Status"
 
-#: zypp_desk/pages/apps.py:941 zypp_desk/pages/localrpm.py:832
+#: zypp_desk/pages/apps.py:1025 zypp_desk/pages/localrpm.py:832
 #: zypp_desk/pages/localrpm.py:877 zypp_desk/pages/websources.py:563
 msgid "not installed"
 msgstr "nicht installiert"
 
-#: zypp_desk/pages/apps.py:944
+#: zypp_desk/pages/apps.py:1028
 msgid "Flatpak apps run isolated from the system and bring what they need with them; they take more space and are updated apart from zypper."
 msgstr "Flatpak-Apps laufen abgeschottet vom System und bringen mit, was sie brauchen; sie belegen mehr Platz und werden getrennt von zypper aktualisiert."
 
-#: zypp_desk/pages/apps.py:957 zypp_desk/pages/apps.py:960
+#: zypp_desk/pages/apps.py:1041 zypp_desk/pages/apps.py:1044
 #: zypp_desk/pages/findrepo.py:152 zypp_desk/pages/findrepo.py:371
 #: zypp_desk/pages/flatpak.py:133 zypp_desk/pages/pkgdetails.py:176
 msgid "Install"
@@ -1649,7 +1663,7 @@ msgstr "Dieses Programm wurde für ein anderes System gemacht"
 #: zypp_desk/pages/bridges.py:67
 #, python-brace-format
 msgid "{name} (zypper installs it from the repository {repo})"
-msgstr ""
+msgstr "{name} (zypper installiert es aus der Paketquelle {repo})"
 
 #: zypp_desk/pages/bridges.py:80
 msgid "Asks for"
@@ -1732,11 +1746,11 @@ msgstr "Ein Programm für ein anderes System"
 
 #: zypp_desk/pages/bridges.py:177
 msgid "both packages go to the queue together. Nothing is installed now: zypper installs them when you apply the queue."
-msgstr ""
+msgstr "Beide Pakete kommen zusammen in die Warteschlange. Jetzt wird nichts installiert: zypper installiert sie, wenn du die Warteschlange anwendest."
 
 #: zypp_desk/pages/bridges.py:181
 msgid "Create the bridge and add both to the queue"
-msgstr ""
+msgstr "Brückenpaket erstellen und beides in die Warteschlange stellen"
 
 #: zypp_desk/pages/bridges.py:181 zypp_desk/pages/bridges.py:203
 #: zypp_desk/pages/bridges.py:384 zypp_desk/pages/findrepo.py:507
@@ -1800,7 +1814,7 @@ msgstr "Brückenpakete"
 
 #: zypp_desk/pages/bridges.py:250
 msgid "Zypp Desk made them so that programs made for Fedora could be installed: each one tells zypper that a Fedora name is met by what openSUSE calls it. Zypp Desk checks them each time you open this page."
-msgstr ""
+msgstr "Zypp Desk hat sie erstellt, damit sich Programme für Fedora installieren lassen: Jedes sagt zypper, dass das, was Fedora unter einem Namen verlangt, in openSUSE unter einem anderen Namen vorhanden ist. Zypp Desk prüft sie jedes Mal, wenn du diese Seite öffnest."
 
 #: zypp_desk/pages/bridges.py:282 zypp_desk/pages/websources.py:561
 msgid "checking…"
@@ -1819,7 +1833,7 @@ msgstr "{name} {version}, für {program}"
 #: zypp_desk/pages/bridges.py:357
 #, python-brace-format
 msgid "Some of its names are no longer asked for: when you install a new version of {program}, Zypp Desk makes a smaller bridge."
-msgstr ""
+msgstr "Einige seiner Namen werden nicht mehr verlangt: Wenn du eine neue Version von {program} installierst, erstellt Zypp Desk ein kleineres Brückenpaket."
 
 #: zypp_desk/pages/bridges.py:362
 msgid "In the queue"
@@ -1941,7 +1955,7 @@ msgid "Name of the program or package, for example zed"
 msgstr "Name des Programms oder Pakets, zum Beispiel zed"
 
 #: zypp_desk/pages/findrepo.py:124 zypp_desk/pages/flatpak.py:120
-#: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/packages.py:55
+#: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/packages.py:57
 msgid "Search"
 msgstr "Suchen"
 
@@ -1974,7 +1988,7 @@ msgstr "App"
 msgid "Developer"
 msgstr "Entwickler"
 
-#: zypp_desk/pages/findrepo.py:133 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/findrepo.py:133 zypp_desk/pages/packages.py:110
 msgid "Summary"
 msgstr "Zusammenfassung"
 
@@ -2018,7 +2032,7 @@ msgid "Open the Flatpak page"
 msgstr "Flatpak-Seite öffnen"
 
 #: zypp_desk/pages/findrepo.py:220 zypp_desk/pages/flatpak.py:265
-#: zypp_desk/pages/packages.py:198 zypp_desk/pages/websources.py:240
+#: zypp_desk/pages/packages.py:217 zypp_desk/pages/websources.py:240
 msgid "Searching…"
 msgstr "Suche läuft …"
 
@@ -2104,7 +2118,7 @@ msgstr "Die Paketquelle {project} ({chroot}) hinzufügen und {name} daraus insta
 
 #: zypp_desk/pages/findrepo.py:432
 msgid "Add them to the queue"
-msgstr ""
+msgstr "In die Warteschlange stellen"
 
 #: zypp_desk/pages/findrepo.py:434 zypp_desk/pages/repotools.py:639
 #: zypp_desk/pages/repotools.py:668 zypp_desk/pages/websources.py:536
@@ -2112,23 +2126,23 @@ msgstr ""
 #, python-brace-format
 msgctxt "change"
 msgid "Add the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ hinzufügen"
 
 #: zypp_desk/pages/findrepo.py:436 zypp_desk/pages/repotools.py:671
 #: zypp_desk/txqueue.py:272
 #, python-brace-format
 msgctxt "change"
 msgid "Install {name}"
-msgstr ""
+msgstr "{name} installieren"
 
 #: zypp_desk/pages/findrepo.py:437 zypp_desk/pages/repotools.py:672
 msgid "From this repository."
-msgstr ""
+msgstr "Aus dieser Paketquelle."
 
 #: zypp_desk/pages/findrepo.py:439 zypp_desk/pages/keys.py:355
 #: zypp_desk/pages/repotools.py:421 zypp_desk/pages/repotools.py:679
 msgid "it only goes to the queue: nothing changes until you apply it."
-msgstr ""
+msgstr "Es kommt nur in die Warteschlange: Nichts ändert sich, bis du sie anwendest."
 
 #: zypp_desk/pages/findrepo.py:450
 #, python-brace-format
@@ -2143,12 +2157,12 @@ msgstr "Ihr Signaturschlüssel konnte nicht gelesen werden ({error}): zypper fra
 #: zypp_desk/pages/findrepo.py:495
 #, python-brace-format
 msgid "The packages of {project} are signed with this key. Add its import to the queue, so that they can be checked?"
-msgstr ""
+msgstr "Die Pakete von {project} sind mit diesem Schlüssel signiert. Seinen Import in die Warteschlange stellen, damit sie geprüft werden können?"
 
 #: zypp_desk/pages/findrepo.py:498
 #, python-brace-format
 msgid "zypper must trust the signing key of {project} before it can read the repository. Add its import to the queue?"
-msgstr ""
+msgstr "zypper muss dem Signaturschlüssel von {project} vertrauen, bevor es die Paketquelle lesen kann. Seinen Import in die Warteschlange stellen?"
 
 #: zypp_desk/pages/findrepo.py:500
 #, python-brace-format
@@ -2162,7 +2176,7 @@ msgstr "Name im Schlüssel: {uid}"
 
 #: zypp_desk/pages/findrepo.py:503
 msgid "From then on, rpm trusts every package signed with this key."
-msgstr ""
+msgstr "Ab dann vertraut rpm jedem Paket, das mit diesem Schlüssel signiert ist."
 
 #: zypp_desk/pages/findrepo.py:505 zypp_desk/pages/keys.py:1014
 msgid "Its owner revoked this key: it must not be used."
@@ -2182,7 +2196,7 @@ msgstr "In die Warteschlange stellen"
 #: zypp_desk/pages/findrepo.py:511
 #, python-brace-format
 msgid "Trust the signing key of {project}?"
-msgstr ""
+msgstr "Dem Signaturschlüssel von {project} vertrauen?"
 
 #: zypp_desk/pages/findrepo.py:512 zypp_desk/pages/keys.py:664
 #: zypp_desk/pages/keys.py:670 zypp_desk/pages/localrpm.py:701
@@ -2194,11 +2208,11 @@ msgstr "Signaturschlüssel importieren"
 #, python-brace-format
 msgctxt "change"
 msgid "Trust the signing key “{name}”"
-msgstr ""
+msgstr "Dem Signaturschlüssel „{name}“ vertrauen"
 
 #: zypp_desk/pages/findrepo.py:517
 msgid "it is imported first when you apply the queue, before the repository is added. Nothing changes until then."
-msgstr ""
+msgstr "Er wird beim Anwenden der Warteschlange zuerst importiert, bevor die Paketquelle hinzugefügt wird. Bis dahin ändert sich nichts."
 
 #: zypp_desk/pages/findrepo.py:524
 msgid "Its signing key too."
@@ -2273,7 +2287,7 @@ msgid "Show runtimes too"
 msgstr "Auch Laufzeitumgebungen anzeigen"
 
 #: zypp_desk/pages/flatpak.py:97 zypp_desk/pages/flatpak.py:124
-#: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/packages.py:110
 #: zypp_desk/pages/repos.py:434 zypp_desk/pages/repos.py:466
 #: zypp_desk/pages/system.py:58 zypp_desk/pages/system.py:204
 msgid "Name"
@@ -2289,7 +2303,7 @@ msgstr "Größe"
 msgid "Also delete its data"
 msgstr "Auch die Daten löschen"
 
-#: zypp_desk/pages/flatpak.py:110 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/flatpak.py:110 zypp_desk/pages/packages.py:20
 #: zypp_desk/pages/pkgdetails.py:231 zypp_desk/pages/updates.py:1332
 #: zypp_desk/pages/websources.py:401
 msgid "Installed"
@@ -2385,7 +2399,7 @@ msgstr "nein"
 msgid "yes"
 msgstr "ja"
 
-#: zypp_desk/pages/flatpak.py:273 zypp_desk/pages/packages.py:225
+#: zypp_desk/pages/flatpak.py:273 zypp_desk/pages/packages.py:246
 #, python-brace-format
 msgid "{n} found"
 msgid_plural "{n} found"
@@ -2431,7 +2445,7 @@ msgstr "Ja, entfernen"
 #: zypp_desk/pages/flatpak.py:394
 msgctxt "change"
 msgid "Uninstall the runtimes and extensions that no app uses any more"
-msgstr ""
+msgstr "Laufzeitumgebungen und Erweiterungen deinstallieren, die keine App mehr benutzt"
 
 #: zypp_desk/pages/flatpak.py:396
 msgid "A runtime is the shared base Flatpak apps run on, such as org.kde.Platform."
@@ -2439,7 +2453,7 @@ msgstr "Eine Laufzeitumgebung ist die gemeinsame Basis, auf der Flatpak-Apps lau
 
 #: zypp_desk/pages/flatpak.py:397
 msgid "your apps keep working: only what none of them uses goes. If an app needs one again, Flatpak downloads it."
-msgstr "deine Apps funktionieren weiter: Nur was keine von ihnen benutzt, wird entfernt. Braucht eine App wieder eine, lädt Flatpak sie herunter."
+msgstr "Deine Apps funktionieren weiter: Nur was keine von ihnen benutzt, wird entfernt. Braucht eine App wieder eine, lädt Flatpak sie herunter."
 
 #: zypp_desk/pages/flatpak.py:421
 msgid "Change a Flatpak remote"
@@ -2454,7 +2468,7 @@ msgstr "Flatpak-Quelle entfernen"
 #, python-brace-format
 msgctxt "change"
 msgid "Remove the Flatpak remote “{name}”"
-msgstr ""
+msgstr "Flatpak-Quelle „{name}“ entfernen"
 
 #: zypp_desk/pages/flatpak.py:438
 #, python-brace-format
@@ -2470,7 +2484,7 @@ msgstr[1] "{n} Apps und Laufzeitumgebungen kommen daher"
 
 #: zypp_desk/pages/flatpak.py:451
 msgid "nothing is uninstalled: what came from it stays and keeps working as it is now."
-msgstr ""
+msgstr "Es wird nichts deinstalliert: Was daher kam, bleibt und funktioniert weiter wie bisher."
 
 #: zypp_desk/pages/flatpak.py:452
 msgid "What came from it gets no more updates, not even for security problems."
@@ -2478,12 +2492,12 @@ msgstr "Was daher kam, bekommt keine Aktualisierungen mehr, nicht einmal bei Sic
 
 #: zypp_desk/pages/flatpak.py:454
 msgid "nothing installed comes from it, so nothing else changes."
-msgstr "nichts Installiertes kommt daher, also ändert sich sonst nichts."
+msgstr "Nichts Installiertes kommt daher, also ändert sich sonst nichts."
 
 #: zypp_desk/pages/flatpak.py:456
 #, python-brace-format
 msgid "Remove the Flatpak remote “{name}”?"
-msgstr ""
+msgstr "Flatpak-Quelle „{name}“ entfernen?"
 
 #: zypp_desk/pages/flatpak.py:456
 msgid "Yes, remove it"
@@ -3031,12 +3045,12 @@ msgstr "Snapshots"
 msgid "#{pre} before"
 msgstr "#{pre} davor"
 
-#: zypp_desk/pages/history.py:616 zypp_desk/pages/packages.py:16
-#: zypp_desk/pages/packages.py:23
+#: zypp_desk/pages/history.py:616 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/packages.py:25
 msgid "Packages"
 msgstr "Pakete"
 
-#: zypp_desk/pages/history.py:620 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/history.py:620 zypp_desk/pages/packages.py:110
 #: zypp_desk/pages/pkgdetails.py:190 zypp_desk/pages/system.py:58
 #: zypp_desk/pages/updates.py:1476 zypp_desk/simulation.py:794
 msgid "Repository"
@@ -3282,12 +3296,12 @@ msgstr "Hallo! Was möchtest du tun?"
 msgid "Search programs to install, for example krita or vlc…"
 msgstr "Programme zum Installieren suchen, zum Beispiel krita oder vlc …"
 
-#: zypp_desk/pages/home.py:100 zypp_desk/pages/packages.py:56
+#: zypp_desk/pages/home.py:100 zypp_desk/pages/packages.py:58
 #: zypp_desk/pages/repos.py:1138 zypp_desk/pages/repos.py:1257
 msgid "Search online…"
 msgstr "Online suchen …"
 
-#: zypp_desk/pages/home.py:102 zypp_desk/pages/packages.py:57
+#: zypp_desk/pages/home.py:102 zypp_desk/pages/packages.py:59
 msgid "Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"
 msgstr "Im openSUSE Build Service, in Fedora COPR und auf Flathub danach suchen"
 
@@ -3332,7 +3346,7 @@ msgstr "Jede Änderung wartet unten in der Warteschlange, bis du sie anwendest. 
 msgid "Install Flatpak from here"
 msgstr "Flatpak hier installieren"
 
-#: zypp_desk/pages/home.py:171 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/home.py:171 zypp_desk/pages/packages.py:20
 #: zypp_desk/pages/pkgdetails.py:232
 msgid "Not installed"
 msgstr "Nicht installiert"
@@ -3589,11 +3603,11 @@ msgstr "openSUSE liefert diesen Schlüssel mit: Er wird hier nie gelöscht."
 
 #: zypp_desk/pages/keys.py:349
 msgid "Delete it anyway"
-msgstr ""
+msgstr "Trotzdem löschen"
 
 #: zypp_desk/pages/keys.py:349
 msgid "This key is probably still needed by a vendor"
-msgstr ""
+msgstr "Dieser Schlüssel wird wahrscheinlich noch von einem Anbieter benötigt"
 
 #: zypp_desk/pages/keys.py:350
 msgid "Delete the signing key"
@@ -3603,12 +3617,12 @@ msgstr "Signaturschlüssel löschen"
 #, python-brace-format
 msgctxt "change"
 msgid "Stop trusting the signing key “{name}”"
-msgstr ""
+msgstr "Dem Signaturschlüssel „{name}“ nicht mehr vertrauen"
 
 #: zypp_desk/pages/keys.py:353
 #, python-brace-format
 msgid "Key ID {keyid}"
-msgstr ""
+msgstr "Schlüssel-ID {keyid}"
 
 #: zypp_desk/pages/keys.py:371
 msgid "Signing keys"
@@ -3743,7 +3757,7 @@ msgstr "Unbenutzte Schlüssel löschen"
 
 #: zypp_desk/pages/keys.py:617
 msgid "Delete them"
-msgstr ""
+msgstr "Löschen"
 
 #. TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
 #: zypp_desk/pages/keys.py:620 zypp_desk/txqueue.py:457
@@ -3756,14 +3770,14 @@ msgstr[1] "{n} Signaturschlüsseln nicht mehr vertrauen"
 #: zypp_desk/pages/keys.py:621
 msgid "No repository uses it, and it signed none of your packages."
 msgid_plural "No repository uses them, and they signed none of your packages."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Keine Paketquelle benutzt ihn, und er hat keines deiner Pakete signiert."
+msgstr[1] "Keine Paketquelle benutzt sie, und sie haben keines deiner Pakete signiert."
 
 #: zypp_desk/pages/keys.py:625
 msgid "no program is removed. It goes to the queue: nothing changes until you apply it."
 msgid_plural "no program is removed. They go to the queue: nothing changes until you apply it."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Es wird kein Programm entfernt. Er kommt in die Warteschlange: Nichts ändert sich, bis du sie anwendest."
+msgstr[1] "Es wird kein Programm entfernt. Sie kommen in die Warteschlange: Nichts ändert sich, bis du sie anwendest."
 
 #: zypp_desk/pages/keys.py:676
 msgid "From a file"
@@ -4041,7 +4055,7 @@ msgstr[1] "Bereit für die Warteschlange: {n} von {total} Dateien."
 #: zypp_desk/pages/localrpm.py:586
 #, python-brace-format
 msgid "{file} changed after Zypp Desk read it, so nothing went to the queue. Close this window and open the file again."
-msgstr ""
+msgstr "{file} hat sich geändert, nachdem Zypp Desk die Datei gelesen hat, deshalb kam nichts in die Warteschlange. Schließe dieses Fenster und öffne die Datei erneut."
 
 #: zypp_desk/pages/localrpm.py:601
 msgid "Bridge package"
@@ -4054,12 +4068,12 @@ msgstr "Das Brückenpaket konnte nicht geschrieben werden: {error}"
 
 #: zypp_desk/pages/localrpm.py:625
 msgid "It is not signed: nothing confirms who made this file, or that nobody changed it after it was published. Install it only if you trust the place you downloaded it from."
-msgstr ""
+msgstr "Sie ist nicht signiert: Nichts bestätigt, wer diese Datei erstellt hat oder dass niemand sie nach der Veröffentlichung verändert hat. Installiere sie nur, wenn du der Quelle vertraust, von der du sie heruntergeladen hast."
 
 #: zypp_desk/pages/localrpm.py:628
 #, python-brace-format
 msgid "It is older than the version you have ({version}): installing it goes back to an older version."
-msgstr ""
+msgstr "Es ist älter als deine Version ({version}): Die Installation setzt es auf eine ältere Version zurück."
 
 #: zypp_desk/pages/localrpm.py:643
 #, python-brace-format
@@ -4069,39 +4083,39 @@ msgstr "älter als deine Version ({version})"
 #: zypp_desk/pages/localrpm.py:649
 msgid "Nothing confirms who made this file, or that nobody changed it after it was published. Install it only if you trust the place you downloaded it from."
 msgid_plural "Nothing confirms who made a file without a signature, or that nobody changed it after it was published. Install them only if you trust the place you downloaded them from."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Nichts bestätigt, wer diese Datei erstellt hat oder dass niemand sie nach der Veröffentlichung verändert hat. Installiere sie nur, wenn du der Quelle vertraust, von der du sie heruntergeladen hast."
+msgstr[1] "Bei einer Datei ohne Signatur bestätigt nichts, wer sie erstellt hat oder dass niemand sie nach der Veröffentlichung verändert hat. Installiere sie nur, wenn du der Quelle vertraust, von der du sie heruntergeladen hast."
 
 #: zypp_desk/pages/localrpm.py:654
 msgid "An older version replaces the newer one you have."
 msgid_plural "Older versions replace the newer ones you have."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Eine ältere Version ersetzt die neuere, die du hast."
+msgstr[1] "Ältere Versionen ersetzen die neueren, die du hast."
 
 #: zypp_desk/pages/localrpm.py:658 zypp_desk/pages/websources.py:1018
 #, python-brace-format
 msgid "{name} {version} is not signed"
-msgstr ""
+msgstr "{name} {version} ist nicht signiert"
 
 #: zypp_desk/pages/localrpm.py:659
 #, python-brace-format
 msgid "{name} {version} is older than yours"
-msgstr ""
+msgstr "{name} {version} ist älter als deine Version"
 
 #: zypp_desk/pages/localrpm.py:661
 #, python-brace-format
 msgid "{n} file needs your OK"
 msgid_plural "{n} files need your OK"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Datei braucht deine Zustimmung"
+msgstr[1] "{n} Dateien brauchen deine Zustimmung"
 
 #: zypp_desk/pages/localrpm.py:663
 msgid "Add them to the queue anyway"
-msgstr ""
+msgstr "Trotzdem in die Warteschlange stellen"
 
 #: zypp_desk/pages/localrpm.py:665 zypp_desk/pages/websources.py:1024
 msgid "it only goes to the queue: nothing is installed until you apply it."
-msgstr ""
+msgstr "Es kommt nur in die Warteschlange: Nichts wird installiert, bis du sie anwendest."
 
 #: zypp_desk/pages/localrpm.py:702
 msgid "This version of Zypp Desk cannot import a key from here yet. Import it in Signing keys → Import a key…, with this address:"
@@ -4182,7 +4196,7 @@ msgstr "Befehl, der ausgeführt wird:"
 
 #: zypp_desk/pages/localrpm.py:871
 msgid "zypper installs a copy of the file, made when it goes to the queue and kept where only you can change it. The file itself stays where it is."
-msgstr ""
+msgstr "zypper installiert eine Kopie der Datei, die angelegt wird, wenn sie in die Warteschlange kommt, und dort liegt, wo nur du sie ändern kannst. Die Datei selbst bleibt, wo sie ist."
 
 #: zypp_desk/pages/localrpm.py:879
 #, python-brace-format
@@ -4291,15 +4305,15 @@ msgstr "Diese Datei kann nicht installiert werden"
 
 #: zypp_desk/pages/localrpm.py:1003
 msgid "Zypp Desk read a copy of it that only you can change, and that copy is what gets installed: a change made to the file from now on does not reach the computer."
-msgstr ""
+msgstr "Zypp Desk hat eine Kopie davon gelesen, die nur du ändern kannst, und genau diese Kopie wird installiert: Was ab jetzt an der Datei geändert wird, erreicht den Computer nicht."
 
 #: zypp_desk/pages/localrpm.py:1007
 msgid "It is not signed, so nothing tells whether somebody changed it before you opened it."
-msgstr ""
+msgstr "Sie ist nicht signiert, daher zeigt nichts, ob jemand sie verändert hat, bevor du sie geöffnet hast."
 
 #: zypp_desk/pages/localrpm.py:1008
 msgid "Other users can change this file"
-msgstr ""
+msgstr "Andere Benutzer können diese Datei ändern"
 
 #: zypp_desk/pages/localrpm.py:1013
 msgid "Check again"
@@ -4428,6 +4442,10 @@ msgstr "Es ist das persönliche Projekt einer einzelnen Person: Niemand sonst pr
 msgid "Add the repository"
 msgstr "Paketquelle hinzufügen"
 
+#: zypp_desk/pages/markbar.py:75 zypp_desk/pages/packages.py:379
+msgid "Unmark all"
+msgstr "Alle abwählen"
+
 #: zypp_desk/pages/notifysettings.py:134 zypp_desk/pages/notifysettings.py:262
 #: zypp_desk/pages/notifysettings.py:307 zypp_desk/pages/system.py:768
 msgid "Notifications"
@@ -4478,28 +4496,28 @@ msgstr "Aktualisierungen vorab herunterladen?"
 
 #: zypp_desk/pages/notifysettings.py:286
 msgid "Download the next upgrade ahead, without installing it"
-msgstr ""
+msgstr "Die nächste Aktualisierung vorab herunterladen, ohne sie zu installieren"
 
 #: zypp_desk/pages/notifysettings.py:287
 msgid "Each time the system timer refreshes the repositories, it also downloads the packages of the next upgrade. They wait in zypper's cache (/var/cache/zypp/packages) until “Run the routine” installs them."
-msgstr ""
+msgstr "Jedes Mal, wenn der System-Timer die Paketquellen neu lädt, lädt er auch die Pakete der nächsten Aktualisierung herunter. Sie warten im Zwischenspeicher von zypper (/var/cache/zypp/packages), bis „Routine ausführen“ sie installiert."
 
 #: zypp_desk/pages/notifysettings.py:290
 #, python-brace-format
 msgid "“Run the routine” will go faster, and a big upgrade can take a few gigabytes on the disk until then. It only downloads when the computer is plugged in and the connection is not metered (a phone hotspot). While it downloads, the computer does not go to sleep, also when you close the lid: for {minutes} minutes at most, then it goes on at the next run."
-msgstr ""
+msgstr "„Routine ausführen“ geht dann schneller, und eine große Aktualisierung kann bis dahin einige Gigabyte auf der Festplatte belegen. Es wird nur heruntergeladen, wenn der Computer am Strom hängt und die Verbindung nicht getaktet ist (wie ein Handy-Hotspot). Während des Downloads schläft der Computer nicht ein, auch nicht, wenn du den Deckel schließt: höchstens {minutes} Minuten lang, danach geht es beim nächsten Lauf weiter."
 
 #: zypp_desk/pages/notifysettings.py:295 zypp_desk/pages/notifysettings.py:303
 msgid "Now, once:"
-msgstr ""
+msgstr "Jetzt, einmal:"
 
 #: zypp_desk/pages/notifysettings.py:296 zypp_desk/pages/notifysettings.py:304
 msgid "Then, each time the timer runs (as root, without asking):"
-msgstr ""
+msgstr "Danach bei jedem Lauf des Timers (als root, ohne Nachfrage):"
 
 #: zypp_desk/pages/notifysettings.py:297
 msgid "Yes, download ahead"
-msgstr ""
+msgstr "Ja, vorab herunterladen"
 
 #: zypp_desk/pages/notifysettings.py:299
 msgid "Stop downloading the updates ahead?"
@@ -4507,19 +4525,19 @@ msgstr "Aktualisierungen nicht mehr vorab herunterladen?"
 
 #: zypp_desk/pages/notifysettings.py:300
 msgid "Stop downloading the next upgrade ahead"
-msgstr ""
+msgstr "Die nächste Aktualisierung nicht mehr vorab herunterladen"
 
 #: zypp_desk/pages/notifysettings.py:301
 msgid "The system timer only refreshes the repositories again."
-msgstr ""
+msgstr "Der System-Timer lädt dann wieder nur die Paketquellen neu."
 
 #: zypp_desk/pages/notifysettings.py:302
 msgid "what was already downloaded stays until the next upgrade uses it."
-msgstr ""
+msgstr "Was schon heruntergeladen wurde, bleibt, bis die nächste Aktualisierung es benutzt."
 
 #: zypp_desk/pages/notifysettings.py:306
 msgid "Yes, stop downloading ahead"
-msgstr ""
+msgstr "Ja, nicht mehr vorab herunterladen"
 
 #: zypp_desk/pages/notifysettings.py:324
 msgid "To know what is new, the repositories must be refreshed. A system timer does it as root, without asking for a password. It also downloads the packages of the next upgrade, when the computer is plugged in. It never installs anything by itself."
@@ -4554,147 +4572,178 @@ msgstr "Der Timer ist eingeschaltet, aber noch nicht gestartet: Das geschieht be
 msgid "The timer is installed but turned off. To turn it on, run this in a terminal:"
 msgstr "Der Timer ist installiert, aber ausgeschaltet. Um ihn einzuschalten, führe dies in einem Terminal aus:"
 
-#: zypp_desk/pages/packages.py:16
+#: zypp_desk/pages/packages.py:18
 msgid "Patches"
 msgstr "Patches"
 
-#: zypp_desk/pages/packages.py:16
+#: zypp_desk/pages/packages.py:18
 msgid "Patterns"
 msgstr "Schemata"
 
-#: zypp_desk/pages/packages.py:17
+#: zypp_desk/pages/packages.py:19
 msgid "Products"
 msgstr "Produkte"
 
-#: zypp_desk/pages/packages.py:17
+#: zypp_desk/pages/packages.py:19
 msgid "Source packages"
 msgstr "Quellcode-Pakete"
 
-#: zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/packages.py:20
 msgid "Any status"
 msgstr "Jeder Status"
 
-#: zypp_desk/pages/packages.py:36
+#: zypp_desk/pages/packages.py:38
 msgid "Search packages, for example vlc"
 msgstr "Pakete suchen, zum Beispiel vlc"
 
-#: zypp_desk/pages/packages.py:47 zypp_desk/pages/packages.py:178
+#: zypp_desk/pages/packages.py:49 zypp_desk/pages/packages.py:197
 msgid "All repositories"
 msgstr "Alle Paketquellen"
 
-#: zypp_desk/pages/packages.py:65
+#: zypp_desk/pages/packages.py:67
 msgid "Summary and description"
 msgstr "Zusammenfassung und Beschreibung"
 
-#: zypp_desk/pages/packages.py:66 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:68 zypp_desk/pages/pkgdetails.py:30
 msgid "Provides"
 msgstr "Stellt bereit"
 
-#: zypp_desk/pages/packages.py:67 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:69 zypp_desk/pages/pkgdetails.py:30
 msgid "Requires"
 msgstr "Benötigt"
 
-#: zypp_desk/pages/packages.py:68 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:70 zypp_desk/pages/pkgdetails.py:30
 msgid "Recommends"
 msgstr "Empfiehlt"
 
-#: zypp_desk/pages/packages.py:69 zypp_desk/pages/pkgdetails.py:208
+#: zypp_desk/pages/packages.py:71 zypp_desk/pages/pkgdetails.py:208
 msgid "Files"
 msgstr "Dateien"
 
-#: zypp_desk/pages/packages.py:70
+#: zypp_desk/pages/packages.py:72
 msgid "Exact match"
 msgstr "Genauer Treffer"
 
-#: zypp_desk/pages/packages.py:71
+#: zypp_desk/pages/packages.py:73
 msgid "Case-sensitive"
 msgstr "Groß-/Kleinschreibung beachten"
 
-#: zypp_desk/pages/packages.py:73
+#: zypp_desk/pages/packages.py:75
 msgid "Also look in the summary and the description, not only the name"
 msgstr "Auch in Zusammenfassung und Beschreibung suchen, nicht nur im Namen"
 
-#: zypp_desk/pages/packages.py:74
+#: zypp_desk/pages/packages.py:76
 msgid "Packages that provide this name (a library, a command, a capability)"
 msgstr "Pakete, die diesen Namen bereitstellen (eine Bibliothek, einen Befehl, eine Fähigkeit)"
 
-#: zypp_desk/pages/packages.py:75
+#: zypp_desk/pages/packages.py:77
 msgid "Packages that need this name"
 msgstr "Pakete, die diesen Namen benötigen"
 
-#: zypp_desk/pages/packages.py:76
+#: zypp_desk/pages/packages.py:78
 msgid "Packages that recommend this name"
 msgstr "Pakete, die diesen Namen empfehlen"
 
-#: zypp_desk/pages/packages.py:77
+#: zypp_desk/pages/packages.py:79
 msgid "Packages that contain a file with this name or path"
 msgstr "Pakete, die eine Datei mit diesem Namen oder Pfad enthalten"
 
-#: zypp_desk/pages/packages.py:78
+#: zypp_desk/pages/packages.py:80
 msgid "Only the exact name, not names that contain it"
 msgstr "Nur der genaue Name, nicht Namen, die ihn enthalten"
 
-#: zypp_desk/pages/packages.py:79
+#: zypp_desk/pages/packages.py:81
 msgid "Tell capitals and small letters apart"
 msgstr "Groß- und Kleinbuchstaben unterscheiden"
 
-#: zypp_desk/pages/packages.py:84
+#: zypp_desk/pages/packages.py:86
 msgid "Search in:"
 msgstr "Suchen in:"
 
-#: zypp_desk/pages/packages.py:89
+#: zypp_desk/pages/packages.py:91
 msgid "Lists:"
 msgstr "Listen:"
 
-#: zypp_desk/pages/packages.py:90 zypp_desk/pages/packages.py:220
+#: zypp_desk/pages/packages.py:92 zypp_desk/pages/packages.py:241
 msgid "Orphaned packages (installed, but in no repository)"
 msgstr "Verwaiste Pakete (installiert, aber in keiner Paketquelle)"
 
-#: zypp_desk/pages/packages.py:91 zypp_desk/pages/packages.py:221
+#: zypp_desk/pages/packages.py:93 zypp_desk/pages/packages.py:242
 msgid "Unneeded packages (nothing requires them any more)"
 msgstr "Nicht benötigte Pakete (nichts braucht sie mehr)"
 
-#: zypp_desk/pages/packages.py:92 zypp_desk/pages/packages.py:222
+#: zypp_desk/pages/packages.py:94 zypp_desk/pages/packages.py:243
 msgid "Recommended packages that are not installed"
 msgstr "Empfohlene Pakete, die nicht installiert sind"
 
-#: zypp_desk/pages/packages.py:93 zypp_desk/pages/packages.py:223
+#: zypp_desk/pages/packages.py:95 zypp_desk/pages/packages.py:244
 msgid "Suggested packages that are not installed"
 msgstr "Vorgeschlagene Pakete, die nicht installiert sind"
 
-#: zypp_desk/pages/packages.py:94
+#: zypp_desk/pages/packages.py:96
 msgid "Orphaned"
 msgstr "Verwaist"
 
-#: zypp_desk/pages/packages.py:94
+#: zypp_desk/pages/packages.py:96
 msgid "Unneeded"
 msgstr "Nicht benötigt"
 
-#: zypp_desk/pages/packages.py:95
+#: zypp_desk/pages/packages.py:97
 msgid "Recommended"
 msgstr "Empfohlen"
 
-#: zypp_desk/pages/packages.py:95
+#: zypp_desk/pages/packages.py:97
 msgid "Suggested"
 msgstr "Vorgeschlagen"
 
-#: zypp_desk/pages/packages.py:217
+#: zypp_desk/pages/packages.py:106 zypp_desk/pages/packages.py:379
+msgid "Mark all"
+msgstr "Alle markieren"
+
+#: zypp_desk/pages/packages.py:238
 #, python-brace-format
 msgid "The search failed: {error}"
 msgstr "Die Suche ist fehlgeschlagen: {error}"
 
-#: zypp_desk/pages/packages.py:231
+#: zypp_desk/pages/packages.py:252
 msgid "Not found in your repositories. “Search online…” looks for it in the openSUSE Build Service, in Fedora COPR and on Flathub."
 msgstr "In deinen Paketquellen nicht gefunden. „Online suchen …“ sucht im openSUSE Build Service, in Fedora COPR und auf Flathub danach."
 
-#: zypp_desk/pages/packages.py:244
+#: zypp_desk/pages/packages.py:267
 #, python-brace-format
 msgid "{n} versions available"
 msgstr "{n} Versionen verfügbar"
 
-#: zypp_desk/pages/packages.py:252
+#: zypp_desk/pages/packages.py:277
 msgid "Nothing was found."
 msgstr "Es wurde nichts gefunden."
+
+#: zypp_desk/pages/packages.py:385 zypp_desk/txqueue.py:1050
+#, python-brace-format
+msgid "{n} to install"
+msgid_plural "{n} to install"
+msgstr[0] "{n} zu installieren"
+msgstr[1] "{n} zu installieren"
+
+#: zypp_desk/pages/packages.py:387
+#, python-brace-format
+msgid "{n} you have"
+msgid_plural "{n} you have"
+msgstr[0] "{n} schon installiert"
+msgstr[1] "{n} schon installiert"
+
+#: zypp_desk/pages/packages.py:389
+msgid "Lock it"
+msgid_plural "Lock them"
+msgstr[0] "Sperren"
+msgstr[1] "Sperren"
+
+#: zypp_desk/pages/packages.py:390
+#, python-brace-format
+msgid "Remove the one you have"
+msgid_plural "Remove the {n} you have"
+msgstr[0] "Das installierte entfernen"
+msgstr[1] "Die {n} installierten entfernen"
 
 #: zypp_desk/pages/pkgdetails.py:31
 msgid "Conflicts"
@@ -4837,7 +4886,7 @@ msgstr "Zypp Desk erinnert dich morgen früh daran. Bis dahin ändert sich nicht
 
 #: zypp_desk/pages/problems.py:305
 msgid "Zypp Desk will remind you tomorrow morning, if the computer is still on: the tray icon does not start with the computer (Settings → Notifications). Until then nothing changes."
-msgstr ""
+msgstr "Zypp Desk erinnert dich morgen früh daran, wenn der Computer dann noch an ist: Das Symbol im Systemabschnitt startet nicht mit dem Computer (Einstellungen → Benachrichtigungen). Bis dahin ändert sich nichts."
 
 #: zypp_desk/pages/problems.py:497
 msgid "The simulation found a problem"
@@ -5172,7 +5221,7 @@ msgstr "Alle neu laden"
 
 #: zypp_desk/pages/repos.py:515
 msgid "Clean the cache…"
-msgstr ""
+msgstr "Zwischenspeicher leeren …"
 
 #: zypp_desk/pages/repos.py:516 zypp_desk/pages/repos.py:731
 #: zypp_desk/pages/repos.py:741 zypp_desk/pages/repotools.py:416
@@ -5190,11 +5239,11 @@ msgstr "Signaturschlüssel importieren …"
 
 #: zypp_desk/pages/repos.py:520
 msgid "Show the hidden repositories for Fedora"
-msgstr ""
+msgstr "Ausgeblendete Fedora-Paketquellen anzeigen"
 
 #: zypp_desk/pages/repos.py:522
 msgid "The ones you put aside with “Do not add it”."
-msgstr ""
+msgstr "Die, die du mit „Nicht hinzufügen“ beiseitegelegt hast."
 
 #: zypp_desk/pages/repos.py:529
 msgid "Refresh"
@@ -5345,8 +5394,8 @@ msgstr "(bereits deaktiviert)"
 #: zypp_desk/pages/repos.py:1081
 msgid "This repository does not answer"
 msgid_plural "These repositories do not answer"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Diese Paketquelle antwortet nicht"
+msgstr[1] "Diese Paketquellen antworten nicht"
 
 #: zypp_desk/pages/repos.py:1082
 msgid "Repositories that do not work"
@@ -5354,7 +5403,7 @@ msgstr "Paketquellen, die nicht funktionieren"
 
 #: zypp_desk/pages/repos.py:1083
 msgid "disabling keeps them in the list, in case they come back; removing deletes them. Nothing changes until you apply the queue."
-msgstr ""
+msgstr "Deaktivieren behält sie in der Liste, falls sie wiederkommen; Entfernen löscht sie. Nichts ändert sich, bis du die Warteschlange anwendest."
 
 #: zypp_desk/pages/repos.py:1087
 msgid "Remove them"
@@ -5392,13 +5441,13 @@ msgstr "Sie gehört zum Dienst {service}: Beim nächsten Neuladen des Dienstes f
 #: zypp_desk/pages/repos.py:1277
 #, python-brace-format
 msgid "Remove the repository “{name}”?"
-msgstr ""
+msgstr "Paketquelle „{name}“ entfernen?"
 
 #: zypp_desk/pages/repos.py:1280 zypp_desk/txqueue.py:184
 #, python-brace-format
 msgctxt "change"
 msgid "Remove the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ entfernen"
 
 #: zypp_desk/pages/repos.py:1282
 msgid "zypper will no longer look there for programs or updates. What you installed from it stays installed, but it gets no more updates from there."
@@ -5545,13 +5594,13 @@ msgstr "sie kann von hier aus nicht geprüft werden ({why})"
 
 #: zypp_desk/pages/repotools.py:415
 msgid "The new address does not answer"
-msgstr ""
+msgstr "Die neue Adresse antwortet nicht"
 
 #: zypp_desk/pages/repotools.py:417 zypp_desk/txqueue.py:166
 #, python-brace-format
 msgctxt "change"
 msgid "Change the address of the repository “{name}”"
-msgstr ""
+msgstr "Adresse der Paketquelle „{name}“ ändern"
 
 #: zypp_desk/pages/repotools.py:418 zypp_desk/txqueue.py:164
 #, python-brace-format
@@ -5565,7 +5614,7 @@ msgstr "Die neue Adresse antwortet nicht ({why})."
 
 #: zypp_desk/pages/repotools.py:420
 msgid "Until it answers, zypper cannot read this repository, and refreshing it fails."
-msgstr ""
+msgstr "Solange sie nicht antwortet, kann zypper diese Paketquelle nicht lesen, und das Neuladen schlägt fehl."
 
 #: zypp_desk/pages/repotools.py:433
 #, python-brace-format
@@ -5587,22 +5636,22 @@ msgstr "antwortet"
 #: zypp_desk/pages/repotools.py:558
 #, python-brace-format
 msgid "The program “{program}” left a repository for Fedora"
-msgstr ""
+msgstr "Das Programm „{program}“ hat eine Paketquelle für Fedora hinterlassen"
 
 #: zypp_desk/pages/repotools.py:559
 #, python-brace-format
 msgid "It is in {path}, where zypper does not look: unless it is added to zypper, {program} will never update."
-msgstr ""
+msgstr "Sie liegt in {path}, wo zypper nicht nachsieht: Solange sie nicht zu zypper hinzugefügt wird, wird {program} nie aktualisiert."
 
 #: zypp_desk/pages/repotools.py:562
 #, python-brace-format
 msgid "There is a repository for Fedora that zypper does not see: “{name}”"
-msgstr ""
+msgstr "Es gibt eine Paketquelle für Fedora, die zypper nicht sieht: „{name}“"
 
 #: zypp_desk/pages/repotools.py:563
 #, python-brace-format
 msgid "It is in {path}, where zypper does not look: unless it is added to zypper, what it brings will never update."
-msgstr ""
+msgstr "Sie liegt in {path}, wo zypper nicht nachsieht: Solange sie nicht zu zypper hinzugefügt wird, wird nie aktualisiert, was sie mitbringt."
 
 #: zypp_desk/pages/repotools.py:567
 #, python-brace-format
@@ -5611,11 +5660,11 @@ msgstr "Paket: {name}"
 
 #: zypp_desk/pages/repotools.py:575
 msgid "Do not add it"
-msgstr ""
+msgstr "Nicht hinzufügen"
 
 #: zypp_desk/pages/repotools.py:576
 msgid "Hide this message. Nothing is changed. Repositories → More → “Show the hidden repositories for Fedora” shows it again."
-msgstr ""
+msgstr "Diese Meldung ausblenden. Es wird nichts geändert. Paketquellen → Mehr → „Ausgeblendete Fedora-Paketquellen anzeigen“ zeigt sie wieder an."
 
 #: zypp_desk/pages/repotools.py:578 zypp_desk/pages/repotools.py:587
 msgid "Add it to zypper"
@@ -5627,11 +5676,11 @@ msgstr "Schlüssel wird geprüft …"
 
 #: zypp_desk/pages/repotools.py:601
 msgid "Its address is not encrypted (http, and https does not answer there), and its list of packages is not signed: anybody on the same network (a café's Wi-Fi) could keep its updates from you, or give you older versions with their known holes. Each package is still checked against its signature."
-msgstr ""
+msgstr "Ihre Adresse ist nicht verschlüsselt (http, und https antwortet dort nicht), und ihre Paketliste ist nicht signiert: Jeder im selben Netzwerk (dem WLAN eines Cafés) könnte dir ihre Aktualisierungen vorenthalten oder dir ältere Versionen mit ihren bekannten Sicherheitslücken unterschieben. Jedes Paket wird trotzdem anhand seiner Signatur geprüft."
 
 #: zypp_desk/pages/repotools.py:606
 msgid "Its address is not encrypted (http, and https does not answer there). Its list of packages is signed, so nobody can change what is in it, but anybody on the same network could keep its updates from you."
-msgstr ""
+msgstr "Ihre Adresse ist nicht verschlüsselt (http, und https antwortet dort nicht). Ihre Paketliste ist signiert, also kann niemand ändern, was darin steht, aber jeder im selben Netzwerk könnte dir ihre Aktualisierungen vorenthalten."
 
 #: zypp_desk/pages/repotools.py:610
 #, python-brace-format
@@ -5640,7 +5689,7 @@ msgstr "Laut der Datei sind ihre Pakete nicht signiert: zypper kann nicht prüfe
 
 #: zypp_desk/pages/repotools.py:613
 msgid "The file says its packages are not signed. zypper still checks the list of packages, which is signed and holds a checksum of each package."
-msgstr ""
+msgstr "Laut der Datei sind ihre Pakete nicht signiert. zypper prüft trotzdem die Paketliste, die signiert ist und eine Prüfsumme jedes Pakets enthält."
 
 #: zypp_desk/pages/repotools.py:616
 msgid "The file names no signing key. The first time zypper reads the repository, it will ask whether to trust the key it finds there."
@@ -5679,7 +5728,7 @@ msgstr "Ein neuer Ort, von dem {who} und seine Aktualisierungen heruntergeladen 
 #: zypp_desk/pages/repotools.py:637
 #, python-brace-format
 msgid "The file says {url}; Zypp Desk uses the same address with https, which answers."
-msgstr ""
+msgstr "In der Datei steht {url}; Zypp Desk verwendet dieselbe Adresse mit https, die antwortet."
 
 #: zypp_desk/pages/repotools.py:642
 msgid "A key lets rpm install as root anything signed with it."
@@ -5709,12 +5758,12 @@ msgstr "{who} wird mit dem Rest des Systems aktualisiert. Jetzt ändert sich nic
 #: zypp_desk/pages/repotools.py:669
 #, python-brace-format
 msgid "A new place to download programs and updates from: {url}"
-msgstr ""
+msgstr "Ein neuer Ort, von dem Programme und Aktualisierungen heruntergeladen werden: {url}"
 
 #: zypp_desk/pages/repotools.py:674
 #, python-brace-format
 msgid "Add the personal project {project}?"
-msgstr ""
+msgstr "Das persönliche Projekt {project} hinzufügen?"
 
 #: zypp_desk/pages/repotools.py:675
 msgid "Personal project"
@@ -5723,7 +5772,7 @@ msgstr "Persönliches Projekt"
 #: zypp_desk/pages/repotools.py:676
 #, python-brace-format
 msgid "{project} belongs to one person and nobody else reviews it. It can bring anything, and it can stop being updated at any time. Add it only if you trust this person, or if nothing better exists."
-msgstr ""
+msgstr "{project} gehört einer einzelnen Person, und niemand sonst prüft es. Es kann alles Mögliche mitbringen und jederzeit nicht mehr aktualisiert werden. Füge es nur hinzu, wenn du dieser Person vertraust oder wenn es nichts Besseres gibt."
 
 #: zypp_desk/pages/routine_editor.py:30 zypp_desk/routine.py:165
 msgid "Download the updates"
@@ -5954,7 +6003,7 @@ msgstr "Weder zu einem installierten Paket noch zu einem aus deinen Paketquellen
 
 #: zypp_desk/pages/system.py:36
 msgid "nothing changes in what zypper may install or update now. A lock for a package that is only missing for a while (its repository is disabled) goes too."
-msgstr "an dem, was zypper jetzt installieren oder aktualisieren darf, ändert sich nichts. Auch eine Sperre für ein Paket, das nur vorübergehend fehlt (seine Paketquelle ist deaktiviert), wird entfernt."
+msgstr "An dem, was zypper jetzt installieren oder aktualisieren darf, ändert sich nichts. Auch eine Sperre für ein Paket, das nur vorübergehend fehlt (seine Paketquelle ist deaktiviert), wird entfernt."
 
 #: zypp_desk/pages/system.py:53
 msgid "Locks"
@@ -5974,7 +6023,7 @@ msgstr "Ein gesperrtes Paket wird von keinem zypper-Befehl installiert, entfernt
 
 #: zypp_desk/pages/system.py:67
 msgid "Unlock them"
-msgstr ""
+msgstr "Entsperren"
 
 #: zypp_desk/pages/system.py:81
 msgid "Lock…"
@@ -5987,7 +6036,7 @@ msgstr "wird entsperrt"
 #: zypp_desk/pages/system.py:150
 #, python-brace-format
 msgid "locked by Zypp Desk on {date}"
-msgstr ""
+msgstr "am {date} von Zypp Desk gesperrt"
 
 #: zypp_desk/pages/system.py:157
 #, python-brace-format
@@ -6036,7 +6085,7 @@ msgstr[1] "Seine {n} Paketquellen werden mit ihm deaktiviert."
 
 #: zypp_desk/pages/system.py:267
 msgid "you get no programs or updates from its repositories until you enable it again."
-msgstr "du bekommst keine Programme oder Aktualisierungen aus seinen Paketquellen, bis du ihn wieder aktivierst."
+msgstr "Du bekommst keine Programme oder Aktualisierungen aus seinen Paketquellen, bis du ihn wieder aktivierst."
 
 #: zypp_desk/pages/system.py:269
 msgid "It is normally left enabled."
@@ -6045,7 +6094,7 @@ msgstr "Normalerweise bleibt er aktiviert."
 #: zypp_desk/pages/system.py:271
 #, python-brace-format
 msgid "Disable the service “{name}”?"
-msgstr ""
+msgstr "Dienst „{name}“ deaktivieren?"
 
 #: zypp_desk/pages/system.py:271
 msgid "Yes, disable it"
@@ -6055,7 +6104,7 @@ msgstr "Ja, deaktivieren"
 #, python-brace-format
 msgctxt "change"
 msgid "Stop using the service “{name}”"
-msgstr ""
+msgstr "Dienst „{name}“ nicht mehr benutzen"
 
 #: zypp_desk/pages/system.py:275
 msgid "Without this service, Tumbleweed is not updated."
@@ -6064,7 +6113,7 @@ msgstr "Ohne diesen Dienst wird Tumbleweed nicht aktualisiert."
 #: zypp_desk/pages/system.py:278
 #, python-brace-format
 msgid "Enable the service “{name}”?"
-msgstr ""
+msgstr "Dienst „{name}“ aktivieren?"
 
 #: zypp_desk/pages/system.py:278
 msgid "Yes, enable it"
@@ -6074,7 +6123,7 @@ msgstr "Ja, aktivieren"
 #, python-brace-format
 msgctxt "change"
 msgid "Use the service “{name}” again"
-msgstr ""
+msgstr "Dienst „{name}“ wieder benutzen"
 
 #: zypp_desk/pages/system.py:281
 msgid "Its repositories are enabled again as they were before."
@@ -6194,7 +6243,7 @@ msgstr "Wenn etwas fehlt oder sich etwas widerspricht, installiert oder entfernt
 
 #: zypp_desk/pages/system.py:508
 msgid "most of the time there is nothing to fix. “Simulate” shows first what it would change."
-msgstr ""
+msgstr "Meistens gibt es nichts zu reparieren. „Simulieren“ zeigt vorher, was es ändern würde."
 
 #: zypp_desk/pages/system.py:511
 msgid "Install the new recommended packages?"
@@ -6214,7 +6263,7 @@ msgstr "Nur das, was sie erst nach ihrer Installation zu empfehlen begonnen habe
 
 #: zypp_desk/pages/system.py:517
 msgid "“Simulate” shows first which packages and how much space they take."
-msgstr ""
+msgstr "„Simulieren“ zeigt vorher, welche Pakete es sind und wie viel Platz sie brauchen."
 
 #: zypp_desk/pages/system.py:525
 msgid "Remove the old kernels?"
@@ -6222,7 +6271,7 @@ msgstr "Alte Kernel entfernen?"
 
 #: zypp_desk/pages/system.py:526
 msgid "the computer starts the same. The boot menu will have fewer versions to choose from."
-msgstr "der Computer startet wie bisher. Im Bootmenü stehen weniger Versionen zur Auswahl."
+msgstr "Der Computer startet wie bisher. Im Bootmenü stehen weniger Versionen zur Auswahl."
 
 #: zypp_desk/pages/system.py:530
 msgid "Remove the old Linux kernels"
@@ -6254,12 +6303,12 @@ msgstr "Trotzdem ausführen"
 #, python-brace-format
 msgid "zypp.conf keeps your kernel"
 msgid_plural "zypp.conf keeps all your {n} kernels"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "zypp.conf behält deinen Kernel"
+msgstr[1] "zypp.conf behält alle deine {n} Kernel"
 
 #: zypp_desk/pages/system.py:544
 msgid "nothing needs to be done. If you run it anyway, it only cleans up what is left of kernels that are gone, and it asks for the administrator password."
-msgstr ""
+msgstr "Es muss nichts getan werden. Wenn du es trotzdem ausführst, räumt es nur auf, was von entfernten Kerneln übrig ist, und fragt nach dem Administratorpasswort."
 
 #: zypp_desk/pages/system.py:546
 #, python-brace-format
@@ -6275,12 +6324,12 @@ msgstr "Diese bleiben: {list}."
 
 #: zypp_desk/pages/system.py:551
 msgid "No space comes back yet"
-msgstr ""
+msgstr "Noch wird kein Platz frei"
 
 #: zypp_desk/pages/system.py:552
 #, python-brace-format
 msgid "The snapshots of the system keep the old kernels' files. About {size} comes back when the snapshots from before this change are deleted: snapper deletes old ones by itself, or you can in History."
-msgstr ""
+msgstr "Die Snapshots des Systems behalten die Dateien der alten Kernel. Etwa {size} werden frei, wenn die Snapshots von vor dieser Änderung gelöscht werden: snapper löscht alte selbst, oder du löschst sie unter Verlauf."
 
 #: zypp_desk/pages/system.py:556 zypp_desk/pages/system.py:579
 #, python-brace-format
@@ -6327,7 +6376,7 @@ msgstr "Ja, leeren"
 
 #: zypp_desk/pages/system.py:583
 msgid "nothing installed changes. The next refresh downloads every repository's information again, which takes a while."
-msgstr "nichts Installiertes ändert sich. Das nächste Neuladen lädt die Informationen aller Paketquellen erneut herunter, was eine Weile dauert."
+msgstr "Nichts Installiertes ändert sich. Das nächste Neuladen lädt die Informationen aller Paketquellen erneut herunter, was eine Weile dauert."
 
 #: zypp_desk/pages/system.py:655
 #, python-brace-format
@@ -6499,15 +6548,15 @@ msgstr[1] "{n} Pakete neu installieren"
 #, python-brace-format
 msgid "{n} new package"
 msgid_plural "{n} new packages"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} neues Paket"
+msgstr[1] "{n} neue Pakete"
 
 #: zypp_desk/pages/updates.py:250
 #, python-brace-format
 msgid "{n} package to remove"
 msgid_plural "{n} packages to remove"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket zu entfernen"
+msgstr[1] "{n} Pakete zu entfernen"
 
 #: zypp_desk/pages/updates.py:253 zypp_desk/txqueue.py:1056
 #, python-brace-format
@@ -6537,19 +6586,19 @@ msgstr "Aus deinen Paketquellen."
 #, python-brace-format
 msgid "Part {i} of {n} · {count} package"
 msgid_plural "Part {i} of {n} · {count} packages"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Etappe {i} von {n} · {count} Paket"
+msgstr[1] "Etappe {i} von {n} · {count} Pakete"
 
 #: zypp_desk/pages/updates.py:307
 msgid "Finish: update the rest (dup)"
-msgstr ""
+msgstr "Zum Schluss: den Rest aktualisieren (dup)"
 
 #: zypp_desk/pages/updates.py:315
 #, python-brace-format
 msgid "{names} is left to the full update at the end: its update needs a decision that only a full update makes."
 msgid_plural "{n} packages are left to the full update at the end ({names}): their update needs a decision that only a full update makes, or goes with a package that does."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names} wird der vollständigen Aktualisierung am Ende überlassen: Seine Aktualisierung braucht eine Entscheidung, die nur eine vollständige Aktualisierung trifft."
+msgstr[1] "{n} Pakete werden der vollständigen Aktualisierung am Ende überlassen ({names}): Ihre Aktualisierung braucht eine Entscheidung, die nur eine vollständige Aktualisierung trifft, oder hängt an einem Paket, bei dem das so ist."
 
 #: zypp_desk/pages/updates.py:337
 #, python-brace-format
@@ -6575,7 +6624,7 @@ msgstr "{size} freigeben"
 
 #: zypp_desk/pages/updates.py:352
 msgid "First, free up space"
-msgstr ""
+msgstr "Zuerst Platz freigeben"
 
 #: zypp_desk/pages/updates.py:368
 #, python-brace-format
@@ -6605,7 +6654,7 @@ msgstr "Die Spiegelserver kopieren sie vielleicht noch, daher können einige Dow
 
 #: zypp_desk/pages/updates.py:383
 msgid "This Tumbleweed version is less than a day old"
-msgstr ""
+msgstr "Diese Tumbleweed-Version ist weniger als einen Tag alt"
 
 #: zypp_desk/pages/updates.py:386
 #, python-brace-format
@@ -6663,7 +6712,7 @@ msgstr "Der Snapshot vor der Aktualisierung behält die alten Dateien, daher bel
 
 #: zypp_desk/pages/updates.py:434
 msgid "There is not enough room to download it all at once"
-msgstr ""
+msgstr "Es ist nicht genug Platz, um alles auf einmal herunterzuladen"
 
 #: zypp_desk/pages/updates.py:435
 msgid "If the disk fills up halfway, the system can be left half updated."
@@ -6671,24 +6720,24 @@ msgstr "Wenn die Festplatte mittendrin voll wird, kann das System halb aktualisi
 
 #: zypp_desk/pages/updates.py:438
 msgid "The update itself fits"
-msgstr ""
+msgstr "Die Aktualisierung selbst passt"
 
 #: zypp_desk/pages/updates.py:439
 #, python-brace-format
 msgid "It needs about {need} and there are {free} free, so about {left} would be left: less than the {margin} that Zypp Desk keeps free as room to spare."
-msgstr ""
+msgstr "Sie braucht etwa {need}, und es sind {free} frei, also blieben etwa {left} übrig: weniger als die {margin}, die Zypp Desk als Spielraum frei hält."
 
 #: zypp_desk/pages/updates.py:443
 msgid "The disk is nearly full"
-msgstr ""
+msgstr "Die Festplatte ist fast voll"
 
 #: zypp_desk/pages/updates.py:444
 msgid "Free up space soon, for example by deleting old snapshots in History."
-msgstr ""
+msgstr "Gib bald Platz frei, zum Beispiel indem du unter Verlauf alte Snapshots löschst."
 
 #: zypp_desk/pages/updates.py:445
 msgid "Free up space soon: other programs need room too."
-msgstr ""
+msgstr "Gib bald Platz frei: Andere Programme brauchen auch Platz."
 
 #: zypp_desk/pages/updates.py:448
 msgid "Each part is downloaded completely before it is installed, so if a download fails nothing of that part is installed, and the system stays as the previous part left it. Then a normal update finishes what is left."
@@ -6716,12 +6765,12 @@ msgstr "Es wären mehr als {n} Etappen nötig."
 
 #: zypp_desk/pages/updates.py:464
 msgid "zypper kept finding problems in the parts, so Zypp Desk could not find parts that work."
-msgstr ""
+msgstr "zypper hat in den Etappen immer wieder Probleme gefunden, deshalb konnte Zypp Desk keine Etappen finden, die funktionieren."
 
 #: zypp_desk/pages/updates.py:466
 #, python-brace-format
 msgid "Even split into parts, at least {short} more free space is needed, counting the {margin} that Zypp Desk keeps free as room to spare."
-msgstr ""
+msgstr "Selbst in Etappen wird mindestens {short} mehr freier Platz gebraucht, die {margin} mitgerechnet, die Zypp Desk als Spielraum frei hält."
 
 #: zypp_desk/pages/updates.py:470
 msgid "Free up space first, for example by deleting old snapshots in History."
@@ -6745,7 +6794,7 @@ msgstr "Ja, in Etappen:"
 
 #: zypp_desk/pages/updates.py:481
 msgid "Update it now anyway:"
-msgstr ""
+msgstr "Trotzdem jetzt aktualisieren:"
 
 #: zypp_desk/pages/updates.py:483
 msgid "After that it should fit all at once. The update is simulated again and you are asked again."
@@ -6757,7 +6806,7 @@ msgstr "Danach wird die Aktualisierung erneut simuliert, und du wirst noch einma
 
 #: zypp_desk/pages/updates.py:488 zypp_desk/pages/updates.py:571
 msgid "First, free up space:"
-msgstr ""
+msgstr "Zuerst Platz freigeben:"
 
 #: zypp_desk/pages/updates.py:494 zypp_desk/pages/updates.py:575
 msgid "Yes, in parts"
@@ -6769,19 +6818,19 @@ msgstr "In Etappen aktualisieren?"
 
 #: zypp_desk/pages/updates.py:499
 msgid "Open History"
-msgstr ""
+msgstr "Verlauf öffnen"
 
 #: zypp_desk/pages/updates.py:501
 msgid "Update it now anyway"
-msgstr ""
+msgstr "Trotzdem jetzt aktualisieren"
 
 #: zypp_desk/pages/updates.py:502
 msgid "Very little room on the disk: update anyway?"
-msgstr ""
+msgstr "Sehr wenig Platz auf der Festplatte: trotzdem aktualisieren?"
 
 #: zypp_desk/pages/updates.py:503
 msgid "There is not enough room for this update"
-msgstr ""
+msgstr "Für diese Aktualisierung ist nicht genug Platz"
 
 #: zypp_desk/pages/updates.py:511
 #, python-brace-format
@@ -6816,7 +6865,7 @@ msgstr "Ein brandneues Tumbleweed: jetzt aktualisieren?"
 
 #: zypp_desk/pages/updates.py:529
 msgid "it will take a few minutes and you can keep working."
-msgstr "es dauert ein paar Minuten, und du kannst weiterarbeiten."
+msgstr "Es dauert ein paar Minuten, und du kannst weiterarbeiten."
 
 #: zypp_desk/pages/updates.py:531
 msgid "If something goes wrong, the snapshot from before lets you go back."
@@ -6824,11 +6873,11 @@ msgstr "Wenn etwas schiefgeht, kannst du mit dem Snapshot von vorher zurückgehe
 
 #: zypp_desk/pages/updates.py:532
 msgid "Do not turn the computer off while it updates."
-msgstr ""
+msgstr "Schalte den Computer nicht aus, während er aktualisiert wird."
 
 #: zypp_desk/pages/updates.py:534
 msgid "It is on battery: plug in the charger first."
-msgstr "Er läuft mit Akku: Schließ zuerst das Ladegerät an."
+msgstr "Er läuft mit Akku: Schließe zuerst das Ladegerät an."
 
 #: zypp_desk/pages/updates.py:535
 msgid "Update the whole system now?"
@@ -6858,7 +6907,7 @@ msgstr "Diesmal geht es in Etappen"
 
 #: zypp_desk/pages/updates.py:562
 msgid "First the repositories are refreshed. Then the update is simulated and split into parts that fit, and you are asked before anything is installed. Your saved routine does not change."
-msgstr "Zuerst werden die Paketquellen aktualisiert. Dann wird die Aktualisierung simuliert und in passende Etappen aufgeteilt, und du wirst gefragt, bevor etwas installiert wird. Deine gespeicherte Routine ändert sich nicht."
+msgstr "Zuerst werden die Paketquellen neu geladen. Dann wird die Aktualisierung simuliert und in passende Etappen aufgeteilt, und du wirst gefragt, bevor etwas installiert wird. Deine gespeicherte Routine ändert sich nicht."
 
 #: zypp_desk/pages/updates.py:564
 msgid "To know exactly how much room it needs, simulate it first with “Simulate the dup…”."
@@ -6965,7 +7014,7 @@ msgstr "Die Routine wurde nicht ausgeführt."
 
 #: zypp_desk/pages/updates.py:986
 msgid "The repositories were refreshed; nothing else has been changed."
-msgstr "Die Paketquellen wurden aktualisiert; sonst wurde nichts geändert."
+msgstr "Die Paketquellen wurden neu geladen; sonst wurde nichts geändert."
 
 #: zypp_desk/pages/updates.py:1005 zypp_desk/pages/updates.py:1082
 msgid "The routine was stopped: the steps after it did not run."
@@ -7217,30 +7266,30 @@ msgstr "zypper dup, nur herunterladen"
 #: zypp_desk/pages/updates.py:1813
 #, python-brace-format
 msgid "The update in parts stopped at part {i} of {n}: the parts after it and the full update did not run. What it downloaded and did not install stays in the package cache, so the next try does not download it again."
-msgstr ""
+msgstr "Die Aktualisierung in Etappen ist bei Etappe {i} von {n} stehen geblieben: Die folgenden Etappen und die vollständige Aktualisierung wurden nicht ausgeführt. Was heruntergeladen, aber nicht installiert wurde, bleibt im Paketzwischenspeicher, sodass der nächste Versuch es nicht noch einmal herunterlädt."
 
 #: zypp_desk/pages/updates.py:1840
 #, python-brace-format
 msgid "Simulation of {n} part"
 msgid_plural "Simulation of {n} parts"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Simulation von {n} Etappe"
+msgstr[1] "Simulation von {n} Etappen"
 
 #: zypp_desk/pages/updates.py:1842
 #, python-brace-format
 msgid "Checking the part with a simulation before asking…"
 msgid_plural "Checking each of the {n} parts with a simulation before asking…"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Die Etappe wird vor der Frage mit einer Simulation geprüft …"
+msgstr[1] "Jede der {n} Etappen wird vor der Frage mit einer Simulation geprüft …"
 
 #: zypp_desk/pages/updates.py:1878
 #, python-brace-format
 msgid "Left to the full update at the end (their update needs a decision): {names}"
-msgstr ""
+msgstr "Der vollständigen Aktualisierung am Ende überlassen (ihre Aktualisierung braucht eine Entscheidung): {names}"
 
 #: zypp_desk/pages/updates.py:1884
 msgid "zypper could not simulate a part of the update, so nothing has been changed:"
-msgstr ""
+msgstr "zypper konnte eine Etappe der Aktualisierung nicht simulieren, deshalb wurde nichts geändert:"
 
 #: zypp_desk/pages/updates.py:1894
 #, python-brace-format
@@ -7252,7 +7301,7 @@ msgstr[1] "zypper dup, in {n} Etappen"
 #: zypp_desk/pages/updates.py:1908
 #, python-brace-format
 msgid "Nothing has been changed. The reminder could not be saved: {error}"
-msgstr ""
+msgstr "Es wurde nichts geändert. Die Erinnerung konnte nicht gespeichert werden: {error}"
 
 #: zypp_desk/pages/updates.py:1918
 #, python-brace-format
@@ -7261,7 +7310,7 @@ msgstr "Es wurde nichts geändert. Du wirst morgen um {time} daran erinnert."
 
 #: zypp_desk/pages/updates.py:1920
 msgid "Nothing has been changed. The tray icon, which reminds you, could not be started: look at the update again tomorrow."
-msgstr ""
+msgstr "Es wurde nichts geändert. Das Symbol im Systemabschnitt, das dich erinnert, konnte nicht gestartet werden: Sieh dir die Aktualisierung morgen noch einmal an."
 
 #: zypp_desk/pages/updates.py:1927
 msgid "Downloaded. When you are ready, run the update: it will not download it again."
@@ -7504,36 +7553,36 @@ msgstr "Ordner für die Programme aus dem Web"
 #, python-brace-format
 msgid "Save the new version of the program you follow there too?"
 msgid_plural "Save the new versions of the {n} programs you follow there too?"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Die neue Version des Programms, das du beobachtest, auch in diesem Ordner speichern?"
+msgstr[1] "Die neuen Versionen der {n} Programme, die du beobachtest, auch in diesem Ordner speichern?"
 
 #: zypp_desk/pages/websources.py:522
 msgid "The folder for the programs from the web."
-msgstr ""
+msgstr "Der Ordner für die Programme aus dem Web."
 
 #: zypp_desk/pages/websources.py:523
 #, python-brace-format
 msgid "the next version of {list} is saved there too. The files you already have stay where they are."
 msgid_plural "the next versions of {list} are saved there too. The files you already have stay where they are."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Die nächste Version von {list} wird auch dort gespeichert. Die Dateien, die du schon hast, bleiben, wo sie sind."
+msgstr[1] "Die nächsten Versionen von {list} werden auch dort gespeichert. Die Dateien, die du schon hast, bleiben, wo sie sind."
 
 #: zypp_desk/pages/websources.py:528
 msgid "Only for new programs"
-msgstr ""
+msgstr "Nur für neue Programme"
 
 #: zypp_desk/pages/websources.py:528
 msgid "Yes, for all"
-msgstr ""
+msgstr "Ja, für alle"
 
 #: zypp_desk/pages/websources.py:534
 #, python-brace-format
 msgid "Add {folder} as a zypper repository?"
-msgstr ""
+msgstr "{folder} als Paketquelle zu zypper hinzufügen?"
 
 #: zypp_desk/pages/websources.py:538
 msgid "zypper sees every RPM you keep there, and you can install them by name. Nothing changes until you apply the queue."
-msgstr ""
+msgstr "zypper sieht jedes RPM, das du dort aufbewahrst, und du kannst sie über ihren Namen installieren. Nichts ändert sich, bis du die Warteschlange anwendest."
 
 #: zypp_desk/pages/websources.py:555
 msgid "not followed yet"
@@ -7735,7 +7784,7 @@ msgstr "{name} {version} ist mit dem Schlüssel {key} signiert, den dieser Compu
 #: zypp_desk/pages/websources.py:951
 #, python-brace-format
 msgid "{name} {version} is signed with a different key"
-msgstr ""
+msgstr "{name} {version} ist mit einem anderen Schlüssel signiert"
 
 #: zypp_desk/pages/websources.py:953
 msgid "A different signing key"
@@ -7744,15 +7793,15 @@ msgstr "Ein anderer Signaturschlüssel"
 #: zypp_desk/pages/websources.py:955
 #, python-brace-format
 msgid "Signed now with the key {new}; until now it came signed with {old}."
-msgstr ""
+msgstr "Jetzt mit dem Schlüssel {new} signiert; bisher war es mit {old} signiert."
 
 #: zypp_desk/pages/websources.py:957
 msgid "A vendor sometimes renews its key, but a different key can also mean that the file does not come from the vendor. Check the vendor's web site before going on."
-msgstr ""
+msgstr "Manchmal erneuert ein Anbieter seinen Schlüssel, ein anderer Schlüssel kann aber auch bedeuten, dass die Datei nicht vom Anbieter stammt. Sieh auf der Website des Anbieters nach, bevor du weitermachst."
 
 #: zypp_desk/pages/websources.py:959
 msgid "it goes to the queue, and from now on the new key is the one expected for this program. Nothing is installed until you apply the queue."
-msgstr ""
+msgstr "Es kommt in die Warteschlange, und ab jetzt wird für dieses Programm der neue Schlüssel erwartet. Nichts wird installiert, bis du die Warteschlange anwendest."
 
 #: zypp_desk/pages/websources.py:963 zypp_desk/pages/websources.py:1039
 #: zypp_desk/pages/websources.py:1043 zypp_desk/pages/websources.py:1061
@@ -7783,11 +7832,11 @@ msgstr "Paket nicht von rpm geprüft"
 #: zypp_desk/pages/websources.py:1022
 #, python-brace-format
 msgid "From {where}."
-msgstr ""
+msgstr "Von {where}."
 
 #: zypp_desk/pages/websources.py:1030
 msgid "It is not signed."
-msgstr ""
+msgstr "Sie ist nicht signiert."
 
 #: zypp_desk/pages/websources.py:1033
 #, python-brace-format
@@ -8112,14 +8161,14 @@ msgstr "{repo} hat nichts veröffentlicht, seit das neue Tumbleweed erschienen i
 #, python-brace-format
 msgid "It has had {n} day to catch up."
 msgid_plural "It has had {n} days to catch up."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Die Paketquelle hatte {n} Tag Zeit zum Aufholen."
+msgstr[1] "Die Paketquelle hatte {n} Tage Zeit zum Aufholen."
 
 #: zypp_desk/problemgroups.py:588
 msgid "Wait a little longer, or leave it as it is for now."
 msgid_plural "Wait a little longer, or leave them as they are for now."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Warte noch etwas, oder lass das Paket vorerst, wie es ist."
+msgstr[1] "Warte noch etwas, oder lass die Pakete vorerst, wie sie sind."
 
 #: zypp_desk/problemgroups.py:591
 msgid "Recommended: wait a day or two."
@@ -8129,30 +8178,30 @@ msgstr "Empfohlen: ein, zwei Tage warten."
 #, python-brace-format
 msgid "{repo} has not published anything for {n} day, so waiting will probably not fix it."
 msgid_plural "{repo} has not published anything for {n} days, so waiting will probably not fix it."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{repo} hat seit {n} Tag nichts veröffentlicht, daher hilft Warten wahrscheinlich nicht."
+msgstr[1] "{repo} hat seit {n} Tagen nichts veröffentlicht, daher hilft Warten wahrscheinlich nicht."
 
 #: zypp_desk/problemgroups.py:608
 #, python-brace-format
 msgid "{repo} is built for Tumbleweed, but these packages do not fit with this update yet."
-msgstr ""
+msgstr "{repo} wird für Tumbleweed gebaut, aber diese Pakete passen noch nicht zu dieser Aktualisierung."
 
 #: zypp_desk/problemgroups.py:610
 msgid "Usually: leave it as it is for now and try again in a few days."
 msgid_plural "Usually: leave them as they are for now and try again in a few days."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Normalerweise: Lass es vorerst, wie es ist, und versuch es in ein paar Tagen noch einmal."
+msgstr[1] "Normalerweise: Lass sie vorerst, wie sie sind, und versuch es in ein paar Tagen noch einmal."
 
 #: zypp_desk/problemgroups.py:613
 #, python-brace-format
 msgid "{repo} is not part of Tumbleweed and is not rebuilt for each new version: its packages were made for the versions you have now."
-msgstr ""
+msgstr "{repo} gehört nicht zu Tumbleweed und wird nicht für jede neue Version neu gebaut: Seine Pakete wurden für die Versionen gemacht, die du jetzt hast."
 
 #: zypp_desk/problemgroups.py:615
 msgid "Usually: leave it as it is and update the rest. If it keeps happening, look for a newer version or remove it."
 msgid_plural "Usually: leave them as they are and update the rest. If it keeps happening, look for newer versions or remove them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Normalerweise: Lass es, wie es ist, und aktualisiere den Rest. Wenn es immer wieder passiert, such nach einer neueren Version oder entferne es."
+msgstr[1] "Normalerweise: Lass sie, wie sie sind, und aktualisiere den Rest. Wenn es immer wieder passiert, such nach neueren Versionen oder entferne sie."
 
 #: zypp_desk/problemgroups.py:694
 #, python-brace-format
@@ -8179,8 +8228,8 @@ msgstr[1] "{n} Pakete gibt es in Tumbleweed nicht mehr"
 #, python-brace-format
 msgid "{names}: no repository has it any more, but it is still used by {users}."
 msgid_plural "{names}: no repository has them any more, but they are still used by {users}."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names}: Keine Paketquelle hat es mehr, aber es wird noch von {users} gebraucht."
+msgstr[1] "{names}: Keine Paketquelle hat sie mehr, aber sie werden noch von {users} gebraucht."
 
 #: zypp_desk/problemgroups.py:713
 msgid "Usually it is kept until what uses it is updated or removed."
@@ -8226,28 +8275,28 @@ msgstr[1] "{n} gesperrte Pakete stehen im Weg"
 #, python-brace-format
 msgid "Zypp Desk locked {names} on {date} to leave an earlier problem as it was, so the update cannot change it."
 msgid_plural "Zypp Desk locked {names} on {date} to leave an earlier problem as it was, so the update cannot change them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Zypp Desk hat {names} am {date} gesperrt, um ein früheres Problem so zu lassen, wie es war, deshalb kann die Aktualisierung es nicht ändern."
+msgstr[1] "Zypp Desk hat {names} am {date} gesperrt, um ein früheres Problem so zu lassen, wie es war, deshalb kann die Aktualisierung sie nicht ändern."
 
 #: zypp_desk/problemgroups.py:745
 #, python-brace-format
 msgid "{repo} has published since then: unlock it in Locks and simulate again."
 msgid_plural "{repo} has published since then: unlock them in Locks and simulate again."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{repo} hat seitdem veröffentlicht: Entsperre es unter Paketsperren und simuliere noch einmal."
+msgstr[1] "{repo} hat seitdem veröffentlicht: Entsperre sie unter Paketsperren und simuliere noch einmal."
 
 #: zypp_desk/problemgroups.py:749
 #, python-brace-format
 msgid "Unlock it in Locks once {repo} has caught up."
 msgid_plural "Unlock them in Locks once {repo} has caught up."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Entsperre es unter Paketsperren, sobald {repo} aufgeholt hat."
+msgstr[1] "Entsperre sie unter Paketsperren, sobald {repo} aufgeholt hat."
 
 #: zypp_desk/problemgroups.py:753
 msgid "Unlock it in Locks when you no longer need it."
 msgid_plural "Unlock them in Locks when you no longer need them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Entsperre es unter Paketsperren, wenn du die Sperre nicht mehr brauchst."
+msgstr[1] "Entsperre sie unter Paketsperren, wenn du die Sperren nicht mehr brauchst."
 
 #: zypp_desk/problemgroups.py:756
 #, python-brace-format
@@ -8259,8 +8308,8 @@ msgstr[1] "Du hast {names} gesperrt, deshalb kann die Aktualisierung sie nicht �
 #: zypp_desk/problemgroups.py:759
 msgid "Usually: if you locked it on purpose, leave it as it is; if not, unlock it in Locks."
 msgid_plural "Usually: if you locked them on purpose, leave them as they are; if not, unlock them in Locks."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Normalerweise: Wenn du es absichtlich gesperrt hast, lass es, wie es ist; wenn nicht, entsperre es unter Paketsperren."
+msgstr[1] "Normalerweise: Wenn du sie absichtlich gesperrt hast, lass sie, wie sie sind; wenn nicht, entsperre sie unter Paketsperren."
 
 #: zypp_desk/problemgroups.py:766
 #, python-brace-format
@@ -8283,36 +8332,36 @@ msgstr "Sieh sie dir einzeln an."
 #, python-brace-format
 msgid "{n} package that no longer exists: removed."
 msgid_plural "{n} packages that no longer exist: removed."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket, das es nicht mehr gibt: wird entfernt."
+msgstr[1] "{n} Pakete, die es nicht mehr gibt: werden entfernt."
 
 #: zypp_desk/problemgroups.py:850
 #, python-brace-format
 msgid "{n} package from {repo}: locked at the version you have."
 msgid_plural "{n} packages from {repo}: locked at the versions you have."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket aus {repo}: wird bei der Version gesperrt, die du hast."
+msgstr[1] "{n} Pakete aus {repo}: werden bei den Versionen gesperrt, die du hast."
 
 #: zypp_desk/problemgroups.py:854
 #, python-brace-format
 msgid "{n} package that the locked ones need: locked at the version you have."
 msgid_plural "{n} packages that the locked ones need: locked at the versions you have."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket, das die gesperrten brauchen: wird bei der Version gesperrt, die du hast."
+msgstr[1] "{n} Pakete, die die gesperrten brauchen: werden bei den Versionen gesperrt, die du hast."
 
 #: zypp_desk/problemgroups.py:858
 #, python-brace-format
 msgid "{n} package that no longer exists: locked as it is."
 msgid_plural "{n} packages that no longer exist: locked as they are."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket, das es nicht mehr gibt: wird so gesperrt, wie es ist."
+msgstr[1] "{n} Pakete, die es nicht mehr gibt: werden so gesperrt, wie sie sind."
 
 #: zypp_desk/problemgroups.py:861
 #, python-brace-format
 msgid "Other problems: {n} package locked at the version you have."
 msgid_plural "Other problems: {n} packages locked at the versions you have."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Andere Probleme: {n} Paket wird bei der Version gesperrt, die du hast."
+msgstr[1] "Andere Probleme: {n} Pakete werden bei den Versionen gesperrt, die du hast."
 
 #: zypp_desk/problemgroups.py:867
 #, python-brace-format
@@ -8346,66 +8395,66 @@ msgstr[1] "die anderen {n}"
 #, python-brace-format
 msgid "{names}: leaves the queue."
 msgid_plural "{names}: leave the queue."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names}: wird aus der Warteschlange genommen."
+msgstr[1] "{names}: werden aus der Warteschlange genommen."
 
 #: zypp_desk/problemgroups.py:879
 #, python-brace-format
 msgid "{names} (from Tumbleweed): also locked at the version you have, because what is kept needs exactly that one."
 msgid_plural "{n} packages from Tumbleweed ({names}): also locked at the versions you have, because what is kept needs exactly those."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{names} (aus Tumbleweed): wird ebenfalls bei der Version gesperrt, die du hast, weil das, was bleibt, genau diese braucht."
+msgstr[1] "{n} Pakete aus Tumbleweed ({names}): werden ebenfalls bei den Versionen gesperrt, die du hast, weil das, was bleibt, genau diese braucht."
 
 #: zypp_desk/problemgroups.py:885
 #, python-brace-format
 msgid "lock {n} package"
 msgid_plural "lock {n} packages"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket sperren"
+msgstr[1] "{n} Pakete sperren"
 
 #: zypp_desk/problemgroups.py:887
 #, python-brace-format
 msgid "remove {n} package"
 msgid_plural "remove {n} packages"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket entfernen"
+msgstr[1] "{n} Pakete entfernen"
 
 #: zypp_desk/problemgroups.py:889
 #, python-brace-format
 msgid "take {n} package out of the queue"
 msgid_plural "take {n} packages out of the queue"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} Paket aus der Warteschlange nehmen"
+msgstr[1] "{n} Pakete aus der Warteschlange nehmen"
 
 #: zypp_desk/problemgroups.py:891
 #, python-brace-format
 msgid "Update the rest: {what}"
-msgstr ""
+msgstr "Den Rest aktualisieren: {what}"
 
 #: zypp_desk/problemgroups.py:894
 #, python-brace-format
 msgid "{what} cannot be left as it is: it will come back in the next simulation."
 msgid_plural "{what} cannot be left as they are: they will come back in the next simulation."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{what} kann nicht so bleiben, wie es ist: Es erscheint bei der nächsten Simulation wieder."
+msgstr[1] "{what} können nicht so bleiben, wie sie sind: Sie erscheinen bei der nächsten Simulation wieder."
 
 #: zypp_desk/problemgroups.py:985
 #, python-brace-format
 msgid "Zypp Desk locked {names} on {date} to leave a problem as it was."
-msgstr ""
+msgstr "Zypp Desk hat {names} am {date} gesperrt, um ein Problem so zu lassen, wie es war."
 
 #: zypp_desk/problemgroups.py:988
 #, python-brace-format
 msgid "{repo} has published since then: you can probably unlock it in Locks."
 msgid_plural "{repo} has published since then: you can probably unlock them in Locks."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{repo} hat seitdem veröffentlicht: Du kannst es wahrscheinlich unter Paketsperren entsperren."
+msgstr[1] "{repo} hat seitdem veröffentlicht: Du kannst sie wahrscheinlich unter Paketsperren entsperren."
 
 #: zypp_desk/problemgroups.py:992
 msgid "You can unlock it in Locks."
 msgid_plural "You can unlock them in Locks."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Du kannst es unter Paketsperren entsperren."
+msgstr[1] "Du kannst sie unter Paketsperren entsperren."
 
 #: zypp_desk/question.py:205
 msgid "The command each choice uses:"
@@ -9365,19 +9414,19 @@ msgstr "Zeit, die Aktualisierung noch einmal zu versuchen"
 
 #: zypp_desk/tray.py:486
 msgid "You asked Zypp Desk to remind you today. Simulate the update again: the problems that fix themselves may be gone by now."
-msgstr ""
+msgstr "Du hast Zypp Desk gebeten, dich heute daran zu erinnern. Simuliere die Aktualisierung noch einmal: Die Probleme, die sich von selbst erledigen, sind jetzt vielleicht verschwunden."
 
 #: zypp_desk/tray.py:489 zypp_desk/tray.py:492
 msgid "Time to look at the update again"
-msgstr ""
+msgstr "Zeit, sich die Aktualisierung noch einmal anzusehen"
 
 #: zypp_desk/tray.py:490
 msgid "You asked Zypp Desk to remind you today about the update you put off. Open Updates and run it when it suits you."
-msgstr ""
+msgstr "Du hast Zypp Desk gebeten, dich heute an die Aktualisierung zu erinnern, die du verschoben hast. Öffne Aktualisierungen und führe sie aus, wann es dir passt."
 
 #: zypp_desk/tray.py:493
 msgid "You asked Zypp Desk to remind you today. Simulate the update again: if it had problems that fix themselves, they may be gone by now."
-msgstr ""
+msgstr "Du hast Zypp Desk gebeten, dich heute daran zu erinnern. Simuliere die Aktualisierung noch einmal: Wenn sie Probleme hatte, die sich von selbst erledigen, sind sie jetzt vielleicht verschwunden."
 
 #: zypp_desk/tray.py:637 zypp_desk/tray.py:673
 msgid "Not checked yet"
@@ -9532,13 +9581,13 @@ msgstr "Beenden"
 #: zypp_desk/txqueue.py:74
 #, python-brace-format
 msgid "“{name}”"
-msgstr ""
+msgstr "„{name}“"
 
 #: zypp_desk/txqueue.py:141
 #, python-brace-format
 msgctxt "change"
 msgid "Trust the key of the project {project}"
-msgstr ""
+msgstr "Dem Schlüssel des Projekts {project} vertrauen"
 
 #: zypp_desk/txqueue.py:142
 #, python-brace-format
@@ -9549,7 +9598,7 @@ msgstr "Dann akzeptiert der Computer die Programme aus diesem Projekt. Fingerabd
 #, python-brace-format
 msgctxt "change"
 msgid "Trust the key of the repository “{name}”"
-msgstr ""
+msgstr "Dem Schlüssel der Paketquelle „{name}“ vertrauen"
 
 #: zypp_desk/txqueue.py:150
 #, python-brace-format
@@ -9568,7 +9617,7 @@ msgstr "Zurück zu den Einstellungen von openSUSE."
 #: zypp_desk/txqueue.py:160
 msgctxt "change"
 msgid "Change zypper's settings (zypp.conf)"
-msgstr ""
+msgstr "Einstellungen von zypper ändern (zypp.conf)"
 
 #: zypp_desk/txqueue.py:163
 #, python-brace-format
@@ -9589,7 +9638,7 @@ msgstr "Die Paketliste ist nicht signiert; jedes Paket wird trotzdem geprüft."
 
 #: zypp_desk/txqueue.py:176
 msgid "Its list of packages is checked; the packages themselves are not."
-msgstr ""
+msgstr "Die Paketliste wird geprüft, die Pakete selbst nicht."
 
 #: zypp_desk/txqueue.py:178
 msgid "Nothing from it is checked against a signature."
@@ -9603,7 +9652,7 @@ msgstr "zypper sucht dort nicht mehr nach Programmen und Aktualisierungen. Was d
 #, python-brace-format
 msgctxt "change"
 msgid "Lock {name}"
-msgstr ""
+msgstr "{name} sperren"
 
 #: zypp_desk/txqueue.py:191
 msgid "zypper will not install, update or remove it until you unlock it."
@@ -9613,7 +9662,7 @@ msgstr "zypper wird es nicht installieren, aktualisieren oder entfernen, bis du 
 #, python-brace-format
 msgctxt "change"
 msgid "Unlock {name}"
-msgstr ""
+msgstr "{name} entsperren"
 
 #: zypp_desk/txqueue.py:194
 msgid "zypper may install, update or remove it again."
@@ -9628,13 +9677,13 @@ msgstr "Nur in der Paketquelle {repo}."
 #, python-brace-format
 msgctxt "change"
 msgid "Remove {name}"
-msgstr ""
+msgstr "{name} entfernen"
 
 #: zypp_desk/txqueue.py:206
 #, python-brace-format
 msgctxt "change"
 msgid "Add the language {language}"
-msgstr ""
+msgstr "Sprache {language} hinzufügen"
 
 #: zypp_desk/txqueue.py:207
 msgid "zypper installs the translations of your programs into it."
@@ -9644,7 +9693,7 @@ msgstr "zypper installiert die Übersetzungen deiner Programme in diese Sprache.
 #, python-brace-format
 msgctxt "change"
 msgid "Remove the language {language}"
-msgstr ""
+msgstr "Sprache {language} entfernen"
 
 #: zypp_desk/txqueue.py:210
 msgid "The translations into it are removed."
@@ -9654,7 +9703,7 @@ msgstr "Die Übersetzungen in diese Sprache werden entfernt."
 #, python-brace-format
 msgctxt "change"
 msgid "Install the Flatpak app {app}"
-msgstr ""
+msgstr "Flatpak-App {app} installieren"
 
 #: zypp_desk/txqueue.py:213
 #, python-brace-format
@@ -9665,7 +9714,7 @@ msgstr "Von {remote}, {installation}."
 #, python-brace-format
 msgctxt "change"
 msgid "Uninstall the Flatpak app {app}"
-msgstr ""
+msgstr "Flatpak-App {app} deinstallieren"
 
 #: zypp_desk/txqueue.py:217
 msgid "Its data in your home folder is deleted too."
@@ -9678,7 +9727,7 @@ msgstr "Ihre Daten bleiben in deinem persönlichen Ordner."
 #: zypp_desk/txqueue.py:221
 msgctxt "change"
 msgid "Update every Flatpak app"
-msgstr ""
+msgstr "Alle Flatpak-Apps aktualisieren"
 
 #: zypp_desk/txqueue.py:222
 msgid "And the runtimes they use."
@@ -9688,7 +9737,7 @@ msgstr "Und die Laufzeitumgebungen, die sie verwenden."
 #, python-brace-format
 msgctxt "change"
 msgid "Update the Flatpak app {app}"
-msgstr ""
+msgstr "Flatpak-App {app} aktualisieren"
 
 #: zypp_desk/txqueue.py:224
 msgid "And the runtime it uses, if it needs a new one."
@@ -9698,7 +9747,7 @@ msgstr "Und die Laufzeitumgebung, die sie verwendet, falls sie eine neue braucht
 #, python-brace-format
 msgctxt "change"
 msgid "Update the firmware of {name} to {version}"
-msgstr ""
+msgstr "Firmware von {name} auf {version} aktualisieren"
 
 #: zypp_desk/txqueue.py:228
 msgid "Keep the computer plugged in. It may need a restart to finish."
@@ -9708,7 +9757,7 @@ msgstr "Lass den Computer am Strom. Zum Abschluss ist eventuell ein Neustart nö
 #, python-brace-format
 msgctxt "change"
 msgid "Install the bridge package for {program}"
-msgstr ""
+msgstr "Brückenpaket für {program} installieren"
 
 #: zypp_desk/txqueue.py:236
 #, python-brace-format
@@ -9732,13 +9781,13 @@ msgstr "Es ist älter als das, das du hast."
 #, python-brace-format
 msgctxt "change"
 msgid "Install {name} from a downloaded file"
-msgstr ""
+msgstr "{name} aus einer heruntergeladenen Datei installieren"
 
 #: zypp_desk/txqueue.py:253
 #, python-brace-format
 msgctxt "change"
 msgid "Install the pattern {name}"
-msgstr ""
+msgstr "Schema {name} installieren"
 
 #: zypp_desk/txqueue.py:254
 msgid "A group of packages that go together."
@@ -9748,7 +9797,7 @@ msgstr "Eine Gruppe von Paketen, die zusammengehören."
 #, python-brace-format
 msgctxt "change"
 msgid "Install {name} {version}"
-msgstr ""
+msgstr "{name} {version} installieren"
 
 #: zypp_desk/txqueue.py:264
 msgid "This exact version, older than the one you have."
@@ -9762,11 +9811,11 @@ msgstr "Genau diese Version."
 #, python-brace-format
 msgctxt "change"
 msgid "Update {name}"
-msgstr ""
+msgstr "{name} aktualisieren"
 
 #: zypp_desk/txqueue.py:270
 msgid "To the newest version from the same vendor."
-msgstr ""
+msgstr "Auf die neueste Version desselben Anbieters."
 
 #: zypp_desk/txqueue.py:274
 msgid "From your repositories: zypper picks the best version."
@@ -9775,71 +9824,71 @@ msgstr "Aus deinen Paketquellen: zypper wählt die beste Version."
 #: zypp_desk/txqueue.py:276
 #, python-brace-format
 msgid "From the repository “{repo}”."
-msgstr ""
+msgstr "Aus der Paketquelle „{repo}“."
 
 #: zypp_desk/txqueue.py:291
 #, python-brace-format
 msgctxt "change"
 msgid "Enable the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ aktivieren"
 
 #: zypp_desk/txqueue.py:292 zypp_desk/txqueue.py:311
 msgid "zypper looks for programs and updates there again."
-msgstr ""
+msgstr "zypper sucht dort wieder nach Programmen und Aktualisierungen."
 
 #: zypp_desk/txqueue.py:293
 #, python-brace-format
 msgctxt "change"
 msgid "Disable the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ deaktivieren"
 
 #: zypp_desk/txqueue.py:294 zypp_desk/txqueue.py:312
 msgid "zypper stops looking for programs and updates there until you enable it again. What you installed from it stays installed."
-msgstr ""
+msgstr "zypper sucht dort nicht mehr nach Programmen und Aktualisierungen, bis du sie wieder aktivierst. Was du daraus installiert hast, bleibt installiert."
 
 #: zypp_desk/txqueue.py:297
 #, python-brace-format
 msgctxt "change"
 msgid "Change the priority of the repository “{name}”"
-msgstr ""
+msgstr "Priorität der Paketquelle „{name}“ ändern"
 
 #: zypp_desk/txqueue.py:299
 #, python-brace-format
 msgctxt "change"
 msgid "Rename the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ umbenennen"
 
 #: zypp_desk/txqueue.py:301
 #, python-brace-format
 msgctxt "change"
 msgid "Change the repository “{name}”"
-msgstr ""
+msgstr "Paketquelle „{name}“ ändern"
 
 #: zypp_desk/txqueue.py:307
 #, python-brace-format
 msgid "Priority {n}: the lower the number, the more zypper prefers it."
-msgstr ""
+msgstr "Priorität {n}: Je kleiner die Zahl, desto lieber nimmt zypper sie."
 
 #: zypp_desk/txqueue.py:309
 #, python-brace-format
 msgid "New name: {name}."
-msgstr ""
+msgstr "Neuer Name: {name}."
 
 #: zypp_desk/txqueue.py:315
 msgid "zypper refreshes it on its own before it looks for updates."
-msgstr ""
+msgstr "zypper lädt sie selbst neu, bevor es nach Aktualisierungen sucht."
 
 #: zypp_desk/txqueue.py:316
 msgid "zypper no longer refreshes it on its own."
-msgstr ""
+msgstr "zypper lädt sie nicht mehr selbst neu."
 
 #: zypp_desk/txqueue.py:318
 msgid "The packages downloaded from it are kept."
-msgstr ""
+msgstr "Die daraus heruntergeladenen Pakete werden aufbewahrt."
 
 #: zypp_desk/txqueue.py:319
 msgid "The packages downloaded from it are no longer kept."
-msgstr ""
+msgstr "Die daraus heruntergeladenen Pakete werden nicht mehr aufbewahrt."
 
 #: zypp_desk/txqueue.py:332
 msgid "Also what only it needed. Programs that need it go too."
@@ -9869,7 +9918,7 @@ msgstr[1] "{n} Pakete aktualisieren"
 
 #: zypp_desk/txqueue.py:429
 msgid "Each one to the newest version from the same vendor."
-msgstr ""
+msgstr "Jedes auf die neueste Version desselben Anbieters."
 
 #. TRANSLATORS: a change in a list (the Apply question, the queue): ca uses the infinitive here
 #: zypp_desk/txqueue.py:433
@@ -9927,13 +9976,6 @@ msgstr[1] "{n} Flatpak-Apps aktualisieren"
 msgid "And the runtimes they use, if they need new ones."
 msgstr "Und die Laufzeitumgebungen, die sie verwenden, falls sie neue brauchen."
 
-#: zypp_desk/txqueue.py:1050
-#, python-brace-format
-msgid "{n} to install"
-msgid_plural "{n} to install"
-msgstr[0] "{n} zu installieren"
-msgstr[1] "{n} zu installieren"
-
 #: zypp_desk/txqueue.py:1052
 #, python-brace-format
 msgid "{n} to remove"
@@ -9961,8 +10003,8 @@ msgstr "Nur Downloads über https sind erlaubt."
 #, python-brace-format
 msgid "GitHub answers only 60 questions an hour without an account: try again in {n} minute."
 msgid_plural "GitHub answers only 60 questions an hour without an account: try again in {n} minutes."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Ohne Konto beantwortet GitHub nur 60 Anfragen pro Stunde: Versuche es in {n} Minute noch einmal."
+msgstr[1] "Ohne Konto beantwortet GitHub nur 60 Anfragen pro Stunde: Versuche es in {n} Minuten noch einmal."
 
 #: zypp_desk/websources.py:275
 msgid "The page is too big."
@@ -10025,11 +10067,11 @@ msgstr "Andere Benutzer können diese Datei ändern, deshalb wird sie nicht verw
 #: zypp_desk/yumrepos.py:201
 #, python-brace-format
 msgid "Its address carries settings for zypper ({options}) that change how it checks the server or where it downloads from."
-msgstr ""
+msgstr "Ihre Adresse enthält Einstellungen für zypper ({options}), die ändern, wie es den Server prüft oder woher es herunterlädt."
 
 #: zypp_desk/yumrepos.py:249
 msgid "Its address is not encrypted (http, and https does not answer there), and its packages are not signed: anybody on the network could change what zypper installs as root."
-msgstr ""
+msgstr "Ihre Adresse ist nicht verschlüsselt (http, und https antwortet dort nicht), und ihre Pakete sind nicht signiert: Jeder im Netzwerk könnte ändern, was zypper als root installiert."
 
 #: zypp_desk/yumrepos.py:396
 msgid "Other users can change this file, or it does not exist."

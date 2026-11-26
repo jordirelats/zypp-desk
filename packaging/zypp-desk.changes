@@ -4,6 +4,8 @@ Thu Nov 26 09:18:23 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.g
 - Update to 0.5.1, fixes from a review from six points of view and:
   * Help in English, Catalan, German and French (F1), with links that
     open each section, and About with the version, credits and license
+  * Packages and Discover by theme: mark several and install, remove or
+    lock them at once
   * Updates in parts: every part is tried with zypper before anything
     is installed; packages that need a decision wait for the final dup,
     which only runs if every part worked; a small update can still run

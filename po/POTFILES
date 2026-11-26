@@ -26,6 +26,7 @@ zypp_desk/pages/history.py
 zypp_desk/pages/home.py
 zypp_desk/pages/keys.py
 zypp_desk/pages/localrpm.py
+zypp_desk/pages/markbar.py
 zypp_desk/pages/notifysettings.py
 zypp_desk/pages/packages.py
 zypp_desk/pages/pkgdetails.py

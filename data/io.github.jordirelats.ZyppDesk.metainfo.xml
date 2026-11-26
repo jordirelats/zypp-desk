@@ -65,7 +65,8 @@
         <p>Fixes from a review from six points of view, and Help in English, Catalan, German and French (F1)
           with a page of credits. Updates in parts check every part before anything is installed; the tray
           icon starts at login from the package; questions, the queue review and the problem window are
-          clearer and fit small screens; and a rare crash is fixed.</p>
+          clearer and fit small screens; several packages or programs can be marked and installed at
+          once; and a rare crash is fixed.</p>
       </description>
     </release>
     <release version="0.5.0" date="2026-11-26">

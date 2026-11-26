@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 10:13+0100\n"
+"POT-Creation-Date: 2026-11-26 10:33+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -585,7 +585,7 @@ msgstr ""
 msgid "Sources"
 msgstr ""
 
-#: zypp_desk/mainwindow.py:39 zypp_desk/pages/apps.py:45
+#: zypp_desk/mainwindow.py:39 zypp_desk/pages/apps.py:46
 msgid "System"
 msgstr ""
 
@@ -1075,699 +1075,713 @@ msgstr ""
 msgid "The key could not be read: {error}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:36
+#: zypp_desk/pages/apps.py:37
 msgid "Music and video"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:37
+#: zypp_desk/pages/apps.py:38
 msgid "Graphics and photos"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:38
+#: zypp_desk/pages/apps.py:39
 msgid "Office"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:39
+#: zypp_desk/pages/apps.py:40
 msgid "Internet"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:40
+#: zypp_desk/pages/apps.py:41
 msgid "Games"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:41
+#: zypp_desk/pages/apps.py:42
 msgid "Education"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:42
+#: zypp_desk/pages/apps.py:43
 msgid "Science"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:43
+#: zypp_desk/pages/apps.py:44
 msgid "Programming"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:44
+#: zypp_desk/pages/apps.py:45
 msgid "Utilities"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:46 zypp_desk/pages/system.py:724
+#: zypp_desk/pages/apps.py:47 zypp_desk/pages/system.py:724
 #: zypp_desk/tray.py:816 zypp_desk/tray.py:817
 msgid "Settings"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Audio"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Players"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Recording"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:51
+#: zypp_desk/pages/apps.py:52
 msgid "Video"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Audio and video editing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "MIDI"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Mixers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:52
+#: zypp_desk/pages/apps.py:53
 msgid "Music"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:53
+#: zypp_desk/pages/apps.py:54
 msgid "Sequencers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:53
+#: zypp_desk/pages/apps.py:54
 msgid "TV"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "2D graphics"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "3D graphics"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:54
+#: zypp_desk/pages/apps.py:55
 msgid "Painting and photo editing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Photography"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Scanning"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:55
+#: zypp_desk/pages/apps.py:56
 msgid "Vector drawing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Publishing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Text recognition"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:56
+#: zypp_desk/pages/apps.py:57
 msgid "Viewers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Chat"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Email"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Messaging"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:57
+#: zypp_desk/pages/apps.py:58
 msgid "Web browsers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "File transfer"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "Peer to peer"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:58
+#: zypp_desk/pages/apps.py:59
 msgid "Remote access"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Feeds"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "News"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Telephony"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:59
+#: zypp_desk/pages/apps.py:60
 msgid "Video calls"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Presentations"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Spreadsheets"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:60
+#: zypp_desk/pages/apps.py:61
 msgid "Word processors"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Calendars"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Contacts"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:61
+#: zypp_desk/pages/apps.py:62
 msgid "Finance"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Databases"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Dictionaries"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:62
+#: zypp_desk/pages/apps.py:63
 msgid "Project management"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Debuggers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Development environments"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:63
+#: zypp_desk/pages/apps.py:64
 msgid "Version control"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Text editors"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Translation"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:64
+#: zypp_desk/pages/apps.py:65
 msgid "Web development"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Action"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Adventure"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:65
+#: zypp_desk/pages/apps.py:66
 msgid "Arcade"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Blocks"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Board games"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "Card games"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:66
+#: zypp_desk/pages/apps.py:67
 msgid "For children"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Logic"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Role playing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:67
+#: zypp_desk/pages/apps.py:68
 msgid "Shooters"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:68 zypp_desk/simulation.py:742
+#: zypp_desk/pages/apps.py:69 zypp_desk/simulation.py:742
 msgid "Simulation"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:68
+#: zypp_desk/pages/apps.py:69
 msgid "Sports"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:68
+#: zypp_desk/pages/apps.py:69
 msgid "Strategy"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:69
+#: zypp_desk/pages/apps.py:70
 msgid "Emulators"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Astronomy"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Chemistry"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Mathematics"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:70
+#: zypp_desk/pages/apps.py:71
 msgid "Physics"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:71
+#: zypp_desk/pages/apps.py:72
 msgid "Biology"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:71
+#: zypp_desk/pages/apps.py:72
 msgid "Geography"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:71 zypp_desk/pages/system.py:289
+#: zypp_desk/pages/apps.py:72 zypp_desk/pages/system.py:289
 msgid "Languages"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Electronics"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Engineering"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:72
+#: zypp_desk/pages/apps.py:73
 msgid "Medicine"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:73
+#: zypp_desk/pages/apps.py:74
 msgid "Data visualization"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "File managers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "Monitoring"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:74
+#: zypp_desk/pages/apps.py:75
 msgid "Terminals"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "Archives"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "File tools"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:75
+#: zypp_desk/pages/apps.py:76
 msgid "Security"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Calculators"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Clocks"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:76
+#: zypp_desk/pages/apps.py:77
 msgid "Compression"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Accessibility"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Desktop"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:77
+#: zypp_desk/pages/apps.py:78
 msgid "Maps"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Hardware"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Package managers"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:78
+#: zypp_desk/pages/apps.py:79
 msgid "Printing"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:297
+#: zypp_desk/pages/apps.py:319
 msgid "Choose a program from the list."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:331
+#: zypp_desk/pages/apps.py:353
 msgid "Applications"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:355
+#: zypp_desk/pages/apps.py:377
 msgid "My applications"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:358
+#: zypp_desk/pages/apps.py:380
 msgid "Discover by theme"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:370 zypp_desk/pages/apps.py:480
+#: zypp_desk/pages/apps.py:392 zypp_desk/pages/apps.py:502
 msgid "Filter by name…"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:411 zypp_desk/pages/apps.py:522
+#: zypp_desk/pages/apps.py:433 zypp_desk/pages/apps.py:554
 msgid "Looking at what is installed…"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:431
+#: zypp_desk/pages/apps.py:453
 msgid "Search every program, for example a photo editor…"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:465
+#: zypp_desk/pages/apps.py:487
 msgid "All themes"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:473
+#: zypp_desk/pages/apps.py:495
 msgid "Every source"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:526
+#: zypp_desk/pages/apps.py:558
 msgid "Looking at what is installed… it takes a few seconds the first time."
-msgstr ""
-
-#: zypp_desk/pages/apps.py:543
-#, python-brace-format
-msgid "Could not read the installed programs: {error}"
-msgstr ""
-
-#: zypp_desk/pages/apps.py:568 zypp_desk/pages/apps.py:897
-msgid "Reading the catalogues of the repositories and of Flathub…"
 msgstr ""
 
 #: zypp_desk/pages/apps.py:575
 #, python-brace-format
+msgid "Could not read the installed programs: {error}"
+msgstr ""
+
+#: zypp_desk/pages/apps.py:600 zypp_desk/pages/apps.py:929
+msgid "Reading the catalogues of the repositories and of Flathub…"
+msgstr ""
+
+#: zypp_desk/pages/apps.py:607
+#, python-brace-format
 msgid "Could not read the catalogues: {error}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:581
+#: zypp_desk/pages/apps.py:613
 #, python-brace-format
 msgid "{n} program to discover"
 msgid_plural "{n} programs to discover"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/apps.py:583
+#: zypp_desk/pages/apps.py:615
 #, python-brace-format
 msgid "{rpm} from the openSUSE repositories, {fp} from Flathub"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:647
+#: zypp_desk/pages/apps.py:679
 #, python-brace-format
 msgid "Flatpak · {remote}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:651
+#: zypp_desk/pages/apps.py:683
 #, python-brace-format
 msgid "Web · {site}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:652
+#: zypp_desk/pages/apps.py:684
 msgid "Local file"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:659 zypp_desk/pages/zyppconf.py:288
+#: zypp_desk/pages/apps.py:691 zypp_desk/pages/zyppconf.py:288
 msgid "in the queue"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:662 zypp_desk/pages/apps.py:940
+#: zypp_desk/pages/apps.py:694 zypp_desk/pages/apps.py:1024
 #: zypp_desk/pages/findrepo.py:293 zypp_desk/pages/findrepo.py:300
 #: zypp_desk/pages/pkgdetails.py:367 zypp_desk/simulation.py:311
 #: zypp_desk/simulation.py:808
 msgid "installed"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:664 zypp_desk/pages/apps.py:772
+#: zypp_desk/pages/apps.py:696 zypp_desk/pages/apps.py:804
 msgid "update"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/apps.py:883
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/apps.py:915
 msgid "All"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/flatpak.py:73
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/flatpak.py:73
 #: zypp_desk/routine.py:153 zypp_desk/tray.py:682
 msgid "Flatpak"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:686
+#: zypp_desk/pages/apps.py:718
 msgid "From the web"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:686 zypp_desk/pages/home.py:120
+#: zypp_desk/pages/apps.py:718 zypp_desk/pages/home.py:120
 #: zypp_desk/pages/repos.py:365 zypp_desk/pages/system.py:204
 msgid "Repositories"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:687
+#: zypp_desk/pages/apps.py:719
 msgid "With updates"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:712
+#: zypp_desk/pages/apps.py:744
 msgid "Nothing here."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:722 zypp_desk/pages/apps.py:937
+#: zypp_desk/pages/apps.py:754 zypp_desk/pages/apps.py:1021
 #, python-brace-format
 msgid "Flatpak, from the remote {remote}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:722 zypp_desk/pages/apps.py:727
-#: zypp_desk/pages/apps.py:732 zypp_desk/pages/flatpak.py:97
+#: zypp_desk/pages/apps.py:754 zypp_desk/pages/apps.py:759
+#: zypp_desk/pages/apps.py:764 zypp_desk/pages/flatpak.py:97
 msgid "Origin"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:723 zypp_desk/pages/apps.py:938
+#: zypp_desk/pages/apps.py:755 zypp_desk/pages/apps.py:1022
 msgid "App ID"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:724 zypp_desk/pages/flatpak.py:97
+#: zypp_desk/pages/apps.py:756 zypp_desk/pages/flatpak.py:97
 #: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/repos.py:466
 msgid "Installation"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:724 zypp_desk/txqueue.py:654
+#: zypp_desk/pages/apps.py:756 zypp_desk/txqueue.py:654
 msgid "for every user"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:725 zypp_desk/txqueue.py:654
+#: zypp_desk/pages/apps.py:757 zypp_desk/txqueue.py:654
 msgid "only for you"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:727
+#: zypp_desk/pages/apps.py:759
 msgid "a file downloaded from the web, installed from a local folder"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:728 zypp_desk/pages/apps.py:733
-#: zypp_desk/pages/apps.py:935 zypp_desk/pages/findrepo.py:130
+#: zypp_desk/pages/apps.py:760 zypp_desk/pages/apps.py:765
+#: zypp_desk/pages/apps.py:1019 zypp_desk/pages/findrepo.py:130
 #: zypp_desk/pages/findrepo.py:131 zypp_desk/pages/updates.py:1476
 #: zypp_desk/simulation.py:794
 msgid "Package"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:730
+#: zypp_desk/pages/apps.py:762
 msgid "New versions from"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:732
+#: zypp_desk/pages/apps.py:764
 #, python-brace-format
 msgid "the repository {name}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:734 zypp_desk/pages/findrepo.py:130
+#: zypp_desk/pages/apps.py:766 zypp_desk/pages/findrepo.py:130
 #: zypp_desk/pages/findrepo.py:131 zypp_desk/pages/flatpak.py:24
 #: zypp_desk/pages/flatpak.py:97 zypp_desk/pages/flatpak.py:124
-#: zypp_desk/pages/packages.py:105 zypp_desk/pages/pkgdetails.py:190
+#: zypp_desk/pages/packages.py:110 zypp_desk/pages/pkgdetails.py:190
 #: zypp_desk/pages/pkgdetails.py:404 zypp_desk/pages/updates.py:1476
 #: zypp_desk/pages/websources.py:314 zypp_desk/pages/websources.py:664
 #: zypp_desk/simulation.py:794
 msgid "Version"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:736 zypp_desk/pages/pkgdetails.py:402
+#: zypp_desk/pages/apps.py:768 zypp_desk/pages/pkgdetails.py:402
 #: zypp_desk/pages/updates.py:1298 zypp_desk/pages/updates.py:1327
 msgid "New version"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:739
+#: zypp_desk/pages/apps.py:771
 msgid "Not followed in Web sources."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:741
+#: zypp_desk/pages/apps.py:773
 msgid ""
 "Nobody looks for new versions of this program. In Web sources you can say "
 "where it is published."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:744
+#: zypp_desk/pages/apps.py:776
 msgid "Web sources looks for new versions of this program."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:746 zypp_desk/pages/apps.py:947
+#: zypp_desk/pages/apps.py:778 zypp_desk/pages/apps.py:1031
 #, python-brace-format
 msgid "In the queue: {change}."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:751
+#: zypp_desk/pages/apps.py:783
 msgid "Get the new version…"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:755 zypp_desk/pages/flatpak.py:103
+#: zypp_desk/pages/apps.py:787 zypp_desk/pages/flatpak.py:103
 #: zypp_desk/pages/pkgdetails.py:177
 msgid "Update"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:757 zypp_desk/pages/apps.py:951
+#: zypp_desk/pages/apps.py:789 zypp_desk/pages/apps.py:1035
 msgid "Drop from the queue"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:759 zypp_desk/pages/apps.py:954
+#: zypp_desk/pages/apps.py:791 zypp_desk/pages/apps.py:1038
 #: zypp_desk/pages/flatpak.py:145 zypp_desk/pages/repos.py:528
 #: zypp_desk/pages/repos.py:1264 zypp_desk/pages/system.py:303
 #: zypp_desk/pages/websources.py:440 zypp_desk/pages/websources.py:764
 msgid "Remove"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:759 zypp_desk/pages/apps.py:954
+#: zypp_desk/pages/apps.py:791 zypp_desk/pages/apps.py:1038
 #: zypp_desk/pages/flatpak.py:107
 msgid "Uninstall"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:762
+#: zypp_desk/pages/apps.py:794
 msgid "Open Web sources"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:764
+#: zypp_desk/pages/apps.py:796
 msgid "Show in Flatpak"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:766 zypp_desk/pages/apps.py:963
+#: zypp_desk/pages/apps.py:798 zypp_desk/pages/apps.py:1047
 msgid "Show in Packages"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "install"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "install or update"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:771
+#: zypp_desk/pages/apps.py:803
 msgid "remove"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:772
+#: zypp_desk/pages/apps.py:804
 msgid "uninstall"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:821
+#: zypp_desk/pages/apps.py:853
 #, python-brace-format
 msgid "For example: {names}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:821
+#: zypp_desk/pages/apps.py:853
 #, python-brace-format
 msgid "You have: {names}"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:823 zypp_desk/pages/apps.py:919
+#: zypp_desk/pages/apps.py:855 zypp_desk/pages/apps.py:955
 #, python-brace-format
 msgid "{n} program"
 msgid_plural "{n} programs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: zypp_desk/pages/apps.py:848
+#: zypp_desk/pages/apps.py:880
 msgid "Search in every theme"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:923
+#: zypp_desk/pages/apps.py:959
 msgid "Nothing found. Try another word, or every source."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:934 zypp_desk/pages/apps.py:937
+#: zypp_desk/pages/apps.py:977 zypp_desk/pages/packages.py:395
+#, python-brace-format
+msgid "{n} marked"
+msgid_plural "{n} marked"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/apps.py:978 zypp_desk/pages/packages.py:392
+#, python-brace-format
+msgid "Install it"
+msgid_plural "Install the {n}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/apps.py:1018 zypp_desk/pages/apps.py:1021
 #: zypp_desk/pages/flatpak.py:26 zypp_desk/pages/pkgdetails.py:413
 #: zypp_desk/pages/updates.py:1299 zypp_desk/pages/updates.py:1330
 msgid "Comes from"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:934
+#: zypp_desk/pages/apps.py:1018
 msgid "the openSUSE repositories"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:939
+#: zypp_desk/pages/apps.py:1023
 msgid "Themes"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:940 zypp_desk/pages/flatpak.py:98
-#: zypp_desk/pages/packages.py:105 zypp_desk/pages/pkgdetails.py:190
+#: zypp_desk/pages/apps.py:1024 zypp_desk/pages/flatpak.py:98
+#: zypp_desk/pages/packages.py:110 zypp_desk/pages/pkgdetails.py:190
 #: zypp_desk/pages/websources.py:401
 msgid "Status"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:941 zypp_desk/pages/localrpm.py:832
+#: zypp_desk/pages/apps.py:1025 zypp_desk/pages/localrpm.py:832
 #: zypp_desk/pages/localrpm.py:877 zypp_desk/pages/websources.py:563
 msgid "not installed"
 msgstr ""
 
-#: zypp_desk/pages/apps.py:944
+#: zypp_desk/pages/apps.py:1028
 msgid ""
 "Flatpak apps run isolated from the system and bring what they need with "
 "them; they take more space and are updated apart from zypper."
 msgstr ""
 
-#: zypp_desk/pages/apps.py:957 zypp_desk/pages/apps.py:960
+#: zypp_desk/pages/apps.py:1041 zypp_desk/pages/apps.py:1044
 #: zypp_desk/pages/findrepo.py:152 zypp_desk/pages/findrepo.py:371
 #: zypp_desk/pages/flatpak.py:133 zypp_desk/pages/pkgdetails.py:176
 msgid "Install"
@@ -2135,7 +2149,7 @@ msgid "Name of the program or package, for example zed"
 msgstr ""
 
 #: zypp_desk/pages/findrepo.py:124 zypp_desk/pages/flatpak.py:120
-#: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/packages.py:55
+#: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/packages.py:57
 msgid "Search"
 msgstr ""
 
@@ -2171,7 +2185,7 @@ msgstr ""
 msgid "Developer"
 msgstr ""
 
-#: zypp_desk/pages/findrepo.py:133 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/findrepo.py:133 zypp_desk/pages/packages.py:110
 msgid "Summary"
 msgstr ""
 
@@ -2215,7 +2229,7 @@ msgid "Open the Flatpak page"
 msgstr ""
 
 #: zypp_desk/pages/findrepo.py:220 zypp_desk/pages/flatpak.py:265
-#: zypp_desk/pages/packages.py:198 zypp_desk/pages/websources.py:240
+#: zypp_desk/pages/packages.py:217 zypp_desk/pages/websources.py:240
 msgid "Searching…"
 msgstr ""
 
@@ -2483,7 +2497,7 @@ msgid "Show runtimes too"
 msgstr ""
 
 #: zypp_desk/pages/flatpak.py:97 zypp_desk/pages/flatpak.py:124
-#: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/flatpak.py:139 zypp_desk/pages/packages.py:110
 #: zypp_desk/pages/repos.py:434 zypp_desk/pages/repos.py:466
 #: zypp_desk/pages/system.py:58 zypp_desk/pages/system.py:204
 msgid "Name"
@@ -2499,7 +2513,7 @@ msgstr ""
 msgid "Also delete its data"
 msgstr ""
 
-#: zypp_desk/pages/flatpak.py:110 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/flatpak.py:110 zypp_desk/pages/packages.py:20
 #: zypp_desk/pages/pkgdetails.py:231 zypp_desk/pages/updates.py:1332
 #: zypp_desk/pages/websources.py:401
 msgid "Installed"
@@ -2598,7 +2612,7 @@ msgstr ""
 msgid "yes"
 msgstr ""
 
-#: zypp_desk/pages/flatpak.py:273 zypp_desk/pages/packages.py:225
+#: zypp_desk/pages/flatpak.py:273 zypp_desk/pages/packages.py:246
 #, python-brace-format
 msgid "{n} found"
 msgid_plural "{n} found"
@@ -3270,12 +3284,12 @@ msgstr ""
 msgid "#{pre} before"
 msgstr ""
 
-#: zypp_desk/pages/history.py:616 zypp_desk/pages/packages.py:16
-#: zypp_desk/pages/packages.py:23
+#: zypp_desk/pages/history.py:616 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/packages.py:25
 msgid "Packages"
 msgstr ""
 
-#: zypp_desk/pages/history.py:620 zypp_desk/pages/packages.py:105
+#: zypp_desk/pages/history.py:620 zypp_desk/pages/packages.py:110
 #: zypp_desk/pages/pkgdetails.py:190 zypp_desk/pages/system.py:58
 #: zypp_desk/pages/updates.py:1476 zypp_desk/simulation.py:794
 msgid "Repository"
@@ -3558,12 +3572,12 @@ msgstr ""
 msgid "Search programs to install, for example krita or vlc…"
 msgstr ""
 
-#: zypp_desk/pages/home.py:100 zypp_desk/pages/packages.py:56
+#: zypp_desk/pages/home.py:100 zypp_desk/pages/packages.py:58
 #: zypp_desk/pages/repos.py:1138 zypp_desk/pages/repos.py:1257
 msgid "Search online…"
 msgstr ""
 
-#: zypp_desk/pages/home.py:102 zypp_desk/pages/packages.py:57
+#: zypp_desk/pages/home.py:102 zypp_desk/pages/packages.py:59
 msgid ""
 "Look for it in the openSUSE Build Service, in Fedora COPR and on Flathub"
 msgstr ""
@@ -3611,7 +3625,7 @@ msgstr ""
 msgid "Install Flatpak from here"
 msgstr ""
 
-#: zypp_desk/pages/home.py:171 zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/home.py:171 zypp_desk/pages/packages.py:20
 #: zypp_desk/pages/pkgdetails.py:232
 msgid "Not installed"
 msgstr ""
@@ -4833,6 +4847,10 @@ msgstr ""
 msgid "Add the repository"
 msgstr ""
 
+#: zypp_desk/pages/markbar.py:75 zypp_desk/pages/packages.py:379
+msgid "Unmark all"
+msgstr ""
+
 #: zypp_desk/pages/notifysettings.py:134 zypp_desk/pages/notifysettings.py:262
 #: zypp_desk/pages/notifysettings.py:307 zypp_desk/pages/system.py:768
 msgid "Notifications"
@@ -4981,149 +4999,180 @@ msgid ""
 "The timer is installed but turned off. To turn it on, run this in a terminal:"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:16
+#: zypp_desk/pages/packages.py:18
 msgid "Patches"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:16
+#: zypp_desk/pages/packages.py:18
 msgid "Patterns"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:17
+#: zypp_desk/pages/packages.py:19
 msgid "Products"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:17
+#: zypp_desk/pages/packages.py:19
 msgid "Source packages"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:18
+#: zypp_desk/pages/packages.py:20
 msgid "Any status"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:36
+#: zypp_desk/pages/packages.py:38
 msgid "Search packages, for example vlc"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:47 zypp_desk/pages/packages.py:178
+#: zypp_desk/pages/packages.py:49 zypp_desk/pages/packages.py:197
 msgid "All repositories"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:65
+#: zypp_desk/pages/packages.py:67
 msgid "Summary and description"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:66 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:68 zypp_desk/pages/pkgdetails.py:30
 msgid "Provides"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:67 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:69 zypp_desk/pages/pkgdetails.py:30
 msgid "Requires"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:68 zypp_desk/pages/pkgdetails.py:30
+#: zypp_desk/pages/packages.py:70 zypp_desk/pages/pkgdetails.py:30
 msgid "Recommends"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:69 zypp_desk/pages/pkgdetails.py:208
+#: zypp_desk/pages/packages.py:71 zypp_desk/pages/pkgdetails.py:208
 msgid "Files"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:70
+#: zypp_desk/pages/packages.py:72
 msgid "Exact match"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:71
+#: zypp_desk/pages/packages.py:73
 msgid "Case-sensitive"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:73
+#: zypp_desk/pages/packages.py:75
 msgid "Also look in the summary and the description, not only the name"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:74
+#: zypp_desk/pages/packages.py:76
 msgid "Packages that provide this name (a library, a command, a capability)"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:75
+#: zypp_desk/pages/packages.py:77
 msgid "Packages that need this name"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:76
+#: zypp_desk/pages/packages.py:78
 msgid "Packages that recommend this name"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:77
+#: zypp_desk/pages/packages.py:79
 msgid "Packages that contain a file with this name or path"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:78
+#: zypp_desk/pages/packages.py:80
 msgid "Only the exact name, not names that contain it"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:79
+#: zypp_desk/pages/packages.py:81
 msgid "Tell capitals and small letters apart"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:84
+#: zypp_desk/pages/packages.py:86
 msgid "Search in:"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:89
+#: zypp_desk/pages/packages.py:91
 msgid "Lists:"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:90 zypp_desk/pages/packages.py:220
+#: zypp_desk/pages/packages.py:92 zypp_desk/pages/packages.py:241
 msgid "Orphaned packages (installed, but in no repository)"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:91 zypp_desk/pages/packages.py:221
+#: zypp_desk/pages/packages.py:93 zypp_desk/pages/packages.py:242
 msgid "Unneeded packages (nothing requires them any more)"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:92 zypp_desk/pages/packages.py:222
+#: zypp_desk/pages/packages.py:94 zypp_desk/pages/packages.py:243
 msgid "Recommended packages that are not installed"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:93 zypp_desk/pages/packages.py:223
+#: zypp_desk/pages/packages.py:95 zypp_desk/pages/packages.py:244
 msgid "Suggested packages that are not installed"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:94
+#: zypp_desk/pages/packages.py:96
 msgid "Orphaned"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:94
+#: zypp_desk/pages/packages.py:96
 msgid "Unneeded"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:95
+#: zypp_desk/pages/packages.py:97
 msgid "Recommended"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:95
+#: zypp_desk/pages/packages.py:97
 msgid "Suggested"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:217
+#: zypp_desk/pages/packages.py:106 zypp_desk/pages/packages.py:379
+msgid "Mark all"
+msgstr ""
+
+#: zypp_desk/pages/packages.py:238
 #, python-brace-format
 msgid "The search failed: {error}"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:231
+#: zypp_desk/pages/packages.py:252
 msgid ""
 "Not found in your repositories. “Search online…” looks for it in the "
 "openSUSE Build Service, in Fedora COPR and on Flathub."
 msgstr ""
 
-#: zypp_desk/pages/packages.py:244
+#: zypp_desk/pages/packages.py:267
 #, python-brace-format
 msgid "{n} versions available"
 msgstr ""
 
-#: zypp_desk/pages/packages.py:252
+#: zypp_desk/pages/packages.py:277
 msgid "Nothing was found."
 msgstr ""
+
+#: zypp_desk/pages/packages.py:385 zypp_desk/txqueue.py:1050
+#, python-brace-format
+msgid "{n} to install"
+msgid_plural "{n} to install"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/packages.py:387
+#, python-brace-format
+msgid "{n} you have"
+msgid_plural "{n} you have"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/packages.py:389
+msgid "Lock it"
+msgid_plural "Lock them"
+msgstr[0] ""
+msgstr[1] ""
+
+#: zypp_desk/pages/packages.py:390
+#, python-brace-format
+msgid "Remove the one you have"
+msgid_plural "Remove the {n} you have"
+msgstr[0] ""
+msgstr[1] ""
 
 #: zypp_desk/pages/pkgdetails.py:31
 msgid "Conflicts"
@@ -10791,13 +10840,6 @@ msgstr[1] ""
 #: zypp_desk/txqueue.py:462
 msgid "And the runtimes they use, if they need new ones."
 msgstr ""
-
-#: zypp_desk/txqueue.py:1050
-#, python-brace-format
-msgid "{n} to install"
-msgid_plural "{n} to install"
-msgstr[0] ""
-msgstr[1] ""
 
 #: zypp_desk/txqueue.py:1052
 #, python-brace-format
