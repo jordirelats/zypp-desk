@@ -110,10 +110,12 @@ ARGS_OVERRIDE = {"help": "[COMMAND]", "subcommand": ""}
 # ------------------------------------------------------------------ reading zypper's help
 
 def _zypper(args, timeout=30):
+    from .backend import ZYPPER_SLOTS  # never more than two zypper processes of the window at once
     env = {k: v for k, v in os.environ.items() if not k.startswith("LC_") and k not in ("LANG", "LANGUAGE")}
     env.update(LC_ALL="C", LANG="C")
-    p = subprocess.run([ZYPPER, *args], capture_output=True, text=True, errors="replace", timeout=timeout,
-                       env=env, stdin=subprocess.DEVNULL)
+    with ZYPPER_SLOTS:
+        p = subprocess.run([ZYPPER, *args], capture_output=True, text=True, errors="replace", timeout=timeout,
+                           env=env, stdin=subprocess.DEVNULL)
     return p.returncode, p.stdout
 
 

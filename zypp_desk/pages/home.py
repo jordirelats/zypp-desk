@@ -4,10 +4,11 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QVBoxLayout
 
-from .. import backend, flatpak, websources
+from .. import backend, flatpak, langcheck, websources
 from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
+from ..txqueue import Action
 from ..ui import Page, button, heading, icon, muted
 
 
@@ -89,6 +90,27 @@ class HomePage(Page):
         lay.addWidget(hello)
         self.product = muted("", self)
         lay.addWidget(self.product)
+        # the language of the computer missing from zypper's languages: its translations never arrive (langcheck)
+        self.lang_note = QFrame(self)
+        self.lang_note.setObjectName("langnote")
+        self.lang_note.setStyleSheet("QFrame#langnote { background: rgba(29, 153, 243, 0.08); border: 1px solid "
+                                     "rgba(29, 153, 243, 0.35); border-radius: 10px; }")
+        ln = QHBoxLayout(self.lang_note)
+        ln.setContentsMargins(14, 10, 14, 10)
+        ln.setSpacing(12)
+        pic = QLabel(self.lang_note)
+        pic.setPixmap(icon("preferences-desktop-locale").pixmap(32, 32))
+        ln.addWidget(pic, 0, Qt.AlignmentFlag.AlignTop)
+        self.lang_text = QLabel(self.lang_note)
+        self.lang_text.setWordWrap(True)
+        self.lang_text.setTextFormat(Qt.TextFormat.PlainText)
+        ln.addWidget(self.lang_text, 1)
+        self.lang_btn = button("", "list-add", self._add_language, primary=True)
+        ln.addWidget(self.lang_btn, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.lang_note.hide()
+        self._lang_code = None
+        lay.addWidget(self.lang_note)
+        ctx.queue.changed.connect(self._lang_refresh)
 
         self.search = QLineEdit(self)
         self.search.setObjectName("bigsearch")
@@ -132,6 +154,39 @@ class HomePage(Page):
         lay.addWidget(muted(_("Every change waits in the queue at the bottom until you apply it. You can always see "
                               "the exact zypper command and what zypper answers.")))
 
+    # ------------------------------------------------ the language of the computer
+    def _lang_name(self, code):
+        from PySide6.QtCore import QLocale
+        name = QLocale(code).nativeLanguageName() or code
+        return name[:1].upper() + name[1:]
+
+    def _lang_checked(self, code, err):
+        self._lang_code = code if not err else None
+        self._lang_refresh()
+
+    def _lang_refresh(self):
+        code = self._lang_code
+        if not code:
+            self.lang_note.hide()
+            return
+        name = self._lang_name(code)
+        queued = any(a.target == code for a in self.ctx.queue.of("locale-add"))
+        if queued:
+            self.lang_text.setText(_("{language} is in the queue: apply it to install the translations of your "
+                                     "programs.").format(language=name))
+            self.lang_btn.hide()
+        else:
+            self.lang_text.setText(_("This computer is in {language}, but zypper was never asked for it, so the "
+                                     "translations of your programs into {language} are not installed and parts of "
+                                     "them show in English.").format(language=name))
+            self.lang_btn.setText(_("Add {language}").format(language=name))
+            self.lang_btn.show()
+        self.lang_note.show()
+
+    def _add_language(self):
+        if self._lang_code:
+            self.ctx.queue.add(Action("locale-add", self._lang_code))
+
     def _search_online(self):
         try:
             from .findrepo import FindRepoDialog
@@ -153,6 +208,7 @@ class HomePage(Page):
     # ------------------------------------------------------------ data
     def reload(self):
         run_async(backend.system_info, on_done=self._info)
+        run_async(langcheck.missing_system_language, on_done=self._lang_checked)
         # the numbers of updates are the ones of the Updates page (and of its entry in the sidebar): it counts,
         # this page shows them
         updates = self.ctx.pages["updates"]

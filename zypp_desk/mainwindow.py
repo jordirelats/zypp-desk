@@ -23,7 +23,8 @@ from .pages.history import HistoryPage
 from .pages.expert import ExpertPage
 from .pages.locales import LocalesPage
 from .pages.scripts import ScriptsPage
-from .pages.system import LocksPage, MaintenancePage, ServicesPage, SettingsPage
+from .pages.locks import LocksPage
+from .pages.system import MaintenancePage, ServicesPage, SettingsPage
 from .pages.updates import UpdatesPage
 from .pages.websources import WebSourcesPage
 from .runner import Runner, helper_path, helper_version

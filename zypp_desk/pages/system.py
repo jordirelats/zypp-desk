@@ -10,14 +10,13 @@ from functools import cmp_to_key
 from pathlib import Path
 
 from PySide6.QtCore import QLocale, QPoint, Qt
-from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QScrollArea, QTreeWidget,
+from PySide6.QtWidgets import (QCheckBox, QGridLayout, QHBoxLayout, QLabel, QScrollArea, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import APP_ID, backend, diskspace, question, repostate, zyppconf
 from ..i18n import _, ngettext, pgettext
-from ..runner import Step, zypper_subcommand
+from ..runner import Step
 from ..tasks import run_async
-from ..txqueue import Action, language_name
 from ..ui import Card, Page, button, error_box, heading, mono, muted, tool
 
 
@@ -45,152 +44,6 @@ def simple_tree(headers, parent):
     t.setAlternatingRowColors(True)
     t.setSortingEnabled(True)
     return t
-
-
-# ============================================================ locks
-class LocksPage(Page):
-    key = "locks"
-    title = _("Locks")
-    icon_name = "object-locked"
-
-    def __init__(self, ctx, parent=None):
-        super().__init__(ctx, parent)
-        self.tree = simple_tree([_("Name"), _("Type"), _("Repository"), _("Pending")], self)
-        lay = QVBoxLayout(self)
-        lay.addWidget(muted(_("A locked package is never installed, removed or updated by any zypper command "
-                              "until you unlock it.")))
-        # the locks an earlier "leave these as they are" made (problem window): say so, and unlock them in one go
-        self.temp_band = Card()
-        self.temp_text = muted("")
-        self.temp_text.setStyleSheet("")
-        self.temp_band.lay.addWidget(self.temp_text)
-        self.temp_band.lay.addWidget(button(_("Unlock them"), "object-unlocked", self.unlock_temp), 0,
-                                     Qt.AlignmentFlag.AlignLeft)
-        self.temp_band.setVisible(False)
-        lay.addWidget(self.temp_band)
-        lay.addWidget(self.tree, 1)
-        self.items = []
-        self.temp = []
-        ctx.queue.changed.connect(self._fill)
-        # 'zypper removelock' ends with 0 also when it found no such lock: that is a failure here
-        runner = getattr(ctx, "runner", None)
-        if runner is not None and hasattr(runner, "step_finished"):
-            runner.step_finished.connect(self._step_finished)
-
-    def header_actions(self):
-        return [tool(_("Lock…"), "list-add", self.add), tool(_("Unlock"), "list-remove", self.remove),
-                tool(_("Clean useless locks"), "edit-clear", self.clean_locks)]
-
-    def clean_locks(self):
-        st = Step("zypper", ["cleanlocks"])
-        if ask_clean_locks(self, st):
-            self.ctx.run([st], _("Clean useless locks"), on_done=lambda ok: self.ctx.after_change())
-
-    def reload(self):
-        settings = self.ctx.settings
-
-        def read():
-            from .. import problemgroups
-            locks = backend.locks()
-            try:
-                temp = problemgroups.temp_locks(settings, locks, backend.repos())
-            except Exception:  # only a note: the list of locks matters more
-                temp = []
-            return locks, temp
-
-        run_async(read, on_done=self._loaded)
-
-    def _loaded(self, res, err):
-        if err:
-            error_box(self, self.title, str(err))
-            return
-        self.items, self.temp = res
-        # records of temporary locks that are gone (unlocked here or by hand) are forgotten
-        from .. import problemgroups
-        names = {lk["name"] for lk in self.items}
-        gone = [r.get("spec") for r in self.ctx.settings.get("temp_locks") or []
-                if isinstance(r, dict) and r.get("spec") not in names]
-        if gone:
-            try:
-                problemgroups.forget_temp_locks(self.ctx.settings, gone)
-            except OSError:
-                pass
-        note = problemgroups.temp_locks_note(self.temp) if self.temp else ""
-        self.temp_text.setText(note)
-        self.temp_band.setVisible(bool(note))
-        self._fill()
-
-    def unlock_temp(self):
-        """Queue the unlock of every lock Zypp Desk made to leave a problem as it was (with the exact spec, kind
-        and repository zypper needs to find it)."""
-        temp = {r.get("spec") for r in self.temp}
-        with self.ctx.queue.batch():
-            for lk in self.items:
-                if lk["name"] in temp or lk["spec"] in temp:
-                    self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package",
-                                              repo=lk["repo"] or ""))
-
-    @staticmethod
-    def _same(action, lock):
-        """True if a queued unlock is for this lock (the same text, kind and repository)."""
-        def norm(text):
-            return "".join(text.split())
-        return (norm(action.target) == norm(lock["spec"]) and action.opts.get("type", "package") == lock["type"]
-                and action.opts.get("repo", "") == lock["repo"])
-
-    def _fill(self):
-        self.tree.clear()
-        specs = set()
-        for lk in self.items:
-            specs.add((lk["spec"], lk["type"], lk["repo"]))
-            pend = _("will be unlocked") if any(self._same(a, lk) for a in self.ctx.queue.of("unlock")) else ""
-            rec = next((r for r in self.temp if r.get("spec") in (lk["name"], lk["spec"])), None)
-            if rec and not pend:
-                from ..problemgroups import _date
-                pend = _("locked by Zypp Desk on {date}").format(date=_date(rec.get("added") or 0))
-                if rec.get("repo_name"):
-                    pend += f" ({rec['repo_name']})"
-            # the name with its version range: "tool < 2.0" (zypper finds the lock again only with it)
-            it = QTreeWidgetItem(self.tree, [lk["spec"], kind_label(lk["type"]), lk["repo"], pend])
-            it.setData(0, Qt.ItemDataRole.UserRole, lk)
-            if lk["range"]:
-                it.setToolTip(0, _("Locked only in these versions: {range}").format(range=lk["range"]))
-        for a in self.ctx.queue.of("lock"):
-            if (a.target, a.opts.get("type", "package"), a.opts.get("repo", "")) not in specs:
-                QTreeWidgetItem(self.tree, [a.target, kind_label(a.opts.get("type", "package")),
-                                            a.opts.get("repo", ""), _("will be locked")])
-        self.tree.resizeColumnToContents(0)
-
-    def add(self):
-        name, ok = QInputDialog.getText(self, _("Lock"), _("Name of the package (wildcards like vlc-* work):"))
-        if ok and name.strip():
-            self.ctx.queue.add(Action("lock", name.strip()))
-
-    def remove(self):
-        it = self.tree.currentItem()
-        lk = it.data(0, Qt.ItemDataRole.UserRole) if it else None
-        if lk:
-            # zypper finds a lock only as it is written: with its version range ("tool < 2.0"), its kind (-t)
-            # and, for a lock limited to a repository, that repository (-r)
-            self.ctx.queue.add(Action("unlock", lk["spec"], type=lk["type"] or "package", repo=lk["repo"] or ""))
-
-    def _step_finished(self, index, code):
-        """After each step of any run: 'zypper removelock' that removed nothing says so and ends with 0. Make it
-        a failed step, so that the run ends with errors and the unlock stays in the queue."""
-        runner = self.ctx.runner
-        try:
-            st = runner.steps[index]
-        except (AttributeError, IndexError, TypeError):
-            return
-        if code != 0 or st.program != "zypper" or zypper_subcommand(st.args) not in ("removelock", "rl"):
-            return
-        if not backend.no_lock_removed(st.output, getattr(st, "lang", None)):
-            return
-        st.state = "failed"
-        runner.last_ok = False  # the next steps that need this one to succeed ('&&') are skipped
-        runner.note.emit(_("No lock was removed: zypper found none written exactly like this. A lock can be for "
-                           "some versions only, or for one repository: unlock it in Locks, which knows how it "
-                           "is written."), "error")
 
 
 # ============================================================ services
@@ -281,57 +134,6 @@ class ServicesPage(Page):
                     _("Its repositories are enabled again as they were before."))],
             means=_("zypper refreshes the service and looks for programs and updates in its repositories again."),
             commands_=[st.display()], help_topic="repos")
-
-
-# ============================================================ languages
-class LocalesPage(Page):
-    key = "locales"
-    title = _("Languages")
-    icon_name = "preferences-desktop-locale"
-
-    def __init__(self, ctx, parent=None):
-        super().__init__(ctx, parent)
-        self.tree = simple_tree([_("Code"), _("Language"), _("Pending")], self)
-        lay = QVBoxLayout(self)
-        lay.addWidget(muted(_("Requested languages make zypper install the translation packages (-lang) of the "
-                              "programs you have.")))
-        lay.addWidget(self.tree, 1)
-        self.items = []
-        ctx.queue.changed.connect(self._fill)
-
-    def header_actions(self):
-        return [tool(_("Add…"), "list-add", self.add), tool(_("Remove"), "list-remove", self.remove)]
-
-    def reload(self):
-        run_async(backend.locales, on_done=self._loaded)
-
-    def _loaded(self, items, err):
-        if not err:
-            self.items = items
-            self._fill()
-
-    def _fill(self):
-        self.tree.clear()
-        for lc in self.items:
-            pend = _("will be removed") if any(a.target == lc["code"] for a in self.ctx.queue.of("locale-remove")) else ""
-            QTreeWidgetItem(self.tree, [lc["code"], lc["name"], pend])
-        for a in self.ctx.queue.of("locale-add"):
-            name = language_name(a.target)
-            QTreeWidgetItem(self.tree, [a.target, name if name != a.target else "", _("will be added")])
-        if not self.items and not self.ctx.queue.of("locale-add"):
-            empty = QTreeWidgetItem(self.tree, [_("No language has been requested.")])
-            empty.setFirstColumnSpanned(True)
-            empty.setFlags(Qt.ItemFlag.NoItemFlags)
-
-    def add(self):
-        code, ok = QInputDialog.getText(self, _("Add a language"), _("Language code, for example ca or ca_ES:"))
-        if ok and code.strip():
-            self.ctx.queue.add(Action("locale-add", code.strip()))
-
-    def remove(self):
-        it = self.tree.currentItem()
-        if it and it.text(0):
-            self.ctx.queue.add(Action("locale-remove", it.text(0)))
 
 
 # ============================================================ maintenance
