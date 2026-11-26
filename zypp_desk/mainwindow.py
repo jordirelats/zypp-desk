@@ -18,6 +18,7 @@ from .pages.keys import KeysPage
 from .pages.packages import PackagesPage
 from .pages.repos import ReposPage
 from .pages.home import HomePage
+from .pages.help import AboutPage, HelpPage
 from .pages.history import HistoryPage
 from .pages.system import LocalesPage, LocksPage, MaintenancePage, ServicesPage, SettingsPage
 from .pages.updates import UpdatesPage
@@ -35,6 +36,7 @@ SIDEBAR = [
     (None, ["home", "apps", "packages", "updates", "flatpak"]),
     (_("Sources"), ["repos", "keys", "services", "websources"]),
     (_("System"), ["locks", "locales", "history", "maintenance", "settings"]),
+    (_("Help"), ["help", "about"]),
 ]
 
 
@@ -377,7 +379,8 @@ class MainWindow(QMainWindow):
 
         # ------------------------------------------------ pages
         page_classes = [HomePage, AppsPage, PackagesPage, UpdatesPage, FlatpakPage, ReposPage, KeysPage, ServicesPage,
-                        WebSourcesPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage, SettingsPage]
+                        WebSourcesPage, LocksPage, LocalesPage, HistoryPage, MaintenancePage, SettingsPage,
+                        HelpPage, AboutPage]
         self.terminal = TerminalPanel(self)
         self.terminal.view.fold = self.settings["fold_repeated_lines"]
         self.pages = {}
@@ -501,6 +504,7 @@ class MainWindow(QMainWindow):
         self.queue.changed.connect(self._queue_changed)
         self._queue_changed()
         QShortcut(QKeySequence("Ctrl+F"), self, activated=lambda: self.go("packages"))
+        QShortcut(QKeySequence(QKeySequence.StandardKey.HelpContents), self, activated=lambda: self.go("help"))
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status)
         self.status_timer.start(30000)

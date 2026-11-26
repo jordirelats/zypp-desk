@@ -1,0 +1,149 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The help of Zypp Desk, in English. One file per language (help/<code>.html, for example ca.html); the window
+     shows the one of your language, or this one. Each topic starts with a line like the next one: its id and the
+     title shown in the list. Links "page:<key>" open that section of the window. -->
+
+<!-- topic: start | Getting started -->
+<h2>Getting started</h2>
+<p>Zypp Desk is a window for <b>zypper</b>, the program that installs, removes and updates software on
+openSUSE. Everything Zypp Desk does, it does by running zypper, and it always shows you the exact command.</p>
+<p>Three ideas make it safe to use:</p>
+<ul>
+<li><b>Nothing changes until you apply it.</b> What you choose goes to the <b>queue</b> at the bottom of the
+window. You can look at it (<b>Review</b>), try it (<b>Simulate</b>) and only then make it real (<b>Apply</b>).</li>
+<li><b>Every question says what will happen in plain words</b>, what it means for you, and the exact command
+underneath. Pressing Enter never starts a change: you have to choose the button that does it.</li>
+<li><b>You can always see what zypper says.</b> The terminal at the bottom (<b>Show the terminal</b>, in the
+sidebar) shows zypper's own output, and the panel next to it explains its warnings: how serious they are and
+what to do.</li>
+</ul>
+<p>Changing the system needs the administrator password. Zypp Desk asks for it when it is needed and the
+computer remembers it for five minutes, so several steps in a row ask only once.</p>
+<p>Start on the <a href="page:home">Home</a> page: a big search field and cards that tell you whether there are
+updates, how your repositories are and what needs a look.</p>
+
+<!-- topic: queue | The queue: Review, Simulate and Apply -->
+<h2>The queue: Review, Simulate and Apply</h2>
+<p>Installing, removing, locking a package, adding a repository or importing a key: each of these is a
+<b>change</b>, and it waits in the queue until you apply it. The bar at the bottom shows how many there are and
+the commands they will run.</p>
+<ul>
+<li><b>Review</b> lists the changes in the order they will run, in words. Each one has its own button to take
+it out of the queue. When a change needs another one (a program needs the repository it comes from, and the
+repository needs its key), the list says so, and Zypp Desk asks before you take out something others need.</li>
+<li><b>Simulate</b> asks zypper what it would really do, without changing anything: what else it would install
+or remove, how much it would download, and whether there is a problem. If there is one, you can choose a
+solution in plain words.</li>
+<li><b>Apply</b> shows the changes once more and runs them. If a step fails, Zypp Desk stops there: what was done
+stays done, and the rest stays in the queue to try again.</li>
+<li><b>Clear</b> empties the queue. It undoes nothing, because nothing has changed yet.</li>
+</ul>
+<p>Locks and changes to repositories cannot be simulated: zypper has no dry run for them. The question before
+Apply tells you so.</p>
+
+<!-- topic: update | Keeping the system up to date -->
+<h2>Keeping the system up to date</h2>
+<p>openSUSE Tumbleweed gets a new version every few days. On the <a href="page:updates">Updates</a> page you
+find:</p>
+<ul>
+<li><b>Your routine</b>: the steps you usually run to update, for example refresh the repositories, download
+the updates, then install them. <b>Run the routine</b> runs them one after the other and shows each step.
+<b>Edit the routine…</b> changes it with buttons, or written as in a terminal.</li>
+<li><b>What there is to update</b>: packages from the repositories, Flatpak apps, programs from the web and
+firmware, with a box to tick each one. The card on the right tells you about the package you choose.</li>
+<li><b>Simulate the dup…</b>: the full upgrade of Tumbleweed (<code>zypper dup</code>) in its own window, with
+its options.</li>
+</ul>
+<h3>A big update</h3>
+<p>When an update is big, or the new Tumbleweed came out only a few hours ago, Zypp Desk asks whether it is worth
+waiting. It tells you how big it is, how new the version is and whether the computer is on battery. You can
+update now, <b>only download it now</b> (installing it later is much faster), or <b>be reminded tomorrow</b>:
+the icon next to the clock will tell you.</p>
+<h3>Little room on the disk</h3>
+<p>If the update does not fit on the disk with room to spare, Zypp Desk offers to free space first (packages kept
+from earlier downloads, old kernels) and to update <b>in parts</b>. Each part is a normal zypper update of some
+packages, downloaded completely before it is installed: if a download fails, nothing of that part is installed,
+and the system stays as the previous part left it. A normal upgrade finishes what is left.</p>
+
+<!-- topic: programs | Installing and removing programs -->
+<h2>Installing and removing programs</h2>
+<ul>
+<li>Type a name in the search field of <a href="page:home">Home</a> or <a href="page:packages">Packages</a>.
+Packages can search the descriptions, what a package provides or needs, its files, and the lists of orphaned or
+unneeded packages.</li>
+<li><a href="page:apps">Applications</a> shows the programs you have, wherever they come from (a repository,
+Flatpak or the web), and the ones with an update. <b>Discover by theme</b> shows the catalogues of openSUSE and
+Flathub by category.</li>
+<li>The card of a package has its information, its versions (you can install an older one), what it needs, its
+files and its changes.</li>
+<li><b>Remove…</b> asks whether to also remove what only that program needed. Zypp Desk lists those packages
+first, so you see what goes.</li>
+<li><b>Lock</b> keeps a package as it is: zypper will not update or remove it until you unlock it in
+<a href="page:locks">Locks</a>.</li>
+<li><a href="page:flatpak">Flatpak</a> has the Flatpak apps, their updates, their remotes and their
+permissions. They go to the same queue.</li>
+</ul>
+<p>If the program is not in your repositories, <b>Search online…</b> looks for it in the openSUSE Build Service,
+Fedora COPR and Flathub, and explains how much you can trust each source.</p>
+
+<!-- topic: web | Programs from the web and .rpm files -->
+<h2>Programs from the web and .rpm files</h2>
+<p>Some programs are published only as files on their web site or on GitHub. In
+<a href="page:websources">Programs from the web</a> Zypp Desk follows them: it looks for new versions,
+downloads them, checks them (the signature, or the checksum the author publishes) and puts them in the queue.
+After they are installed, the files go to the folder you chose, which can be a local zypper repository.</p>
+<p>You can also open a downloaded <code>.rpm</code> file with Zypp Desk (from the file manager, <b>Open with
+Zypp Desk</b>). It tells you who signed it, what it needs and what it would replace, before anything is
+installed.</p>
+<h3>Programs made for Fedora</h3>
+<p>Some <code>.rpm</code> files are made for Fedora and ask for things by their Fedora names. When openSUSE has
+the same thing under another name, Zypp Desk shows you the list (Fedora name, openSUSE name, why) and can make a
+small <b>bridge package</b> that tells zypper they are the same. The bridge has no files; it is made on your
+computer and is listed in Programs from the web, which tells you when it is no longer needed. If something has
+no openSUSE equivalent, Zypp Desk says which and makes no bridge.</p>
+
+<!-- topic: repos | Repositories and signing keys -->
+<h2>Repositories and signing keys</h2>
+<p>A <b>repository</b> is a place zypper downloads packages from. In <a href="page:repos">Repositories</a> you can
+enable or disable them, change their priority (a smaller number wins when the same package is in several),
+check which ones do not answer, change their address, and ask Zypp Desk to propose an order.</p>
+<p>Some programs made for Fedora leave their repository in <code>/etc/yum.repos.d</code>, where zypper does not
+look, so they would never update. Zypp Desk notices it and offers to add the repository to zypper, with its
+key.</p>
+<p>A <b>signing key</b> proves who made a package or a repository. In <a href="page:keys">Signing keys</a> you see
+the keys your computer trusts, whose they are and when they expire, and you can import a new one from a web
+address, a file or its fingerprint, comparing it with the one the vendor publishes. Only trust a key from a
+source you trust: a key lets its owner install anything on your computer.</p>
+<p><a href="page:services">Services</a> are lists of repositories kept by someone else (openSUSE keeps the
+Tumbleweed ones).</p>
+
+<!-- topic: problems | When something goes wrong -->
+<h2>When something goes wrong</h2>
+<ul>
+<li><b>A dependency problem</b>: zypper cannot do what you asked without changing something else. Zypp Desk
+shows each problem in words with the solutions zypper offers, and recommends the one that changes least. When
+there are many, it first groups them by cause: often a repository built on top of Tumbleweed (VideoLAN, Packman)
+has not been rebuilt for the new version yet, and the problems go away by themselves in a day or two. You can
+wait and be reminded, update the rest and leave those as they are, or look at them one by one.</li>
+<li><b>A file is not found while downloading</b>: right after a new Tumbleweed version, the mirrors take a few
+hours to copy it. Try again in an hour.</li>
+<li><b>Something broke after an update</b>: <a href="page:history">History</a> shows what changed in each
+update and, when the system makes snapshots (snapper), lets you undo the changes or go back to the system as it
+was.</li>
+<li><b>A warning you do not understand</b>: the panel next to the terminal explains it, says how serious it is
+and what to do.</li>
+<li><a href="page:maintenance">Maintenance</a> checks broken dependencies, removes old kernels, cleans the
+cache and tells you which programs still use old files and whether the computer needs a restart.</li>
+</ul>
+
+<!-- topic: tray | Notifications and settings -->
+<h2>Notifications and settings</h2>
+<p>A small icon next to the clock tells you when there are updates. It starts when you log in; you can turn it
+off, or change how often it looks, in <a href="page:settings">Settings</a>. Zypp Desk installs a timer that
+refreshes the repositories every six hours, so the count is up to date. It never installs anything by itself.
+If you turn it on in Settings, it also downloads the next update in advance, only when the computer is plugged
+in.</p>
+<p>Settings also has the options of <code>zypp.conf</code> (recommended packages, how many kernels to keep,
+parallel downloads…), the terminal, and the folder for programs from the web.</p>
+<p>Zypp Desk speaks English, Catalan, German and French. To translate it into your language, see
+<a href="https://github.com/jordirelats/zypp-desk/blob/main/TRANSLATING.md">TRANSLATING.md</a>.</p>

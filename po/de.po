@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 08:09+0100\n"
+"POT-Creation-Date: 2026-11-26 08:41+0100\n"
 "PO-Revision-Date: 2026-11-25 14:00+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: German\n"
@@ -459,377 +459,381 @@ msgstr "Das ist ein Quellcode-Paket (.src.rpm): Es enthält den Quellcode, um da
 msgid "This package is made for computers whose processor is {arch}. The processor of this computer is {machine}, so it would not work here. Look for the file whose name ends in {machine}.rpm or noarch.rpm."
 msgstr "Dieses Paket ist für Computer mit einem {arch}-Prozessor gemacht. Der Prozessor dieses Computers ist {machine}, daher würde es hier nicht funktionieren. Such die Datei, deren Name auf {machine}.rpm oder noarch.rpm endet."
 
-#: zypp_desk/mainwindow.py:36
+#: zypp_desk/mainwindow.py:37
 msgid "Sources"
 msgstr "Quellen"
 
-#: zypp_desk/mainwindow.py:37 zypp_desk/pages/apps.py:45
+#: zypp_desk/mainwindow.py:38 zypp_desk/pages/apps.py:45
 msgid "System"
 msgstr "System"
 
-#: zypp_desk/mainwindow.py:104
+#: zypp_desk/mainwindow.py:39 zypp_desk/pages/help.py:86
+msgid "Help"
+msgstr "Hilfe"
+
+#: zypp_desk/mainwindow.py:106
 #, python-brace-format
 msgid "⤷ Needs step {n}"
 msgstr "⤷ Braucht Schritt {n}"
 
-#: zypp_desk/mainwindow.py:105
+#: zypp_desk/mainwindow.py:107
 #, python-brace-format
 msgid "⤷ Needs steps {list} and {last}"
 msgstr "⤷ Braucht die Schritte {list} und {last}"
 
-#: zypp_desk/mainwindow.py:126
+#: zypp_desk/mainwindow.py:128
 msgid "Take the key out of the queue?"
 msgstr "Den Schlüssel aus der Warteschlange nehmen?"
 
-#: zypp_desk/mainwindow.py:127
+#: zypp_desk/mainwindow.py:129
 msgid "Take the repository out of the queue?"
 msgstr "Die Paketquelle aus der Warteschlange nehmen?"
 
-#: zypp_desk/mainwindow.py:127
+#: zypp_desk/mainwindow.py:129
 msgid "Take this change out of the queue?"
 msgstr "Diese Änderung aus der Warteschlange nehmen?"
 
-#: zypp_desk/mainwindow.py:132
+#: zypp_desk/mainwindow.py:134
 #, python-brace-format
 msgid "Without this key, zypper will not trust the repository {repos}. These changes in the queue need it:"
 msgid_plural "Without this key, zypper will not trust the repositories {repos}. These changes in the queue need it:"
 msgstr[0] "Ohne diesen Schlüssel vertraut zypper der Paketquelle {repos} nicht. Diese Änderungen in der Warteschlange brauchen ihn:"
 msgstr[1] "Ohne diesen Schlüssel vertraut zypper den Paketquellen {repos} nicht. Diese Änderungen in der Warteschlange brauchen ihn:"
 
-#: zypp_desk/mainwindow.py:137
+#: zypp_desk/mainwindow.py:139
 msgid "Without this key, what it signed cannot be checked. These changes in the queue need it:"
 msgstr "Ohne diesen Schlüssel lässt sich nicht prüfen, was damit signiert wurde. Diese Änderungen in der Warteschlange brauchen ihn:"
 
-#: zypp_desk/mainwindow.py:139
+#: zypp_desk/mainwindow.py:141
 msgid "Without this repository, these changes in the queue would fail:"
 msgstr "Ohne diese Paketquelle würden diese Änderungen in der Warteschlange fehlschlagen:"
 
-#: zypp_desk/mainwindow.py:141
+#: zypp_desk/mainwindow.py:143
 msgid "These changes in the queue need it and would fail without it:"
 msgstr "Diese Änderungen in der Warteschlange hängen davon ab und würden ohne sie fehlschlagen:"
 
-#: zypp_desk/mainwindow.py:167
+#: zypp_desk/mainwindow.py:169
 msgid "Take both out"
 msgstr "Beide herausnehmen"
 
-#: zypp_desk/mainwindow.py:168
+#: zypp_desk/mainwindow.py:170
 #, python-brace-format
 msgid "Take all {n} out"
 msgid_plural "Take all {n} out"
 msgstr[0] "Alle {n} herausnehmen"
 msgstr[1] "Alle {n} herausnehmen"
 
-#: zypp_desk/mainwindow.py:169
+#: zypp_desk/mainwindow.py:171
 msgid "Take only the key out"
 msgstr "Nur den Schlüssel herausnehmen"
 
-#: zypp_desk/mainwindow.py:170
+#: zypp_desk/mainwindow.py:172
 msgid "Take only the repository out"
 msgstr "Nur die Paketquelle herausnehmen"
 
-#: zypp_desk/mainwindow.py:170
+#: zypp_desk/mainwindow.py:172
 msgid "Take only this one out"
 msgstr "Nur diese herausnehmen"
 
-#: zypp_desk/mainwindow.py:171
+#: zypp_desk/mainwindow.py:173
 msgid "Keep it in the queue"
 msgstr "In der Warteschlange lassen"
 
-#: zypp_desk/mainwindow.py:215
+#: zypp_desk/mainwindow.py:217
 msgid "Pending changes"
 msgstr "Ausstehende Änderungen"
 
-#: zypp_desk/mainwindow.py:220
+#: zypp_desk/mainwindow.py:222
 msgid "What is in the queue"
 msgstr "Was in der Warteschlange ist"
 
-#: zypp_desk/mainwindow.py:225
+#: zypp_desk/mainwindow.py:227
 msgid "Nothing has changed yet. Taking a change out of the queue only leaves it out: it undoes nothing."
 msgstr "Noch hat sich nichts geändert. Eine Änderung aus der Warteschlange zu nehmen, lässt sie nur weg: Es wird nichts rückgängig gemacht."
 
-#: zypp_desk/mainwindow.py:237
+#: zypp_desk/mainwindow.py:239
 msgid "Empty the queue"
 msgstr "Warteschlange leeren"
 
-#: zypp_desk/mainwindow.py:240 zypp_desk/pages/findrepo.py:158
+#: zypp_desk/mainwindow.py:242 zypp_desk/pages/findrepo.py:158
 #: zypp_desk/pages/localrpm.py:527 zypp_desk/pages/updates.py:1371
 #: zypp_desk/simulation.py:821
 msgid "Close"
 msgstr "Schließen"
 
-#: zypp_desk/mainwindow.py:243
+#: zypp_desk/mainwindow.py:245
 msgid "Apply…"
 msgstr "Anwenden …"
 
-#: zypp_desk/mainwindow.py:291
+#: zypp_desk/mainwindow.py:293
 msgid "The queue is empty."
 msgstr "Die Warteschlange ist leer."
 
-#: zypp_desk/mainwindow.py:299
+#: zypp_desk/mainwindow.py:301
 #, python-brace-format
 msgid "▸ Show the exact commands ({n})"
 msgstr "▸ Genaue Befehle anzeigen ({n})"
 
-#: zypp_desk/mainwindow.py:300
+#: zypp_desk/mainwindow.py:302
 msgid "▾ Hide the exact commands"
 msgstr "▾ Genaue Befehle ausblenden"
 
-#: zypp_desk/mainwindow.py:334
+#: zypp_desk/mainwindow.py:336
 msgid "✕ Take it out of the queue"
 msgstr "✕ Aus der Warteschlange nehmen"
 
-#: zypp_desk/mainwindow.py:424
+#: zypp_desk/mainwindow.py:427
 msgid "Show the terminal"
 msgstr "Terminal anzeigen"
 
-#: zypp_desk/mainwindow.py:456
+#: zypp_desk/mainwindow.py:459
 msgid "Queue"
 msgstr "Warteschlange"
 
-#: zypp_desk/mainwindow.py:467
+#: zypp_desk/mainwindow.py:470
 msgid "Review"
 msgstr "Überprüfen"
 
-#: zypp_desk/mainwindow.py:468 zypp_desk/terminal.py:300
+#: zypp_desk/mainwindow.py:471 zypp_desk/terminal.py:300
 msgid "Clear"
 msgstr "Leeren"
 
-#: zypp_desk/mainwindow.py:469 zypp_desk/mainwindow.py:697
+#: zypp_desk/mainwindow.py:472 zypp_desk/mainwindow.py:701
 #: zypp_desk/pages/localrpm.py:311 zypp_desk/pages/removedlg.py:103
 #: zypp_desk/pages/system.py:405 zypp_desk/pages/updates.py:1369
 msgid "Simulate"
 msgstr "Simulieren"
 
-#: zypp_desk/mainwindow.py:470 zypp_desk/mainwindow.py:823
-#: zypp_desk/mainwindow.py:837 zypp_desk/mainwindow.py:840
+#: zypp_desk/mainwindow.py:473 zypp_desk/mainwindow.py:827
+#: zypp_desk/mainwindow.py:841 zypp_desk/mainwindow.py:844
 #: zypp_desk/simulation.py:819
 msgid "Apply"
 msgstr "Anwenden"
 
-#: zypp_desk/mainwindow.py:511
+#: zypp_desk/mainwindow.py:515
 msgid "zypper's own output appears here while it works."
 msgstr "Hier erscheint die Ausgabe von zypper, während es arbeitet."
 
-#: zypp_desk/mainwindow.py:564 zypp_desk/pages/repos.py:1235
+#: zypp_desk/mainwindow.py:568 zypp_desk/pages/repos.py:1235
 #, python-brace-format
 msgid "This part is not available: {error}"
 msgstr "Dieser Teil ist nicht verfügbar: {error}"
 
-#: zypp_desk/mainwindow.py:598 zypp_desk/pages/updates.py:803
+#: zypp_desk/mainwindow.py:602 zypp_desk/pages/updates.py:803
 #: zypp_desk/pages/updates.py:841 zypp_desk/pages/updates.py:906
 #: zypp_desk/pages/updates.py:1293 zypp_desk/pages/updates.py:1469
 #: zypp_desk/pages/updates.py:1555 zypp_desk/pages/updates.py:1581
 msgid "Wait until the current command finishes."
 msgstr "Warte, bis der laufende Befehl fertig ist."
 
-#: zypp_desk/mainwindow.py:643
+#: zypp_desk/mainwindow.py:647
 msgid "Finished."
 msgstr "Fertig."
 
-#: zypp_desk/mainwindow.py:645
+#: zypp_desk/mainwindow.py:649
 msgid "Stopped as you asked: the steps after it did not run."
 msgstr "Wie gewünscht angehalten: Die Schritte danach wurden nicht ausgeführt."
 
-#: zypp_desk/mainwindow.py:647
+#: zypp_desk/mainwindow.py:651
 msgid "Finished with errors."
 msgstr "Mit Fehlern beendet."
 
-#: zypp_desk/mainwindow.py:661
+#: zypp_desk/mainwindow.py:665
 msgid "Working…"
 msgstr "Wird ausgeführt …"
 
-#: zypp_desk/mainwindow.py:669
+#: zypp_desk/mainwindow.py:673
 msgid "empty"
 msgstr "leer"
 
-#: zypp_desk/mainwindow.py:671
+#: zypp_desk/mainwindow.py:675
 msgid "Nothing to do yet: choose packages, locks or repository changes."
 msgstr "Noch nichts zu tun: Wähle Pakete, Sperren oder Änderungen an Paketquellen."
 
-#: zypp_desk/mainwindow.py:694
+#: zypp_desk/mainwindow.py:698
 #, python-brace-format
 msgid "Not simulated, because their repository is only added when the queue is applied: {list}"
 msgstr "Nicht simuliert, weil ihre Paketquelle erst beim Anwenden der Warteschlange hinzugefügt wird: {list}"
 
-#: zypp_desk/mainwindow.py:697
+#: zypp_desk/mainwindow.py:701
 msgid "Changes to repositories, locks, languages and Flatpak apps cannot be simulated. These commands will run:"
 msgstr "Änderungen an Paketquellen, Sperren, Sprachen und Flatpak-Apps können nicht simuliert werden. Diese Befehle werden ausgeführt:"
 
-#: zypp_desk/mainwindow.py:700
+#: zypp_desk/mainwindow.py:704
 msgid "Simulation of the queue"
 msgstr "Simulation der Warteschlange"
 
-#: zypp_desk/mainwindow.py:708 zypp_desk/simulation.py:138
+#: zypp_desk/mainwindow.py:712 zypp_desk/simulation.py:138
 #: zypp_desk/simulation.py:705
 #, python-brace-format
 msgid "Problem: {text}"
 msgstr "Problem: {text}"
 
-#: zypp_desk/mainwindow.py:710
+#: zypp_desk/mainwindow.py:714
 msgid "A lock or an unlock you choose runs at once (a simulation only knows the locks that exist); the rest goes to the queue."
 msgstr "Eine Sperre oder Entsperrung, die du wählst, wird sofort ausgeführt (eine Simulation kennt nur die bestehenden Sperren); der Rest kommt in die Warteschlange."
 
-#: zypp_desk/mainwindow.py:747 zypp_desk/mainwindow.py:767
+#: zypp_desk/mainwindow.py:751 zypp_desk/mainwindow.py:771
 #: zypp_desk/pages/problems.py:418
 msgid "Choose a solution"
 msgstr "Lösung wählen"
 
-#: zypp_desk/mainwindow.py:754
+#: zypp_desk/mainwindow.py:758
 msgid "an upgrade has no queue, so these changes are made now."
 msgstr "eine Systemaktualisierung läuft nicht über die Warteschlange, daher werden diese Änderungen jetzt vorgenommen."
 
-#: zypp_desk/mainwindow.py:755
+#: zypp_desk/mainwindow.py:759
 msgid "locks and unlocks are made now, not in the queue, because a simulation only knows the locks that exist."
 msgstr "Sperren und Entsperrungen werden jetzt vorgenommen, nicht über die Warteschlange, weil eine Simulation nur die bestehenden Sperren kennt."
 
-#: zypp_desk/mainwindow.py:758
+#: zypp_desk/mainwindow.py:762
 msgid "The other choices went to the queue."
 msgstr "Die übrigen gewählten Lösungen sind in die Warteschlange gekommen."
 
-#: zypp_desk/mainwindow.py:762
+#: zypp_desk/mainwindow.py:766
 msgid "You can unlock it later in Locks."
 msgid_plural "You can unlock them later in Locks."
 msgstr[0] "Du kannst es später unter Paketsperren wieder entsperren."
 msgstr[1] "Du kannst sie später unter Paketsperren wieder entsperren."
 
-#: zypp_desk/mainwindow.py:764
+#: zypp_desk/mainwindow.py:768
 msgid "Do this now, then simulate again?"
 msgstr "Jetzt ausführen und dann erneut simulieren?"
 
-#: zypp_desk/mainwindow.py:764
+#: zypp_desk/mainwindow.py:768
 msgid "Zypp Desk will do this now, then simulate again:"
 msgstr "Zypp Desk macht jetzt Folgendes und simuliert dann erneut:"
 
-#: zypp_desk/mainwindow.py:766
+#: zypp_desk/mainwindow.py:770
 msgid "Do this now?"
 msgstr "Jetzt ausführen?"
 
-#: zypp_desk/mainwindow.py:766
+#: zypp_desk/mainwindow.py:770
 msgid "Zypp Desk will do this now:"
 msgstr "Zypp Desk macht jetzt Folgendes:"
 
-#: zypp_desk/mainwindow.py:767
+#: zypp_desk/mainwindow.py:771
 msgid "Yes, do it now"
 msgstr "Ja, jetzt ausführen"
 
-#: zypp_desk/mainwindow.py:790
+#: zypp_desk/mainwindow.py:794
 msgid "Applying the queue"
 msgstr "Warteschlange wird angewendet"
 
-#: zypp_desk/mainwindow.py:800
+#: zypp_desk/mainwindow.py:804
 msgid "The queue changed after the simulation: this is what it holds now."
 msgstr "Die Warteschlange hat sich nach der Simulation geändert: Das ist jetzt darin."
 
-#: zypp_desk/mainwindow.py:804
+#: zypp_desk/mainwindow.py:808
 msgid "it is what you put in the queue."
 msgstr "es ist das, was du in die Warteschlange gestellt hast."
 
-#: zypp_desk/mainwindow.py:806
+#: zypp_desk/mainwindow.py:810
 msgid "If a step fails, Zypp Desk stops there: what was done stays done, and the rest stays in the queue."
 msgstr "Wenn ein Schritt fehlschlägt, hält Zypp Desk dort an: Was erledigt ist, bleibt erledigt, und der Rest bleibt in der Warteschlange."
 
-#: zypp_desk/mainwindow.py:809
+#: zypp_desk/mainwindow.py:813
 msgid "If it fails, it stays in the queue."
 msgstr "Wenn es fehlschlägt, bleibt es in der Warteschlange."
 
-#: zypp_desk/mainwindow.py:811
+#: zypp_desk/mainwindow.py:815
 msgid "Simulate shows first what else zypper would install or remove with these changes."
 msgstr "„Simulieren“ zeigt vorher, was zypper mit diesen Änderungen sonst noch installieren oder entfernen würde."
 
-#: zypp_desk/mainwindow.py:816
+#: zypp_desk/mainwindow.py:820
 #, python-brace-format
 msgid "Without the repository «{alias}», Tumbleweed is not updated."
 msgstr "Ohne die Paketquelle „{alias}“ wird Tumbleweed nicht aktualisiert."
 
-#: zypp_desk/mainwindow.py:818
+#: zypp_desk/mainwindow.py:822
 msgid "Keep the computer plugged in and do not turn it off while the firmware is updated."
 msgstr "Lass den Computer am Strom und schalte ihn nicht aus, während die Firmware aktualisiert wird."
 
-#: zypp_desk/mainwindow.py:821
+#: zypp_desk/mainwindow.py:825
 #, python-brace-format
 msgid "Make this change to the computer?"
 msgid_plural "Make these {n} changes to the computer?"
 msgstr[0] "Diese Änderung am Computer vornehmen?"
 msgstr[1] "Diese {n} Änderungen am Computer vornehmen?"
 
-#: zypp_desk/mainwindow.py:822
+#: zypp_desk/mainwindow.py:826
 #, python-brace-format
 msgid "Yes, make the change"
 msgid_plural "Yes, make the {n} changes"
 msgstr[0] "Ja, Änderung vornehmen"
 msgstr[1] "Ja, die {n} Änderungen vornehmen"
 
-#: zypp_desk/mainwindow.py:824
+#: zypp_desk/mainwindow.py:828
 msgid "Zypp Desk will do this, in this order:"
 msgstr "Zypp Desk macht Folgendes, in dieser Reihenfolge:"
 
-#: zypp_desk/mainwindow.py:824
+#: zypp_desk/mainwindow.py:828
 msgid "Zypp Desk will do this:"
 msgstr "Zypp Desk macht Folgendes:"
 
-#: zypp_desk/mainwindow.py:837
+#: zypp_desk/mainwindow.py:841
 #, python-brace-format
 msgid "{file} cannot be read any more: {error}"
 msgstr "{file} kann nicht mehr gelesen werden: {error}"
 
-#: zypp_desk/mainwindow.py:840
+#: zypp_desk/mainwindow.py:844
 #, python-brace-format
 msgid "{file} changed after it was checked, so it is not installed. Take it out of the queue and download it again."
 msgstr "{file} wurde nach der Prüfung verändert und wird deshalb nicht installiert. Nimm die Datei aus der Warteschlange und lade sie erneut herunter."
 
-#: zypp_desk/mainwindow.py:867
+#: zypp_desk/mainwindow.py:871
 #, python-brace-format
 msgid "{file} could not be copied to {folder}: {error}"
 msgstr "{file} konnte nicht nach {folder} kopiert werden: {error}"
 
-#: zypp_desk/mainwindow.py:874
+#: zypp_desk/mainwindow.py:878
 #, python-brace-format
 msgid "{file} could not be moved to {folder}: {error}"
 msgstr "{file} konnte nicht nach {folder} verschoben werden: {error}"
 
-#: zypp_desk/mainwindow.py:912
+#: zypp_desk/mainwindow.py:916
 msgid "Package manager free"
 msgstr "Paketverwaltung nicht belegt"
 
-#: zypp_desk/mainwindow.py:912
+#: zypp_desk/mainwindow.py:916
 #, python-brace-format
 msgid "Package manager in use by {proc}"
 msgstr "Paketverwaltung belegt durch {proc}"
 
-#: zypp_desk/mainwindow.py:913
+#: zypp_desk/mainwindow.py:917
 msgid "No restart needed"
 msgstr "Kein Neustart nötig"
 
-#: zypp_desk/mainwindow.py:913 zypp_desk/tray.py:729 zypp_desk/tray.py:1064
+#: zypp_desk/mainwindow.py:917 zypp_desk/tray.py:763 zypp_desk/tray.py:1098
 msgid "Restart needed"
 msgstr "Neustart nötig"
 
-#: zypp_desk/mainwindow.py:920
+#: zypp_desk/mainwindow.py:924
 msgid "older than 0.4.1"
 msgstr "älter als 0.4.1"
 
-#: zypp_desk/mainwindow.py:922
+#: zypp_desk/mainwindow.py:926
 msgid "Run install.sh from the source folder again."
 msgstr "Führe install.sh im Ordner mit dem Quellcode erneut aus."
 
-#: zypp_desk/mainwindow.py:924
+#: zypp_desk/mainwindow.py:928
 msgid "Update the zypp-desk package."
 msgstr "Aktualisiere das Paket zypp-desk."
 
-#: zypp_desk/mainwindow.py:925
+#: zypp_desk/mainwindow.py:929
 #, python-brace-format
 msgid "The helper that runs zypper as root ({path}) is from another version of Zypp Desk: helper {found}, window {version}. Some changes will fail until both match."
 msgstr "Das Hilfsprogramm, das zypper als root ausführt ({path}), stammt aus einer anderen Version von Zypp Desk: Hilfsprogramm {found}, Fenster {version}. Manche Änderungen schlagen fehl, bis beide übereinstimmen."
 
-#: zypp_desk/mainwindow.py:931
+#: zypp_desk/mainwindow.py:935
 msgid "The helper that runs zypper as root is not installed, so the window can search and show information but cannot change anything yet. Run install.sh from the source folder."
 msgstr "Das Hilfsprogramm, das zypper als root ausführt, ist nicht installiert. Deshalb kann das Fenster suchen und Informationen anzeigen, aber noch nichts ändern. Führe install.sh im Ordner mit dem Quellcode aus."
 
-#: zypp_desk/mainwindow.py:938
+#: zypp_desk/mainwindow.py:942
 msgid "zypper is still working. Wait until it finishes before closing the window."
 msgstr "zypper arbeitet noch. Warte, bis es fertig ist, bevor du das Fenster schließt."
 
-#: zypp_desk/mainwindow.py:944
+#: zypp_desk/mainwindow.py:948
 msgid "A program from the web is still downloading. Close anyway? The download stops and nothing is added to the queue."
 msgstr "Ein Programm aus dem Web wird noch heruntergeladen. Trotzdem schließen? Der Download wird abgebrochen und nichts kommt in die Warteschlange."
 
@@ -918,7 +922,7 @@ msgid "Utilities"
 msgstr "Dienstprogramme"
 
 #: zypp_desk/pages/apps.py:46 zypp_desk/pages/system.py:641
-#: zypp_desk/tray.py:694 zypp_desk/tray.py:695
+#: zypp_desk/tray.py:728 zypp_desk/tray.py:729
 msgid "Settings"
 msgstr "Einstellungen"
 
@@ -1362,7 +1366,7 @@ msgid "All"
 msgstr "Alle"
 
 #: zypp_desk/pages/apps.py:642 zypp_desk/pages/flatpak.py:73
-#: zypp_desk/routine.py:153 zypp_desk/tray.py:560
+#: zypp_desk/routine.py:153 zypp_desk/tray.py:594
 msgid "Flatpak"
 msgstr "Flatpak"
 
@@ -2128,7 +2132,8 @@ msgstr "Belegter Speicherplatz"
 msgid "Download"
 msgstr "Download"
 
-#: zypp_desk/pages/flatpak.py:30 zypp_desk/pages/pkgdetails.py:417
+#: zypp_desk/pages/flatpak.py:30 zypp_desk/pages/help.py:193
+#: zypp_desk/pages/help.py:227 zypp_desk/pages/pkgdetails.py:417
 msgid "License"
 msgstr "Lizenz"
 
@@ -2277,7 +2282,7 @@ msgstr "nicht mehr gepflegt"
 
 #: zypp_desk/pages/flatpak.py:255 zypp_desk/pages/repos.py:976
 #: zypp_desk/pages/system.py:187 zypp_desk/pages/system.py:188
-#: zypp_desk/tray.py:789
+#: zypp_desk/tray.py:823
 msgid "no"
 msgstr "nein"
 
@@ -2391,6 +2396,114 @@ msgstr "Flatpak-Quelle „{name}“ entfernen?"
 #: zypp_desk/pages/flatpak.py:452
 msgid "Yes, remove it"
 msgstr "Ja, entfernen"
+
+#: zypp_desk/pages/help.py:115
+msgid "The help files are missing."
+msgstr "Die Hilfedateien fehlen."
+
+#: zypp_desk/pages/help.py:155
+msgid "About"
+msgstr "Über"
+
+#: zypp_desk/pages/help.py:181
+msgid "Every zypper feature in a window"
+msgstr "Alle Funktionen von zypper in einem Fenster"
+
+#: zypp_desk/pages/help.py:182
+msgid "Made by Jordi Relats, with the help of Claude, an AI assistant by Anthropic."
+msgstr "Erstellt von Jordi Relats, mit Hilfe von Claude, einem KI-Assistenten von Anthropic."
+
+#: zypp_desk/pages/help.py:184
+msgid "Free software: you can use, study, share and change it under the GNU General Public License, version 3 or later. It comes with no warranty."
+msgstr "Freie Software: Du darfst sie nach der GNU General Public License, Version 3 oder später, benutzen, untersuchen, weitergeben und ändern. Sie kommt ohne Gewährleistung."
+
+#: zypp_desk/pages/help.py:189 zypp_desk/pages/pkgdetails.py:430
+msgid "Web site"
+msgstr "Website"
+
+#: zypp_desk/pages/help.py:191
+msgid "Report a problem"
+msgstr "Ein Problem melden"
+
+#: zypp_desk/pages/help.py:202
+msgid "Credits"
+msgstr "Danksagungen"
+
+#: zypp_desk/pages/help.py:204
+msgid "Catalan, German and French. To add your language, see TRANSLATING.md on the web site."
+msgstr "Katalanisch, Deutsch und Französisch. Um deine Sprache hinzuzufügen, siehe TRANSLATING.md auf der Website."
+
+#: zypp_desk/pages/help.py:204
+msgid "Translations"
+msgstr "Übersetzungen"
+
+#: zypp_desk/pages/help.py:206
+msgid "The package manager of openSUSE, which does all the real work. Zypp Desk only runs it and shows what it says."
+msgstr "Die Paketverwaltung von openSUSE, die die ganze eigentliche Arbeit macht. Zypp Desk startet sie nur und zeigt, was sie sagt."
+
+#: zypp_desk/pages/help.py:206
+msgid "zypper and libzypp"
+msgstr "zypper und libzypp"
+
+#: zypp_desk/pages/help.py:208
+msgid "RPM"
+msgstr "RPM"
+
+#: zypp_desk/pages/help.py:208
+msgid "The package format, its database and its signatures."
+msgstr "Das Paketformat, seine Datenbank und seine Signaturen."
+
+#: zypp_desk/pages/help.py:209
+msgid "Qt and Qt for Python (PySide6)"
+msgstr "Qt und Qt for Python (PySide6)"
+
+#: zypp_desk/pages/help.py:209
+msgid "The window, its widgets and the Breeze style of KDE Plasma."
+msgstr "Das Fenster, seine Bedienelemente und der Breeze-Stil von KDE Plasma."
+
+#: zypp_desk/pages/help.py:211
+msgid "Flatpak apps, firmware updates, and the snapshots to go back after an update."
+msgstr "Flatpak-Apps, Firmware-Aktualisierungen und die Snapshots, um nach einer Aktualisierung zurückzugehen."
+
+#: zypp_desk/pages/help.py:211
+msgid "Flatpak, fwupd and snapper"
+msgstr "Flatpak, fwupd und snapper"
+
+#: zypp_desk/pages/help.py:213
+msgid "Asks for the administrator password and lets the small helper run zypper as root."
+msgstr "Fragt nach dem Administratorpasswort und lässt den kleinen Helfer zypper als root ausführen."
+
+#: zypp_desk/pages/help.py:213
+msgid "polkit"
+msgstr "polkit"
+
+#: zypp_desk/pages/help.py:214
+msgid "AppStream, KDE Breeze icons"
+msgstr "AppStream, KDE-Breeze-Symbole"
+
+#: zypp_desk/pages/help.py:214
+msgid "The catalogue of programs, their icons and the icons of the window."
+msgstr "Der Programmkatalog, seine Symbole und die Symbole des Fensters."
+
+#: zypp_desk/pages/help.py:216
+msgid "Open Build Service, Fedora COPR and Flathub"
+msgstr "Open Build Service, Fedora COPR und Flathub"
+
+#: zypp_desk/pages/help.py:216
+msgid "Where Search online looks for programs, and where Zypp Desk itself is built."
+msgstr "Wo „Online suchen“ nach Programmen sucht und wo Zypp Desk selbst gebaut wird."
+
+#: zypp_desk/pages/help.py:218
+msgid "Tumbleweed, and the people who make it every day."
+msgstr "Tumbleweed und die Menschen, die es jeden Tag machen."
+
+#: zypp_desk/pages/help.py:218 zypp_desk/repoprio.py:28
+msgid "openSUSE"
+msgstr "openSUSE"
+
+#: zypp_desk/pages/help.py:237
+msgid "The license file was not found. Zypp Desk is under the GNU General Public License, version 3 or later: https://www.gnu.org/licenses/gpl-3.0.html"
+msgstr "Die Lizenzdatei wurde nicht gefunden. Zypp Desk steht unter der GNU General Public License, Version 3 oder später: https://www.gnu.org/licenses/gpl-3.0.html"
 
 #: zypp_desk/pages/history.py:45
 #, python-brace-format
@@ -3205,14 +3318,14 @@ msgid_plural "{n} programs from the web"
 msgstr[0] "{n} Programm aus dem Web"
 msgstr[1] "{n} Programme aus dem Web"
 
-#: zypp_desk/pages/home.py:210 zypp_desk/tray.py:571
+#: zypp_desk/pages/home.py:210 zypp_desk/tray.py:605
 #, python-brace-format
 msgid "{n} firmware"
 msgid_plural "{n} firmware"
 msgstr[0] "{n} Firmware"
 msgstr[1] "{n} Firmware"
 
-#: zypp_desk/pages/home.py:211 zypp_desk/tray.py:553
+#: zypp_desk/pages/home.py:211 zypp_desk/tray.py:587
 #, python-brace-format
 msgid "{n} update"
 msgid_plural "{n} updates"
@@ -3235,7 +3348,7 @@ msgstr[1] "{n} werden nicht mehr gepflegt: {names}"
 
 #: zypp_desk/pages/home.py:232 zypp_desk/pages/updates.py:710
 #: zypp_desk/pages/updates.py:995 zypp_desk/pages/updates.py:1126
-#: zypp_desk/tray.py:551
+#: zypp_desk/tray.py:585
 msgid "Looking…"
 msgstr "Wird gesucht …"
 
@@ -4530,10 +4643,6 @@ msgstr "Schlüssel-ID {id}"
 msgid "signed with a key rpm does not know ({key})"
 msgstr "mit einem Schlüssel signiert, den rpm nicht kennt ({key})"
 
-#: zypp_desk/pages/pkgdetails.py:430
-msgid "Web site"
-msgstr "Website"
-
 #: zypp_desk/pages/pkgdetails.py:445
 msgid "No information."
 msgstr "Keine Informationen."
@@ -4784,7 +4893,7 @@ msgstr "noch nicht geprüft"
 
 #: zypp_desk/pages/repos.py:85 zypp_desk/pages/updates.py:552
 #: zypp_desk/pages/updates.py:1075 zypp_desk/pages/updates.py:1172
-#: zypp_desk/tray.py:816
+#: zypp_desk/tray.py:850
 msgid "could not check"
 msgstr "Prüfung nicht möglich"
 
@@ -6513,8 +6622,8 @@ msgstr "Was würde „zypper dup“ tun?"
 msgid "Stop after this step"
 msgstr "Nach diesem Schritt anhalten"
 
-#: zypp_desk/pages/updates.py:681 zypp_desk/tray.py:745 zypp_desk/tray.py:875
-#: zypp_desk/tray.py:1100
+#: zypp_desk/pages/updates.py:681 zypp_desk/tray.py:779 zypp_desk/tray.py:909
+#: zypp_desk/tray.py:1134
 msgid "Run the routine"
 msgstr "Routine ausführen"
 
@@ -6643,7 +6752,7 @@ msgid "{old} → file changed"
 msgstr "{old} → Datei geändert"
 
 #: zypp_desk/pages/updates.py:1078 zypp_desk/pages/updates.py:1237
-#: zypp_desk/tray.py:728
+#: zypp_desk/tray.py:762
 msgid "Firmware"
 msgstr "Firmware"
 
@@ -7054,8 +7163,8 @@ msgstr "zypper kann nichts von neuen Versionen der Programme wissen, die du aus 
 msgid "Edit…"
 msgstr "Bearbeiten …"
 
-#: zypp_desk/pages/websources.py:441 zypp_desk/tray.py:752
-#: zypp_desk/tray.py:876
+#: zypp_desk/pages/websources.py:441 zypp_desk/tray.py:786
+#: zypp_desk/tray.py:910
 msgid "Check now"
 msgstr "Jetzt prüfen"
 
@@ -7936,10 +8045,6 @@ msgstr "VLC und die Codecs sollen immer von hier kommen, auch wenn openSUSE eine
 msgid "The base of the system. 99 is the default number: it stays as it is."
 msgstr "Die Basis des Systems. 99 ist die Standardzahl: Sie bleibt, wie sie ist."
 
-#: zypp_desk/repoprio.py:28
-msgid "openSUSE"
-msgstr "openSUSE"
-
 #: zypp_desk/repoprio.py:29
 msgid "Each brings its own program (Chrome, Code, Brave…). They must not replace anything from openSUSE."
 msgstr "Jede bringt ihr eigenes Programm mit (Chrome, Code, Brave …). Sie sollen nichts von openSUSE ersetzen."
@@ -8744,196 +8849,196 @@ msgstr "Textdateien (*.txt)"
 msgid "Tells you when there are updates"
 msgstr "Gibt dir Bescheid, wenn es Aktualisierungen gibt"
 
-#: zypp_desk/tray.py:342
+#: zypp_desk/tray.py:376
 #, python-brace-format
 msgid "There is {n} update"
 msgid_plural "There are {n} updates"
 msgstr[0] "Es gibt {n} Aktualisierung"
 msgstr[1] "Es gibt {n} Aktualisierungen"
 
-#: zypp_desk/tray.py:346
+#: zypp_desk/tray.py:380
 #, python-brace-format
 msgid "All from the repositories: {names}"
 msgstr "Alle aus den Paketquellen: {names}"
 
-#: zypp_desk/tray.py:348
+#: zypp_desk/tray.py:382
 #, python-brace-format
 msgid "Flatpak: {names}"
 msgstr "Flatpak: {names}"
 
-#: zypp_desk/tray.py:348
+#: zypp_desk/tray.py:382
 #, python-brace-format
 msgid "Repositories: {names}"
 msgstr "Paketquellen: {names}"
 
-#: zypp_desk/tray.py:348
+#: zypp_desk/tray.py:382
 #, python-brace-format
 msgid "Web: {names}"
 msgstr "Web: {names}"
 
-#: zypp_desk/tray.py:349
+#: zypp_desk/tray.py:383
 #, python-brace-format
 msgid "Firmware: {names}"
 msgstr "Firmware: {names}"
 
-#: zypp_desk/tray.py:352
+#: zypp_desk/tray.py:386
 msgid "The computer must restart to finish an earlier update."
 msgstr "Der Computer muss neu starten, um eine frühere Aktualisierung abzuschließen."
 
-#: zypp_desk/tray.py:370
+#: zypp_desk/tray.py:404
 msgid "Time to try the update again"
 msgstr "Zeit, die Aktualisierung noch einmal zu versuchen"
 
-#: zypp_desk/tray.py:371
+#: zypp_desk/tray.py:405
 msgid "You asked Zypp Desk to remind you. Simulate the update again: the problems that fix themselves may be gone by now."
 msgstr "Du hast Zypp Desk gebeten, dich zu erinnern. Simuliere die Aktualisierung noch einmal: Die Probleme, die sich von selbst erledigen, sind jetzt vielleicht verschwunden."
 
-#: zypp_desk/tray.py:515 zypp_desk/tray.py:551
+#: zypp_desk/tray.py:549 zypp_desk/tray.py:585
 msgid "Not checked yet"
 msgstr "Noch nicht geprüft"
 
-#: zypp_desk/tray.py:521
+#: zypp_desk/tray.py:555
 #, python-brace-format
 msgid "Checked today at {time}"
 msgstr "Heute um {time} geprüft"
 
-#: zypp_desk/tray.py:523
+#: zypp_desk/tray.py:557
 #, python-brace-format
 msgid "Checked yesterday at {time}"
 msgstr "Gestern um {time} geprüft"
 
-#: zypp_desk/tray.py:524
+#: zypp_desk/tray.py:558
 #, python-brace-format
 msgid "Checked on {date} at {time}"
 msgstr "Am {date} um {time} geprüft"
 
-#: zypp_desk/tray.py:538
+#: zypp_desk/tray.py:572
 #, python-brace-format
 msgid "Repositories refreshed today at {time}"
 msgstr "Paketquellen heute um {time} neu geladen"
 
-#: zypp_desk/tray.py:540
+#: zypp_desk/tray.py:574
 #, python-brace-format
 msgid "Repositories refreshed yesterday at {time}"
 msgstr "Paketquellen gestern um {time} neu geladen"
 
-#: zypp_desk/tray.py:543
+#: zypp_desk/tray.py:577
 #, python-brace-format
 msgid "Repositories refreshed {n} day ago"
 msgid_plural "Repositories refreshed {n} days ago"
 msgstr[0] "Paketquellen vor {n} Tag neu geladen"
 msgstr[1] "Paketquellen vor {n} Tagen neu geladen"
 
-#: zypp_desk/tray.py:555
+#: zypp_desk/tray.py:589
 msgid "Could not check"
 msgstr "Prüfung nicht möglich"
 
-#: zypp_desk/tray.py:556
+#: zypp_desk/tray.py:590
 msgid "Everything is up to date"
 msgstr "Alles ist aktuell"
 
-#: zypp_desk/tray.py:560
+#: zypp_desk/tray.py:594
 msgid "the repositories"
 msgstr "Paketquellen"
 
-#: zypp_desk/tray.py:560
+#: zypp_desk/tray.py:594
 msgid "the web"
 msgstr "Web"
 
-#: zypp_desk/tray.py:561
+#: zypp_desk/tray.py:595
 msgid "everything"
 msgstr "alles"
 
-#: zypp_desk/tray.py:561
+#: zypp_desk/tray.py:595
 msgid "whether a restart is needed"
 msgstr "ob ein Neustart nötig ist"
 
-#: zypp_desk/tray.py:566
+#: zypp_desk/tray.py:600
 msgid "Flatpak: ?"
 msgstr "Flatpak: ?"
 
-#: zypp_desk/tray.py:566
+#: zypp_desk/tray.py:600
 msgid "Repositories: ?"
 msgstr "Paketquellen: ?"
 
-#: zypp_desk/tray.py:566
+#: zypp_desk/tray.py:600
 msgid "Web: ?"
 msgstr "Web: ?"
 
-#: zypp_desk/tray.py:567
+#: zypp_desk/tray.py:601
 msgid "Firmware: ?"
 msgstr "Firmware: ?"
 
-#: zypp_desk/tray.py:568
+#: zypp_desk/tray.py:602
 #, python-brace-format
 msgid "{n} from the repositories"
 msgid_plural "{n} from the repositories"
 msgstr[0] "{n} aus den Paketquellen"
 msgstr[1] "{n} aus den Paketquellen"
 
-#: zypp_desk/tray.py:569
+#: zypp_desk/tray.py:603
 #, python-brace-format
 msgid "{n} Flatpak"
 msgid_plural "{n} Flatpak"
 msgstr[0] "{n} Flatpak"
 msgstr[1] "{n} Flatpak"
 
-#: zypp_desk/tray.py:570
+#: zypp_desk/tray.py:604
 #, python-brace-format
 msgid "{n} from the web"
 msgid_plural "{n} from the web"
 msgstr[0] "{n} aus dem Web"
 msgstr[1] "{n} aus dem Web"
 
-#: zypp_desk/tray.py:707 zypp_desk/tray.py:1101 zypp_desk/tray.py:1125
+#: zypp_desk/tray.py:741 zypp_desk/tray.py:1135 zypp_desk/tray.py:1159
 msgid "Open Updates"
 msgstr "Aktualisierungen öffnen"
 
-#: zypp_desk/tray.py:751 zypp_desk/tray.py:874
+#: zypp_desk/tray.py:785 zypp_desk/tray.py:908
 msgid "Open Zypp Desk"
 msgstr "Zypp Desk öffnen"
 
-#: zypp_desk/tray.py:766 zypp_desk/tray.py:1055
+#: zypp_desk/tray.py:800 zypp_desk/tray.py:1089
 msgid "Looking for updates…"
 msgstr "Suche nach Aktualisierungen …"
 
-#: zypp_desk/tray.py:768 zypp_desk/tray.py:1057
+#: zypp_desk/tray.py:802 zypp_desk/tray.py:1091
 msgid "It looks for updates in a moment."
 msgstr "Gleich wird nach Aktualisierungen gesucht."
 
-#: zypp_desk/tray.py:789
+#: zypp_desk/tray.py:823
 msgid "yes, to finish an earlier update"
 msgstr "ja, um eine frühere Aktualisierung abzuschließen"
 
-#: zypp_desk/tray.py:792
+#: zypp_desk/tray.py:826
 #, python-brace-format
 msgid "Could not check: {parts}."
 msgstr "Prüfung nicht möglich: {parts}."
 
-#: zypp_desk/tray.py:812
+#: zypp_desk/tray.py:846
 msgid "not checked (turned off in the settings)"
 msgstr "nicht geprüft (in den Einstellungen ausgeschaltet)"
 
-#: zypp_desk/tray.py:814
+#: zypp_desk/tray.py:848
 msgid "fwupd is not installed"
 msgstr "fwupd ist nicht installiert"
 
-#: zypp_desk/tray.py:819
+#: zypp_desk/tray.py:853
 msgid "nothing new"
 msgstr "nichts Neues"
 
-#: zypp_desk/tray.py:821
+#: zypp_desk/tray.py:855
 #, python-brace-format
 msgid "{n} update: {what}"
 msgid_plural "{n} updates: {what}"
 msgstr[0] "{n} Aktualisierung: {what}"
 msgstr[1] "{n} Aktualisierungen: {what}"
 
-#: zypp_desk/tray.py:878
+#: zypp_desk/tray.py:912
 msgid "Settings…"
 msgstr "Einstellungen …"
 
-#: zypp_desk/tray.py:880
+#: zypp_desk/tray.py:914
 msgid "Quit"
 msgstr "Beenden"
 

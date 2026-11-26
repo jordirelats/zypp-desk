@@ -21,6 +21,7 @@ zypp_desk/pages/apps.py
 zypp_desk/pages/bridges.py
 zypp_desk/pages/findrepo.py
 zypp_desk/pages/flatpak.py
+zypp_desk/pages/help.py
 zypp_desk/pages/history.py
 zypp_desk/pages/home.py
 zypp_desk/pages/keys.py
