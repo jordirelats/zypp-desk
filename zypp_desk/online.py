@@ -9,8 +9,12 @@ else. Each search returns plain dicts; the window decides what to do with them.
   'opi' tool of openSUSE uses: https://opi-proxy.opensuse.org/?obs_api_link=…&obs_instance=openSUSE
 - Fedora COPR: the package search of the COPR web site (https://copr.fedorainfracloud.org/coprs/
   packages/search/?name=…), which finds built packages by exact name; the JSON API only searches
-  project names and descriptions, slowly and loosely.
+  project names and descriptions, slowly and loosely. The description of each project found comes
+  from the JSON API (/api_3/project), which also helps to put real projects before test rebuilds.
 - Flathub: https://flathub.org/api/v2/search (POST {"query": …}).
+
+What a package of the Build Service is (its title and description) comes from the public part of the
+OBS API, which needs no account: https://api.opensuse.org/public/source/<project>/<package>/_meta.
 """
 
 import hashlib
@@ -33,6 +37,7 @@ from .websources import USER_AGENT, https_open
 OBS_PROXY = "https://opi-proxy.opensuse.org/"
 OBS_API = "https://api.opensuse.org/search/published/binary/id"
 OBS_DOWNLOAD = "https://download.opensuse.org/repositories/"
+OBS_PUBLIC = "https://api.opensuse.org/public/source/"
 COPR = "https://copr.fedorainfracloud.org"
 COPR_DOWNLOAD = "https://download.copr.fedorainfracloud.org/results/"
 FLATHUB_SEARCH = "https://flathub.org/api/v2/search"
@@ -57,6 +62,44 @@ class SearchError(Exception):
 def valid_term(term):
     """A package name to look for: letters, digits and . _ + - (it goes into an OBS query)."""
     return bool(TERM_RE.fullmatch(term or ""))
+
+
+def package_term(term):
+    """The package name to look for in the Build Service and COPR: what was typed, with spaces turned into '-'
+    ('obs studio' → 'obs-studio', as package names are written), or None when it cannot be a package name."""
+    t = "-".join((term or "").split())
+    return t if valid_term(t) else None
+
+
+def plain_description(text, limit=700):
+    """A description from the network as plain text to show: the lines of a paragraph joined, paragraphs and
+    list items kept, HTML tags and Markdown marks left out (a link keeps its text), at most `limit` characters."""
+    text = (text or "").replace("\r", "")
+    text = re.sub(r"(?i)<li[^>]*>", "\n• ", text)
+    text = re.sub(r"(?i)</(p|ul|ol)>|<br\s*/?>", "\n\n", text)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", text)  # a Markdown picture
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)  # a Markdown link: its text
+    text = re.sub(r"\*\*|__|`", "", text)
+    text = re.sub(r"(?m)^[ \t]*(#+|>)[ \t]*", "", text)  # a Markdown heading or quote
+    text = re.sub(r"(?m)^[ \t]*[-*+][ \t]+", "• ", text)  # a Markdown list item
+    paras = []
+    for block in re.split(r"\n[ \t]*\n", text):
+        lines = []
+        for ln in (x.strip() for x in block.splitlines()):
+            if not ln:
+                continue
+            if ln.startswith("• ") or not lines:
+                lines.append(ln)
+            else:
+                lines[-1] += " " + ln
+        if lines:
+            paras.append("\n".join(re.sub(r"[ \t]+", " ", x) for x in lines))
+    text = "\n\n".join(paras)
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(" ,.;:") + "…"
+    return text
 
 
 def _get(url, data=None, accept=None, ctype=None, limit=MAX_BYTES):
@@ -179,6 +222,38 @@ def obs_key_url(row):
     return row["url"] + "repodata/repomd.xml.key"
 
 
+def obs_description(project, package):
+    """What a package of the Build Service is: dict(title, description, url) from its public _meta (no account
+    needed), or None when it cannot be asked for."""
+    package = package.split(":", 1)[0]  # a multibuild flavour ('pkg:flavour') has the sources of 'pkg'
+    if not (OBS_NAME_RE.fullmatch(project or "") and RPM_NAME_RE.fullmatch(package or "")):
+        return None
+    url = OBS_PUBLIC + urllib.parse.quote(project, safe=":") + "/" + urllib.parse.quote(package, safe="") + "/_meta"
+    body = _get(url, accept="application/xml", limit=256 * 1024)
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError:
+        return None
+    home = (root.findtext("url") or "").strip()
+    return {"title": " ".join((root.findtext("title") or "").split())[:200],
+            "description": plain_description(root.findtext("description")),
+            "url": home if home.startswith(("https://", "http://")) else ""}
+
+
+def obs_descriptions(keys):
+    """{(project, package): obs_description(…) or None} for several packages, four at a time."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(key):
+        try:
+            return key, obs_description(*key)
+        except SearchError:
+            return key, None
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        return dict(ex.map(one, keys))
+
+
 # ------------------------------------------------------------------ Fedora COPR
 
 class _CoprTable(object):
@@ -231,24 +306,76 @@ def _copr_rows(term, arch):
     from concurrent.futures import ThreadPoolExecutor
     rows, last = _copr_page(term, arch, 1)
     more = range(2, min(last, COPR_PAGES) + 1)
+
+    def page(n):
+        try:
+            return _copr_page(term, arch, n)[0]
+        except SearchError:
+            return []  # a later page that fails (the site is busy): the projects of the other pages still count
+
     if more:
         with ThreadPoolExecutor(max_workers=5) as ex:
-            for r, _last in ex.map(lambda n: _copr_page(term, arch, n), more):
+            for r in ex.map(page, more):
                 rows += r
     return rows, last > COPR_PAGES
+
+
+def _copr_any(term):
+    rows, _more = _copr_rows(term, "x86_64")
+    if not rows:
+        rows, _more = _copr_rows(term, "noarch")
+    return rows
+
+
+COPR_INFO_MAX = 40  # projects whose description is asked for (six at a time); the rest keep None
+
+
+def copr_project_info(owner, projname):
+    """dict(description, homepage) of a COPR project, from its JSON API (no account needed)."""
+    query = urllib.parse.urlencode({"ownername": owner, "projectname": projname})
+    body = _get(COPR + "/api_3/project?" + query, accept="application/json", limit=1024 * 1024)
+    try:
+        d = json.loads(body)
+    except ValueError:
+        return None
+    if not isinstance(d, dict):
+        return None
+    home = d.get("homepage") if isinstance(d.get("homepage"), str) else ""
+    return {"description": plain_description(d.get("description") if isinstance(d.get("description"), str) else ""),
+            "homepage": home if home.startswith(("https://", "http://")) else ""}
+
+
+def _copr_infos(pairs):
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(pair):
+        try:
+            return pair, copr_project_info(*pair)
+        except SearchError:
+            return pair, None
+
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        return {k: v for k, v in ex.map(one, pairs) if v is not None}
 
 
 def search_copr(term):
     """COPR projects that built a package with exactly this name for x86_64 (or noarch).
 
     One row per project: dict(name, project, owner, projname, chroot, chroots, version, url, key_url,
-    trust, tumbleweed, installed). Only Fedora and openSUSE chroots count.
+    trust, tumbleweed, installed, description, homepage, fedora, stale). Only Fedora and openSUSE chroots
+    count; fedora is the Fedora release of the chroot chosen (0 for rawhide and Tumbleweed), and stale says
+    that Fedora no longer keeps that release while other projects build for newer ones. COPR
+    matches names exactly, small and capital letters too: 'Zed' finds nothing, so it is asked again as 'zed'.
+    description is None when it could not be asked for, "" when the project has none (often a test
+    build or a rebuild of Fedora's own packages). Projects built for Tumbleweed come first, stale ones
+    last, and in between the ones named after the package, then the ones with a description.
     """
     if not valid_term(term):
         raise SearchError(_("Type a package name: letters, digits and . _ + - only."))
-    rows, _more = _copr_rows(term, "x86_64")
-    if not rows:
-        rows, _more = _copr_rows(term, "noarch")
+    rows = _copr_any(term)
+    if not rows and term != term.lower():
+        term = term.lower()  # almost every package name is written in small letters
+        rows = _copr_any(term)
     by_project = {}
     for r in rows:
         if (r["arch"] not in ("x86_64", "noarch") or "x86_64" not in r["chroot"] or "/" not in r["project"]
@@ -275,9 +402,32 @@ def search_copr(term):
                     "version": p["chroots"][chroot], "url": base + chroot + "/", "key_url": base + "pubkey.gpg",
                     "page": f"{COPR}/coprs/{'g/' + owner[1:] if owner.startswith('@') else owner}/{projname}/",
                     "trust": FOREIGN, "tumbleweed": chroot.startswith("opensuse-tumbleweed"),
-                    "installed": p["name"] in inst})
-    out.sort(key=lambda r: (not r["tumbleweed"], _chroot_rank(r["chroot"]), r["project"].lower()))
+                    "installed": p["name"] in inst, "description": None, "homepage": "",
+                    "fedora": _fedora_release(chroot), "stale": False})
+    # Fedora keeps its last two releases: a project whose newest build is older was left behind
+    newest = max((r["fedora"] for r in out if r["fedora"]), default=0)
+    for r in out:
+        r["stale"] = bool(r["fedora"]) and r["fedora"] < newest - 2
+    low = term.lower()
+
+    def rank(r):
+        return (not r["tumbleweed"], r["stale"], low not in r["projname"].lower(), not r["description"],
+                _chroot_rank(r["chroot"]), r["project"].lower())
+
+    out.sort(key=rank)
+    infos = _copr_infos([(r["owner"], r["projname"]) for r in out[:COPR_INFO_MAX]])
+    for r in out:
+        info = infos.get((r["owner"], r["projname"]))
+        if info:
+            r["description"], r["homepage"] = info["description"], info["homepage"]
+    out.sort(key=rank)
     return out
+
+
+def _fedora_release(chroot):
+    """fedora-43-x86_64 → 43; 0 for rawhide and other systems."""
+    m = re.match(r"fedora-(\d+)-", chroot)
+    return int(m.group(1)) if m else 0
 
 
 def copr_alias(row):
@@ -287,7 +437,8 @@ def copr_alias(row):
 # ------------------------------------------------------------------ Flathub
 
 def search_flathub(term, installed_ids=()):
-    """Apps on Flathub: dict(app_id, name, summary, developer, icon_url, verified, installs, installed)."""
+    """Apps on Flathub: dict(app_id, name, summary, description, developer, icon_url, verified, installs,
+    installed)."""
     term = (term or "").strip()
     if not term or len(term) > 100:
         raise SearchError(_("Type the name of a program."))
@@ -302,7 +453,9 @@ def search_flathub(term, installed_ids=()):
         app = h.get("app_id") or ""
         if not APP_ID_RE.fullmatch(app) or h.get("type") not in (None, "desktop-application", "console-application"):
             continue
+        desc = h.get("description")
         out.append({"app_id": app, "name": h.get("name") or app, "summary": h.get("summary") or "",
+                    "description": plain_description(desc if isinstance(desc, str) else ""),
                     "developer": h.get("developer_name") or "", "icon_url": h.get("icon") or "",
                     "verified": bool(h.get("verification_verified")),
                     "installs": int(h.get("installs_last_month") or 0), "installed": app in set(installed_ids),

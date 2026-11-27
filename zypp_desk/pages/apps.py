@@ -26,7 +26,7 @@ from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, PURPLE, RED
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Chip, FlowLayout, Page, button, heading, icon, mono, muted, tool
+from ..ui import Chip, FlowLayout, Page, button, heading, icon, mono, muted, rich_tip, tool
 from .home import Tile
 from .markbar import MarkBar, amp, check_rect, is_checked, paint_check, queue_label
 
@@ -1530,7 +1530,7 @@ class AppsPage(Page):
                 continue
             it = QListWidgetItem(self.mine_list)
             it.setData(Qt.ItemDataRole.UserRole, a)
-            it.setToolTip(a["package"])
+            it.setToolTip(rich_tip(a["name"], a.get("summary") or "", "", [a["package"]]))
             if a["id"] == cur_id:
                 self.mine_list.setCurrentItem(it)
         if self.mine_list.count() and self.mine_list.currentItem() is None:
@@ -1799,7 +1799,7 @@ class AppsPage(Page):
                 continue
             it = QListWidgetItem(self.disc_list)
             it.setData(Qt.ItemDataRole.UserRole, a)
-            it.setToolTip(a["package"])
+            it.setToolTip(rich_tip(a["name"], a.get("summary") or "", "", [a["package"]]))
             if not self.is_installed(a):  # only what you can install can be marked
                 it.setData(MARK_ROLE, True)
                 it.setCheckState(Qt.CheckState.Checked if (a["kind"], a["package"]) in self.disc_marked

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Small shared widgets and helpers."""
 
+import html
+
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtGui import QFontDatabase, QIcon
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLayout, QMessageBox, QPushButton, QSplitter,
@@ -13,6 +15,16 @@ def icon(*names):
         if not ic.isNull():
             return ic
     return QIcon()
+
+
+def rich_tip(title, summary="", description="", notes=()):
+    """A tooltip for a program or package: its name in bold and what it is, its description, then notes in
+    italics. Text from outside is escaped; rich text, so that Qt wraps it at a width that reads well."""
+    parts = ["<b>" + html.escape(title) + "</b>" + (" — " + html.escape(summary) if summary else "")]
+    if description:
+        parts.append(html.escape(description).replace("\n", "<br>"))
+    parts += ["<i>" + html.escape(n) + "</i>" for n in notes if n]
+    return "<qt>" + "<br><br>".join(parts) + "</qt>"
 
 
 def mono():

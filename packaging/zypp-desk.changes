@@ -1,4 +1,22 @@
 -------------------------------------------------------------------
+Fri Nov 27 09:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
+
+- Update to 0.5.8: search online
+  * Fedora COPR finds names typed with capitals ("Zed" is asked again
+    as "zed"), and a name with spaces is looked for as a package name
+    ("obs studio" as "obs-studio") in COPR and the Build Service
+  * COPR projects named after the package and with a description come
+    first; projects whose newest build is for a Fedora that is no
+    longer kept come last; a results page that fails no longer stops
+    the whole search
+  * As in the other pages, the card of the selected result is beside
+    the list: what it is, its description, its version and its home
+    page; the description comes from the public OBS API (no account
+    needed), from the COPR project or from the Flathub app
+  * Packages and Programs show the whole summary of a row in its
+    tooltip
+
+-------------------------------------------------------------------
 Thu Nov 26 22:30:00 UTC 2026 - Jordi Relats <4889953+jordirelats@users.noreply.github.com>
 
 - Update to 0.5.7: stop now, and undo

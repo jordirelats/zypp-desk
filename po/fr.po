@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Zypp Desk\n"
 "Report-Msgid-Bugs-To: https://github.com/jordirelats/zypp-desk/issues\n"
-"POT-Creation-Date: 2026-11-26 22:14+0100\n"
+"POT-Creation-Date: 2026-11-27 09:17+0100\n"
 "PO-Revision-Date: 2026-11-25 12:41+0100\n"
 "Last-Translator: Zypp Desk contributors\n"
 "Language-Team: French\n"
@@ -2169,7 +2169,7 @@ msgstr "Aide"
 msgid "Empty the queue"
 msgstr "Vider la file d'attente"
 
-#: zypp_desk/mainwindow.py:302 zypp_desk/pages/findrepo.py:167
+#: zypp_desk/mainwindow.py:302 zypp_desk/pages/findrepo.py:215
 #: zypp_desk/pages/localrpm.py:548 zypp_desk/pages/locks.py:1073
 #: zypp_desk/pages/operations.py:184 zypp_desk/pages/scripts.py:249
 #: zypp_desk/pages/system.py:422 zypp_desk/pages/system.py:649
@@ -2734,7 +2734,7 @@ msgstr "paquets"
 
 #: zypp_desk/migrate.py:812 zypp_desk/pages/apps.py:1561
 #: zypp_desk/pages/apps.py:1566 zypp_desk/pages/apps.py:1884
-#: zypp_desk/pages/findrepo.py:136 zypp_desk/pages/findrepo.py:137
+#: zypp_desk/pages/findrepo.py:184 zypp_desk/pages/findrepo.py:185
 #: zypp_desk/pages/updates.py:1826 zypp_desk/simulation.py:844
 msgid "Package"
 msgstr "Paquet"
@@ -3019,51 +3019,51 @@ msgstr "Le dépôt « {name} »"
 msgid "Add it by hand in Repositories."
 msgstr "Ajoutez-le à la main dans Dépôts."
 
-#: zypp_desk/online.py:64
+#: zypp_desk/online.py:107
 msgid "Only https addresses are allowed."
 msgstr "Seules les adresses https sont autorisées."
 
-#: zypp_desk/online.py:75
+#: zypp_desk/online.py:118
 #, python-brace-format
 msgid "The service answered with an error ({code})."
 msgstr "Le service a répondu par une erreur ({code})."
 
-#: zypp_desk/online.py:78
+#: zypp_desk/online.py:121
 #, python-brace-format
 msgid "Could not reach the service: {reason}"
 msgstr "Impossible de joindre le service : {reason}"
 
-#: zypp_desk/online.py:80
+#: zypp_desk/online.py:123
 msgid "The answer is too big."
 msgstr "La réponse est trop volumineuse."
 
-#: zypp_desk/online.py:136 zypp_desk/online.py:248
-#: zypp_desk/pages/findrepo.py:235
+#: zypp_desk/online.py:179 zypp_desk/online.py:374
+#: zypp_desk/pages/findrepo.py:289
 msgid "Type a package name: letters, digits and . _ + - only."
 msgstr ""
 "Saisissez un nom de paquet (uniquement des lettres, des chiffres et . _ + -)."
 
-#: zypp_desk/online.py:145
+#: zypp_desk/online.py:188
 msgid "The openSUSE Build Service sent an answer that cannot be read."
 msgstr "L'openSUSE Build Service a envoyé une réponse illisible."
 
-#: zypp_desk/online.py:225
+#: zypp_desk/online.py:300
 msgid "The COPR web site changed: its results cannot be read."
 msgstr "Le site web de COPR a changé : ses résultats ne peuvent pas être lus."
 
-#: zypp_desk/online.py:293
+#: zypp_desk/online.py:444
 msgid "Type the name of a program."
 msgstr "Saisissez le nom d'un programme."
 
-#: zypp_desk/online.py:299
+#: zypp_desk/online.py:450
 msgid "Flathub sent an answer that cannot be read."
 msgstr "Flathub a envoyé une réponse illisible."
 
-#: zypp_desk/online.py:351
+#: zypp_desk/online.py:504
 msgid "The repository does not publish a single readable signing key."
 msgstr "Le dépôt ne publie pas une clé de signature unique et lisible."
 
-#: zypp_desk/online.py:357
+#: zypp_desk/online.py:510
 #, python-brace-format
 msgid "The key could not be read: {error}"
 msgstr "La clé n'a pas pu être lue : {error}"
@@ -3605,7 +3605,7 @@ msgid "in the queue"
 msgstr "dans la file d'attente"
 
 #: zypp_desk/pages/apps.py:787 zypp_desk/pages/apps.py:1889
-#: zypp_desk/pages/findrepo.py:302 zypp_desk/pages/findrepo.py:309
+#: zypp_desk/pages/findrepo.py:362 zypp_desk/pages/findrepo.py:369
 #: zypp_desk/pages/pkgdetails.py:440 zypp_desk/simulation.py:312
 #: zypp_desk/simulation.py:858
 msgid "installed"
@@ -3867,7 +3867,8 @@ msgid "Size"
 msgstr "Taille"
 
 #: zypp_desk/pages/apps.py:992 zypp_desk/pages/apps.py:1567
-#: zypp_desk/pages/findrepo.py:136 zypp_desk/pages/findrepo.py:137
+#: zypp_desk/pages/findrepo.py:184 zypp_desk/pages/findrepo.py:185
+#: zypp_desk/pages/findrepo.py:429 zypp_desk/pages/findrepo.py:432
 #: zypp_desk/pages/flatpak.py:26 zypp_desk/pages/flatpak.py:106
 #: zypp_desk/pages/flatpak.py:142 zypp_desk/pages/packages.py:125
 #: zypp_desk/pages/pkgdetails.py:210 zypp_desk/pages/pkgdetails.py:477
@@ -4405,7 +4406,7 @@ msgstr ""
 "que vous la vidiez."
 
 #: zypp_desk/pages/apps.py:1366 zypp_desk/pages/apps.py:1611
-#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:483
+#: zypp_desk/pages/apps.py:1912 zypp_desk/pages/packages.py:486
 #: zypp_desk/pages/removedlg.py:26 zypp_desk/pages/removedlg.py:36
 #: zypp_desk/simulation.py:375
 #, python-brace-format
@@ -4497,7 +4498,7 @@ msgstr ""
 #: zypp_desk/pages/apps.py:1430 zypp_desk/pages/bridges.py:44
 #: zypp_desk/pages/drivers.py:440 zypp_desk/pages/drivers.py:568
 #: zypp_desk/pages/drivers.py:594 zypp_desk/pages/drivers.py:627
-#: zypp_desk/pages/findrepo.py:620 zypp_desk/pages/repos.py:1204
+#: zypp_desk/pages/findrepo.py:774 zypp_desk/pages/repos.py:1204
 #: zypp_desk/pages/repos.py:1388 zypp_desk/pages/scripts.py:195
 #: zypp_desk/pages/scripts.py:223 zypp_desk/pages/scripts.py:284
 #: zypp_desk/pages/updates.py:491 zypp_desk/pages/updates.py:519
@@ -4606,6 +4607,7 @@ msgid "Origin"
 msgstr "Origine"
 
 #: zypp_desk/pages/apps.py:1556 zypp_desk/pages/apps.py:1887
+#: zypp_desk/pages/findrepo.py:435
 msgid "App ID"
 msgstr "ID de l'application"
 
@@ -4654,9 +4656,9 @@ msgid "In the queue: {change}."
 msgstr "Dans la file d'attente : {change}."
 
 #: zypp_desk/pages/apps.py:1588 zypp_desk/pages/apps.py:1841
-#: zypp_desk/pages/apps.py:1900 zypp_desk/pages/findrepo.py:382
+#: zypp_desk/pages/apps.py:1900 zypp_desk/pages/findrepo.py:535
 #: zypp_desk/pages/flatpak.py:269 zypp_desk/pages/flatpak.py:304
-#: zypp_desk/pages/packages.py:511 zypp_desk/pages/repos.py:1405
+#: zypp_desk/pages/packages.py:514 zypp_desk/pages/repos.py:1405
 msgid "Nothing changes until you apply the queue."
 msgstr "Rien ne change tant que vous n'appliquez pas la file d'attente."
 
@@ -4841,26 +4843,26 @@ msgid "Nothing found. Try another word, or every source."
 msgstr "Rien trouvé. Essayez un autre mot, ou toutes les sources."
 
 #: zypp_desk/pages/apps.py:1831 zypp_desk/pages/apps.py:1926
-#: zypp_desk/pages/findrepo.py:390 zypp_desk/pages/findrepo.py:435
-#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:483
+#: zypp_desk/pages/findrepo.py:543 zypp_desk/pages/findrepo.py:588
+#: zypp_desk/pages/flatpak.py:298 zypp_desk/pages/packages.py:486
 #, python-brace-format
 msgid "Install {name}"
 msgstr "Installer {name}"
 
-#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:486
+#: zypp_desk/pages/apps.py:1833 zypp_desk/pages/packages.py:489
 #, python-brace-format
 msgid "Install the ticked one"
 msgid_plural "Install the {n} ticked"
 msgstr[0] "Installer l'élément coché"
 msgstr[1] "Installer les {n} éléments cochés"
 
-#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:500
+#: zypp_desk/pages/apps.py:1840 zypp_desk/pages/packages.py:503
 #, python-brace-format
 msgid "Puts {names} in the queue to be installed ({command})."
 msgstr "Ajoute {names} à la file d'attente pour installation ({command})."
 
 #: zypp_desk/pages/apps.py:1843 zypp_desk/pages/locks.py:1186
-#: zypp_desk/pages/packages.py:475
+#: zypp_desk/pages/packages.py:478
 #, python-brace-format
 msgid "{n} marked"
 msgid_plural "{n} marked"
@@ -4903,8 +4905,8 @@ msgstr ""
 "elles ce dont elles ont besoin ; elles prennent plus de place et se mettent "
 "à jour séparément de zypper."
 
-#: zypp_desk/pages/apps.py:1926 zypp_desk/pages/findrepo.py:390
-#: zypp_desk/pages/findrepo.py:435
+#: zypp_desk/pages/apps.py:1926 zypp_desk/pages/findrepo.py:543
+#: zypp_desk/pages/findrepo.py:588
 msgid "Install it"
 msgstr "L'installer"
 
@@ -5592,7 +5594,7 @@ msgstr "Faire confiance à la clé de signature de NVIDIA"
 msgid "Fingerprint {fpr}. NVIDIA signs its repository for openSUSE with it."
 msgstr "Empreinte {fpr}. NVIDIA s'en sert pour signer son dépôt pour openSUSE."
 
-#: zypp_desk/pages/drivers.py:535 zypp_desk/pages/findrepo.py:545
+#: zypp_desk/pages/drivers.py:535 zypp_desk/pages/findrepo.py:699
 #: zypp_desk/pages/repotools.py:704 zypp_desk/pages/repotools.py:733
 #: zypp_desk/pages/websources.py:614 zypp_desk/txqueue.py:180
 #, python-brace-format
@@ -5761,7 +5763,7 @@ msgstr "Micrologiciel demandé par un pilote : il le charge au démarrage."
 msgid "For a device of this computer."
 msgstr "Pour un périphérique de cet ordinateur."
 
-#: zypp_desk/pages/drivers.py:615 zypp_desk/pages/findrepo.py:547
+#: zypp_desk/pages/drivers.py:615 zypp_desk/pages/findrepo.py:701
 #: zypp_desk/pages/repotools.py:736 zypp_desk/txqueue.py:272
 #, python-brace-format
 msgctxt "change"
@@ -5809,7 +5811,7 @@ msgstr[1] "Ajouté à la file d'attente : installer {names}."
 msgid "Packages"
 msgstr "Paquets"
 
-#: zypp_desk/pages/expert.py:76 zypp_desk/pages/findrepo.py:127
+#: zypp_desk/pages/expert.py:76 zypp_desk/pages/findrepo.py:175
 #: zypp_desk/pages/flatpak.py:135 zypp_desk/pages/flatpak.py:158
 #: zypp_desk/pages/locks.py:1051 zypp_desk/pages/packages.py:60
 msgid "Search"
@@ -6407,15 +6409,15 @@ msgstr "Exécuter « zypper {command} » ?"
 msgid "Yes, run it"
 msgstr "Oui, l'exécuter"
 
-#: zypp_desk/pages/findrepo.py:29
+#: zypp_desk/pages/findrepo.py:37
 msgid "Official"
 msgstr "Officiel"
 
-#: zypp_desk/pages/findrepo.py:29
+#: zypp_desk/pages/findrepo.py:37
 msgid "Official Tumbleweed package"
 msgstr "Paquet officiel de Tumbleweed"
 
-#: zypp_desk/pages/findrepo.py:30
+#: zypp_desk/pages/findrepo.py:38
 msgid ""
 "Built and tested by openSUSE for Tumbleweed. It is already in your openSUSE "
 "repositories: no repository needs to be added."
@@ -6423,15 +6425,15 @@ msgstr ""
 "Construit et testé par openSUSE pour Tumbleweed. Il est déjà dans vos dépôts "
 "openSUSE : aucun dépôt n'est à ajouter."
 
-#: zypp_desk/pages/findrepo.py:32
+#: zypp_desk/pages/findrepo.py:40
 msgid "Community team"
 msgstr "Équipe de la communauté"
 
-#: zypp_desk/pages/findrepo.py:32
+#: zypp_desk/pages/findrepo.py:40
 msgid "openSUSE community project"
 msgstr "Projet de la communauté openSUSE"
 
-#: zypp_desk/pages/findrepo.py:33
+#: zypp_desk/pages/findrepo.py:41
 msgid ""
 "A project of the openSUSE Build Service kept by a team, often the place "
 "where the official package is prepared. It is built for Tumbleweed and is "
@@ -6442,15 +6444,15 @@ msgstr ""
 "généralement sûr, mais il peut apporter des bibliothèques plus récentes que "
 "les officielles."
 
-#: zypp_desk/pages/findrepo.py:36
+#: zypp_desk/pages/findrepo.py:44
 msgid "One person"
 msgstr "Une personne"
 
-#: zypp_desk/pages/findrepo.py:36
+#: zypp_desk/pages/findrepo.py:44
 msgid "Personal project of one person"
 msgstr "Projet personnel d'une seule personne"
 
-#: zypp_desk/pages/findrepo.py:37
+#: zypp_desk/pages/findrepo.py:45
 msgid ""
 "Projects whose name starts with home: belong to one person of the openSUSE "
 "Build Service. It is built for Tumbleweed, but nobody else reviews it and it "
@@ -6463,15 +6465,15 @@ msgstr ""
 "moment. Ne l'utilisez que si vous faites confiance à cette personne ou s'il "
 "n'existe rien de mieux."
 
-#: zypp_desk/pages/findrepo.py:40
+#: zypp_desk/pages/findrepo.py:48
 msgid "Built for Fedora, not for openSUSE"
 msgstr "Construit pour Fedora, pas pour openSUSE"
 
-#: zypp_desk/pages/findrepo.py:40
+#: zypp_desk/pages/findrepo.py:48
 msgid "Made for Fedora"
 msgstr "Pour Fedora"
 
-#: zypp_desk/pages/findrepo.py:41
+#: zypp_desk/pages/findrepo.py:49
 msgid ""
 "COPR builds packages for Fedora. Library names and dependencies are "
 "different in openSUSE, so installing them can fail or break other programs. "
@@ -6482,15 +6484,15 @@ msgstr ""
 "casser d'autres programmes. Ne l'utilisez que s'il n'existe rien d'autre ; "
 "une application Flatpak est un choix plus sûr."
 
-#: zypp_desk/pages/findrepo.py:44
+#: zypp_desk/pages/findrepo.py:52
 msgid "Verified"
 msgstr "Vérifié"
 
-#: zypp_desk/pages/findrepo.py:44
+#: zypp_desk/pages/findrepo.py:52
 msgid "Verified on Flathub"
 msgstr "Vérifié sur Flathub"
 
-#: zypp_desk/pages/findrepo.py:45
+#: zypp_desk/pages/findrepo.py:53
 msgid ""
 "The developers of the program confirmed on Flathub that this app is theirs. "
 "Flatpak apps run apart from the system and do not touch openSUSE packages."
@@ -6499,15 +6501,15 @@ msgstr ""
 "est la leur. Les applications Flatpak fonctionnent à part du système et ne "
 "touchent pas aux paquets openSUSE."
 
-#: zypp_desk/pages/findrepo.py:47
+#: zypp_desk/pages/findrepo.py:55
 msgid "Not verified"
 msgstr "Non vérifié"
 
-#: zypp_desk/pages/findrepo.py:47
+#: zypp_desk/pages/findrepo.py:55
 msgid "Not verified on Flathub"
 msgstr "Non vérifié sur Flathub"
 
-#: zypp_desk/pages/findrepo.py:48
+#: zypp_desk/pages/findrepo.py:56
 msgid ""
 "Someone packaged it for Flathub, but the developers of the program have not "
 "confirmed it. Flatpak apps run apart from the system and do not touch "
@@ -6517,11 +6519,11 @@ msgstr ""
 "l'ont pas confirmé. Les applications Flatpak fonctionnent à part du système "
 "et ne touchent pas aux paquets openSUSE."
 
-#: zypp_desk/pages/findrepo.py:51
+#: zypp_desk/pages/findrepo.py:59
 msgid "Built for Tumbleweed on COPR"
 msgstr "Construit pour Tumbleweed sur COPR"
 
-#: zypp_desk/pages/findrepo.py:52
+#: zypp_desk/pages/findrepo.py:60
 msgid ""
 "This COPR project also builds for openSUSE Tumbleweed, so the dependencies "
 "fit, but it is made by one person or team on Fedora's build service and "
@@ -6532,19 +6534,23 @@ msgstr ""
 "sur le service de construction de Fedora et personne chez openSUSE ne le "
 "vérifie."
 
-#: zypp_desk/pages/findrepo.py:59
+#: zypp_desk/pages/findrepo.py:67
 msgid "Tumbleweed build"
 msgstr "Pour Tumbleweed"
 
-#: zypp_desk/pages/findrepo.py:109
+#: zypp_desk/pages/findrepo.py:82 zypp_desk/pages/findrepo.py:423
+msgid "Choose a result from the list."
+msgstr "Choisissez un résultat dans la liste."
+
+#: zypp_desk/pages/findrepo.py:154
 msgid "Find software on line"
 msgstr "Rechercher des logiciels en ligne"
 
-#: zypp_desk/pages/findrepo.py:121
+#: zypp_desk/pages/findrepo.py:169
 msgid "Name of the program or package, for example zed"
 msgstr "Nom du programme ou du paquet, par exemple zed"
 
-#: zypp_desk/pages/findrepo.py:128
+#: zypp_desk/pages/findrepo.py:176
 msgid ""
 "Look for this name in the openSUSE Build Service, Fedora COPR and Flathub. "
 "Only the name is sent. It changes nothing."
@@ -6552,7 +6558,7 @@ msgstr ""
 "Chercher ce nom dans l'openSUSE Build Service, dans Fedora COPR et sur "
 "Flathub. Seul le nom est envoyé. Cela ne change rien."
 
-#: zypp_desk/pages/findrepo.py:132
+#: zypp_desk/pages/findrepo.py:180
 msgid ""
 "Looks in the openSUSE Build Service, in Fedora COPR and in Flathub. Only the "
 "name you type is sent. Nothing changes until you press Apply in the queue "
@@ -6562,104 +6568,105 @@ msgstr ""
 "Seul le nom saisi est envoyé. Rien ne change tant que vous n'appuyez pas sur "
 "« Appliquer » dans la barre de la file d'attente."
 
-#: zypp_desk/pages/findrepo.py:136
+#: zypp_desk/pages/findrepo.py:184 zypp_desk/pages/findrepo.py:429
 msgid "Project"
 msgstr "Projet"
 
-#: zypp_desk/pages/findrepo.py:136 zypp_desk/pages/findrepo.py:137
-#: zypp_desk/pages/findrepo.py:139
+#: zypp_desk/pages/findrepo.py:184 zypp_desk/pages/findrepo.py:185
+#: zypp_desk/pages/findrepo.py:187
 msgid "Trust"
 msgstr "Confiance"
 
-#: zypp_desk/pages/findrepo.py:137 zypp_desk/pages/localrpm.py:887
+#: zypp_desk/pages/findrepo.py:185 zypp_desk/pages/findrepo.py:432
+#: zypp_desk/pages/localrpm.py:887
 msgid "Built for"
 msgstr "Construit pour"
 
-#: zypp_desk/pages/findrepo.py:137
+#: zypp_desk/pages/findrepo.py:185
 msgid "COPR project"
 msgstr "Projet COPR"
 
-#: zypp_desk/pages/findrepo.py:139
+#: zypp_desk/pages/findrepo.py:187
 msgid "App"
 msgstr "Application"
 
-#: zypp_desk/pages/findrepo.py:139
+#: zypp_desk/pages/findrepo.py:187 zypp_desk/pages/findrepo.py:435
 msgid "Developer"
 msgstr "Développeur"
 
-#: zypp_desk/pages/findrepo.py:139 zypp_desk/pages/packages.py:125
+#: zypp_desk/pages/findrepo.py:187 zypp_desk/pages/packages.py:125
 msgid "Summary"
 msgstr "Résumé"
 
-#: zypp_desk/pages/findrepo.py:140 zypp_desk/pages/findrepo.py:226
-#: zypp_desk/pages/findrepo.py:260
+#: zypp_desk/pages/findrepo.py:188 zypp_desk/pages/findrepo.py:278
+#: zypp_desk/pages/findrepo.py:315
 msgid "openSUSE Build Service"
 msgstr "openSUSE Build Service"
 
-#: zypp_desk/pages/findrepo.py:141 zypp_desk/pages/findrepo.py:226
-#: zypp_desk/pages/findrepo.py:260 zypp_desk/pages/findrepo.py:544
+#: zypp_desk/pages/findrepo.py:189 zypp_desk/pages/findrepo.py:278
+#: zypp_desk/pages/findrepo.py:315 zypp_desk/pages/findrepo.py:698
 msgid "Fedora COPR"
 msgstr "Fedora COPR"
 
-#: zypp_desk/pages/findrepo.py:142 zypp_desk/pages/findrepo.py:227
-#: zypp_desk/pages/findrepo.py:260
+#: zypp_desk/pages/findrepo.py:190 zypp_desk/pages/findrepo.py:279
+#: zypp_desk/pages/findrepo.py:315
 msgid "Flathub"
 msgstr "Flathub"
 
-#: zypp_desk/pages/findrepo.py:147 zypp_desk/pages/findrepo.py:152
-#: zypp_desk/pages/findrepo.py:361 zypp_desk/pages/findrepo.py:365
+#: zypp_desk/pages/findrepo.py:195 zypp_desk/pages/findrepo.py:200
+#: zypp_desk/pages/findrepo.py:514 zypp_desk/pages/findrepo.py:518
 msgid "Add the repository and install…"
 msgstr "Ajouter le dépôt et installer…"
 
-#: zypp_desk/pages/findrepo.py:148 zypp_desk/pages/findrepo.py:362
+#: zypp_desk/pages/findrepo.py:196 zypp_desk/pages/findrepo.py:515
 msgid "Only add the repository…"
 msgstr "Ajouter seulement le dépôt…"
 
-#: zypp_desk/pages/findrepo.py:149 zypp_desk/pages/findrepo.py:153
+#: zypp_desk/pages/findrepo.py:197 zypp_desk/pages/findrepo.py:201
 msgid "Open the project page"
 msgstr "Ouvrir la page du projet"
 
-#: zypp_desk/pages/findrepo.py:156
+#: zypp_desk/pages/findrepo.py:204
 msgid "Open on Flathub"
 msgstr "Ouvrir sur Flathub"
 
-#: zypp_desk/pages/findrepo.py:157
+#: zypp_desk/pages/findrepo.py:205
 msgid "Open the Flatpak page"
 msgstr "Ouvrir la page Flatpak"
 
-#: zypp_desk/pages/findrepo.py:158
+#: zypp_desk/pages/findrepo.py:206
 msgid ""
 "Close this window and go to Flatpak, where the Flathub remote can be added."
 msgstr ""
 "Fermer cette fenêtre et aller dans Flatpak, où le dépôt distant Flathub peut "
 "être ajouté."
 
-#: zypp_desk/pages/findrepo.py:159 zypp_desk/pages/findrepo.py:368
+#: zypp_desk/pages/findrepo.py:207 zypp_desk/pages/findrepo.py:521
 #: zypp_desk/pages/pkgdetails.py:193
 msgid "Install"
 msgstr "Installer"
 
-#: zypp_desk/pages/findrepo.py:168
+#: zypp_desk/pages/findrepo.py:216
 msgid "Close this window. What you put in the queue stays there."
 msgstr ""
 "Fermer cette fenêtre. Ce que vous avez mis dans la file d'attente y reste."
 
-#: zypp_desk/pages/findrepo.py:229 zypp_desk/pages/flatpak.py:440
+#: zypp_desk/pages/findrepo.py:281 zypp_desk/pages/flatpak.py:440
 #: zypp_desk/pages/locks.py:1096 zypp_desk/pages/packages.py:247
 #: zypp_desk/pages/websources.py:261
 msgid "Searching…"
 msgstr "Recherche…"
 
-#: zypp_desk/pages/findrepo.py:262
+#: zypp_desk/pages/findrepo.py:317
 #, python-brace-format
 msgid "Could not search: {error}"
 msgstr "Recherche impossible : {error}"
 
-#: zypp_desk/pages/findrepo.py:269
+#: zypp_desk/pages/findrepo.py:324
 msgid "Nothing found with this name."
 msgstr "Rien trouvé avec ce nom."
 
-#: zypp_desk/pages/findrepo.py:272
+#: zypp_desk/pages/findrepo.py:327
 #, python-brace-format
 msgid ""
 "{n} project publishes exactly this name for Tumbleweed; similar names follow."
@@ -6672,80 +6679,124 @@ msgstr[1] ""
 "{n} projets publient exactement ce nom pour Tumbleweed ; des noms semblables "
 "suivent."
 
-#: zypp_desk/pages/findrepo.py:275
+#: zypp_desk/pages/findrepo.py:330
 msgid "No project publishes exactly this name; these names are similar."
 msgstr "Aucun projet ne publie exactement ce nom ; ces noms sont semblables."
 
-#: zypp_desk/pages/findrepo.py:277
+#: zypp_desk/pages/findrepo.py:332
 #, python-brace-format
 msgid "{n} COPR project built a package with this exact name."
 msgid_plural "{n} COPR projects built a package with this exact name."
 msgstr[0] "{n} projet COPR a construit un paquet portant exactement ce nom."
 msgstr[1] "{n} projets COPR ont construit un paquet portant exactement ce nom."
 
-#: zypp_desk/pages/findrepo.py:281
+#: zypp_desk/pages/findrepo.py:336
 #, python-brace-format
 msgid "{n} app found."
 msgid_plural "{n} apps found."
 msgstr[0] "{n} application trouvée."
 msgstr[1] "{n} applications trouvées."
 
-#: zypp_desk/pages/findrepo.py:359
+#: zypp_desk/pages/findrepo.py:338
+#, python-brace-format
+msgid "Looked for as the package name “{name}”."
+msgstr "Recherché sous le nom de paquet « {name} »."
+
+#: zypp_desk/pages/findrepo.py:392
+msgid "Looking up its description…"
+msgstr "Recherche de sa description…"
+
+#: zypp_desk/pages/findrepo.py:395
+msgid "Its description could not be read."
+msgstr "Sa description n'a pas pu être lue."
+
+#: zypp_desk/pages/findrepo.py:398
+#, python-brace-format
+msgid "Built from the sources of {package}."
+msgstr "Construit à partir des sources de {package}."
+
+#: zypp_desk/pages/findrepo.py:400
+#, python-brace-format
+msgid "COPR project {project}"
+msgstr "Projet COPR {project}"
+
+#: zypp_desk/pages/findrepo.py:401
+msgid ""
+"This project has no description: it is often a test build or a rebuild of "
+"Fedora's own packages."
+msgstr ""
+"Ce projet n'a pas de description : c'est souvent un essai, ou il recompile "
+"des paquets de Fedora elle-même."
+
+#: zypp_desk/pages/findrepo.py:403
+#, python-brace-format
+msgid ""
+"Its newest build is for Fedora {n}, which Fedora no longer keeps: the "
+"project may have been left behind."
+msgstr ""
+"Sa compilation la plus récente est pour Fedora {n}, que Fedora ne maintient "
+"plus : le projet a peut-être été abandonné."
+
+#: zypp_desk/pages/findrepo.py:430 zypp_desk/pages/findrepo.py:433
+msgid "Home page"
+msgstr "Site web"
+
+#: zypp_desk/pages/findrepo.py:512
 msgid "Select a result in the list first."
 msgstr "Sélectionnez d'abord un résultat dans la liste."
 
-#: zypp_desk/pages/findrepo.py:387 zypp_desk/pages/findrepo.py:432
+#: zypp_desk/pages/findrepo.py:540 zypp_desk/pages/findrepo.py:585
 #, python-brace-format
 msgid "Open the page of {project} in the web browser."
 msgstr "Ouvrir la page du projet {project} dans le navigateur web."
 
-#: zypp_desk/pages/findrepo.py:392
+#: zypp_desk/pages/findrepo.py:545
 #, python-brace-format
 msgid "Puts in the queue: install {name} from your openSUSE repositories."
 msgstr ""
 "Ajoute à la file d'attente : installer {name} depuis vos dépôts openSUSE."
 
-#: zypp_desk/pages/findrepo.py:394 zypp_desk/pages/findrepo.py:415
+#: zypp_desk/pages/findrepo.py:547 zypp_desk/pages/findrepo.py:568
 msgid "Only add the repository"
 msgstr "Ajouter seulement le dépôt"
 
-#: zypp_desk/pages/findrepo.py:395
+#: zypp_desk/pages/findrepo.py:548
 msgid ""
 "It is already in your openSUSE repositories: no repository needs to be added."
 msgstr ""
 "Il est déjà dans vos dépôts openSUSE : aucun dépôt n'a besoin d'être ajouté."
 
-#: zypp_desk/pages/findrepo.py:403
+#: zypp_desk/pages/findrepo.py:556
 msgid "Then it offers to trust the signing key of the project."
 msgstr ""
 "Ensuite, il propose de faire confiance à la clé de signature du projet."
 
-#: zypp_desk/pages/findrepo.py:405
+#: zypp_desk/pages/findrepo.py:558
 msgid "Install it from this repository"
 msgstr "L'installer depuis ce dépôt"
 
-#: zypp_desk/pages/findrepo.py:405
+#: zypp_desk/pages/findrepo.py:558
 #, python-brace-format
 msgid "Install {name} from it"
 msgstr "Installer {name} depuis ce dépôt"
 
-#: zypp_desk/pages/findrepo.py:406
+#: zypp_desk/pages/findrepo.py:559
 #, python-brace-format
 msgid "Puts in the queue: install {name} from the repository you already have."
 msgstr ""
 "Ajoute à la file d'attente : installer {name} depuis le dépôt que vous avez "
 "déjà."
 
-#: zypp_desk/pages/findrepo.py:409
+#: zypp_desk/pages/findrepo.py:562
 #, python-brace-format
 msgid "Add the repository and install {name}"
 msgstr "Ajouter le dépôt et installer {name}"
 
-#: zypp_desk/pages/findrepo.py:410
+#: zypp_desk/pages/findrepo.py:563
 msgid "Add the repository and install it"
 msgstr "Ajouter le dépôt et l'installer"
 
-#: zypp_desk/pages/findrepo.py:411
+#: zypp_desk/pages/findrepo.py:564
 #, python-brace-format
 msgid ""
 "Puts in the queue: add the repository {project} and install {name} from it."
@@ -6753,27 +6804,27 @@ msgstr ""
 "Ajoute à la file d'attente : ajouter le dépôt {project} et installer {name} "
 "depuis ce dépôt."
 
-#: zypp_desk/pages/findrepo.py:417
+#: zypp_desk/pages/findrepo.py:570
 msgid "This repository is already added here."
 msgstr "Ce dépôt est déjà ajouté ici."
 
-#: zypp_desk/pages/findrepo.py:418
+#: zypp_desk/pages/findrepo.py:571
 #, python-brace-format
 msgid ""
 "Puts in the queue: add the repository {project}, without installing anything."
 msgstr ""
 "Ajoute à la file d'attente : ajouter le dépôt {project}, sans rien installer."
 
-#: zypp_desk/pages/findrepo.py:426
+#: zypp_desk/pages/findrepo.py:579
 #, python-brace-format
 msgid "Add the repository and install {name}…"
 msgstr "Ajouter le dépôt et installer {name}…"
 
-#: zypp_desk/pages/findrepo.py:427
+#: zypp_desk/pages/findrepo.py:580
 msgid "Add the repository and install it…"
 msgstr "Ajouter le dépôt et l'installer…"
 
-#: zypp_desk/pages/findrepo.py:429
+#: zypp_desk/pages/findrepo.py:582
 #, python-brace-format
 msgid ""
 "Asks first, then puts in the queue: add the COPR repository {project} and "
@@ -6782,95 +6833,95 @@ msgstr ""
 "Demande d'abord, puis ajoute à la file d'attente : ajouter le dépôt COPR "
 "{project} et installer {name} depuis ce dépôt."
 
-#: zypp_desk/pages/findrepo.py:446
+#: zypp_desk/pages/findrepo.py:599
 #, python-brace-format
 msgid "Puts in the queue: install the Flatpak app {name} from {remote}."
 msgstr ""
 "Ajoute à la file d'attente : installer l'application Flatpak {name} depuis "
 "{remote}."
 
-#: zypp_desk/pages/findrepo.py:451 zypp_desk/pages/findrepo.py:499
+#: zypp_desk/pages/findrepo.py:604 zypp_desk/pages/findrepo.py:653
 msgid ""
 "The Flathub remote is not configured here: add it in the Flatpak page first."
 msgstr ""
 "Le dépôt distant Flathub n'est pas configuré ici : ajoutez-le d'abord dans "
 "la page Flatpak."
 
-#: zypp_desk/pages/findrepo.py:453
+#: zypp_desk/pages/findrepo.py:606
 msgid "Remotes other than Flathub have no page there."
 msgstr "Les dépôts distants autres que Flathub n'y ont pas de page."
 
-#: zypp_desk/pages/findrepo.py:454
+#: zypp_desk/pages/findrepo.py:607
 #, python-brace-format
 msgid "Open the page of {name} on Flathub in the web browser."
 msgstr ""
 "Ouvrir la page de l'application {name} sur Flathub dans le navigateur web."
 
-#: zypp_desk/pages/findrepo.py:486
+#: zypp_desk/pages/findrepo.py:640
 #, python-brace-format
 msgid "This repository is already added here as “{name}”."
 msgstr "Ce dépôt est déjà ajouté ici sous le nom « {name} »."
 
-#: zypp_desk/pages/findrepo.py:493
+#: zypp_desk/pages/findrepo.py:647
 #, python-brace-format
 msgid "Repository: {url}"
 msgstr "Dépôt : {url}"
 
-#: zypp_desk/pages/findrepo.py:496
+#: zypp_desk/pages/findrepo.py:650
 #, python-brace-format
 msgid "From the Flatpak remote “{remote}” configured here."
 msgstr "Depuis le dépôt distant Flatpak « {remote} » configuré ici."
 
-#: zypp_desk/pages/findrepo.py:502
+#: zypp_desk/pages/findrepo.py:656
 #, python-brace-format
 msgid "{n} installation last month"
 msgid_plural "{n} installations last month"
 msgstr[0] "{n} installation le mois dernier"
 msgstr[1] "{n} installations le mois dernier"
 
-#: zypp_desk/pages/findrepo.py:517
+#: zypp_desk/pages/findrepo.py:671
 #, python-brace-format
 msgid "Added to the queue: install {name}."
 msgstr "Ajouté à la file d'attente : installer {name}."
 
-#: zypp_desk/pages/findrepo.py:530
+#: zypp_desk/pages/findrepo.py:684
 #, python-brace-format
 msgid "Added to the queue: the repository {project}{and_install}."
 msgstr "Ajouté à la file d'attente : le dépôt {project}{and_install}."
 
-#: zypp_desk/pages/findrepo.py:531
+#: zypp_desk/pages/findrepo.py:685
 #, python-brace-format
 msgid " and {name} from it"
 msgstr " et {name} depuis ce dépôt"
 
-#: zypp_desk/pages/findrepo.py:542
+#: zypp_desk/pages/findrepo.py:696
 #, python-brace-format
 msgid "Add the repository {project} ({chroot}) and install {name} from it?"
 msgstr ""
 "Ajouter le dépôt {project} ({chroot}) et installer {name} depuis celui-ci ?"
 
-#: zypp_desk/pages/findrepo.py:543
+#: zypp_desk/pages/findrepo.py:697
 msgid "Add them to the queue"
 msgstr "Les ajouter à la file d'attente"
 
-#: zypp_desk/pages/findrepo.py:548 zypp_desk/pages/repotools.py:737
+#: zypp_desk/pages/findrepo.py:702 zypp_desk/pages/repotools.py:737
 msgid "From this repository."
 msgstr "Depuis ce dépôt."
 
-#: zypp_desk/pages/findrepo.py:550 zypp_desk/pages/keys.py:380
+#: zypp_desk/pages/findrepo.py:704 zypp_desk/pages/keys.py:380
 #: zypp_desk/pages/repotools.py:481 zypp_desk/pages/repotools.py:744
 msgid "it only goes to the queue: nothing changes until you apply it."
 msgstr ""
 "cela va seulement dans la file d'attente : rien ne change tant que vous ne "
 "l'appliquez pas."
 
-#: zypp_desk/pages/findrepo.py:561
+#: zypp_desk/pages/findrepo.py:715
 #, python-brace-format
 msgid "Added to the queue: the repository {project} and {name} from it."
 msgstr ""
 "Ajouté à la file d'attente : le dépôt {project} et {name} depuis ce dépôt."
 
-#: zypp_desk/pages/findrepo.py:601
+#: zypp_desk/pages/findrepo.py:755
 #, python-brace-format
 msgid ""
 "Its signing key could not be read ({error}): zypper will ask about it when "
@@ -6879,7 +6930,7 @@ msgstr ""
 "Sa clé de signature n'a pas pu être lue ({error}) : zypper posera la "
 "question lors de l'actualisation."
 
-#: zypp_desk/pages/findrepo.py:608
+#: zypp_desk/pages/findrepo.py:762
 #, python-brace-format
 msgid ""
 "The packages of {project} are signed with this key. Add its import to the "
@@ -6888,7 +6939,7 @@ msgstr ""
 "Les paquets du projet {project} sont signés avec cette clé. Ajouter son "
 "importation à la file d'attente, pour qu'ils puissent être vérifiés ?"
 
-#: zypp_desk/pages/findrepo.py:611
+#: zypp_desk/pages/findrepo.py:765
 #, python-brace-format
 msgid ""
 "zypper must trust the signing key of {project} before it can read the "
@@ -6897,50 +6948,50 @@ msgstr ""
 "zypper doit faire confiance à la clé de signature du projet {project} avant "
 "de pouvoir lire le dépôt. Ajouter son importation à la file d'attente ?"
 
-#: zypp_desk/pages/findrepo.py:613
+#: zypp_desk/pages/findrepo.py:767
 #, python-brace-format
 msgid "Fingerprint: {fpr}"
 msgstr "Empreinte : {fpr}"
 
-#: zypp_desk/pages/findrepo.py:615
+#: zypp_desk/pages/findrepo.py:769
 #, python-brace-format
 msgid "Name in the key: {uid}"
 msgstr "Nom indiqué dans la clé : {uid}"
 
-#: zypp_desk/pages/findrepo.py:616
+#: zypp_desk/pages/findrepo.py:770
 msgid "From then on, rpm trusts every package signed with this key."
 msgstr "Dès lors, rpm fera confiance à tout paquet signé avec cette clé."
 
-#: zypp_desk/pages/findrepo.py:618 zypp_desk/pages/keys.py:1061
+#: zypp_desk/pages/findrepo.py:772 zypp_desk/pages/keys.py:1061
 msgid "Its owner revoked this key: it must not be used."
 msgstr "Son propriétaire a révoqué cette clé : elle ne doit pas être utilisée."
 
-#: zypp_desk/pages/findrepo.py:619
+#: zypp_desk/pages/findrepo.py:773
 msgid "This key has expired."
 msgstr "Cette clé a expiré."
 
-#: zypp_desk/pages/findrepo.py:622 zypp_desk/pages/repotools.py:716
+#: zypp_desk/pages/findrepo.py:776 zypp_desk/pages/repotools.py:716
 msgid "Add to the queue"
 msgstr "Ajouter à la file d'attente"
 
-#: zypp_desk/pages/findrepo.py:624
+#: zypp_desk/pages/findrepo.py:778
 #, python-brace-format
 msgid "Trust the signing key of {project}?"
 msgstr "Faire confiance à la clé de signature du projet {project} ?"
 
-#: zypp_desk/pages/findrepo.py:625 zypp_desk/pages/keys.py:697
+#: zypp_desk/pages/findrepo.py:779 zypp_desk/pages/keys.py:697
 #: zypp_desk/pages/keys.py:703 zypp_desk/pages/localrpm.py:741
 msgid "Import a signing key"
 msgstr "Importer une clé de signature"
 
-#: zypp_desk/pages/findrepo.py:628 zypp_desk/pages/repotools.py:697
+#: zypp_desk/pages/findrepo.py:782 zypp_desk/pages/repotools.py:697
 #: zypp_desk/txqueue.py:149
 #, python-brace-format
 msgctxt "change"
 msgid "Trust the signing key “{name}”"
 msgstr "Faire confiance à la clé de signature « {name} »"
 
-#: zypp_desk/pages/findrepo.py:630
+#: zypp_desk/pages/findrepo.py:784
 msgid ""
 "it is imported first when you apply the queue, before the repository is "
 "added. Nothing changes until then."
@@ -6948,11 +6999,11 @@ msgstr ""
 "elle sera importée en premier quand vous appliquerez la file d'attente, "
 "avant l'ajout du dépôt. Rien ne change d'ici là."
 
-#: zypp_desk/pages/findrepo.py:637
+#: zypp_desk/pages/findrepo.py:791
 msgid "Its signing key too."
 msgstr "Sa clé de signature aussi."
 
-#: zypp_desk/pages/findrepo.py:655
+#: zypp_desk/pages/findrepo.py:809
 #, python-brace-format
 msgid "Added to the queue: install the Flatpak app {name}."
 msgstr "Ajouté à la file d'attente : installer l'application Flatpak {name}."
@@ -8264,7 +8315,7 @@ msgstr[1] ""
 "instantanés ; ce que cette modification y a écrit reste donc tel quel."
 
 #: zypp_desk/pages/history.py:1024 zypp_desk/pages/localrpm.py:934
-#: zypp_desk/pages/packages.py:339
+#: zypp_desk/pages/packages.py:342
 #, python-brace-format
 msgid "and {n} more"
 msgid_plural "and {n} more"
@@ -10839,7 +10890,7 @@ msgid "showing the first {shown}"
 msgstr "affichage des {shown} premiers"
 
 #: zypp_desk/pages/locks.py:1182 zypp_desk/pages/migrate.py:469
-#: zypp_desk/pages/packages.py:484 zypp_desk/pages/system.py:1053
+#: zypp_desk/pages/packages.py:487 zypp_desk/pages/system.py:1053
 #, python-brace-format
 msgid "Lock {name}"
 msgstr "Verrouiller {name}"
@@ -10869,7 +10920,7 @@ msgstr ""
 "Ces boutons ne font qu'ajouter à la file d'attente : rien ne change tant que "
 "vous n'appliquez pas la file d'attente."
 
-#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:459
+#: zypp_desk/pages/markbar.py:113 zypp_desk/pages/packages.py:462
 #: zypp_desk/pages/updates.py:887
 msgid "Unmark all"
 msgstr "Tout décocher"
@@ -11036,6 +11087,14 @@ msgid ""
 "Move to another computer, or open the file)."
 msgstr ""
 "Enregistré dans {file}.\n"
+"\n"
+"Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk "
+"(Paramètres → Changer d'ordinateur, ou ouvrez le fichier).Enregistré dans "
+"{file}.\n"
+"\n"
+"Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk "
+"(Paramètres → Changer d'ordinateur, ou ouvrez le fichier).Enregistré dans "
+"{file}.\n"
 "\n"
 "Copiez-le sur l'autre ordinateur et ouvrez-le là-bas avec Zypp Desk "
 "(Paramètres → Changer d'ordinateur, ou ouvrez le fichier).Enregistré dans "
@@ -12126,7 +12185,7 @@ msgstr "Recommandés"
 msgid "Suggested"
 msgstr "Suggérés"
 
-#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:459
+#: zypp_desk/pages/packages.py:119 zypp_desk/pages/packages.py:462
 #: zypp_desk/pages/updates.py:885
 msgid "Mark all"
 msgstr "Tout cocher"
@@ -12163,21 +12222,21 @@ msgstr ""
 "Introuvable dans vos dépôts. « Rechercher en ligne… » le cherche dans "
 "l'openSUSE Build Service, dans Fedora COPR et sur Flathub."
 
-#: zypp_desk/pages/packages.py:297
+#: zypp_desk/pages/packages.py:300
 #, python-brace-format
 msgid "{n} versions available"
 msgstr "{n} versions disponibles"
 
-#: zypp_desk/pages/packages.py:312
+#: zypp_desk/pages/packages.py:315
 msgid "Nothing was found."
 msgstr "Rien n'a été trouvé."
 
-#: zypp_desk/pages/packages.py:341
+#: zypp_desk/pages/packages.py:344
 #, python-brace-format
 msgid "Still needed by {names}"
 msgstr "Encore nécessaire pour {names}"
 
-#: zypp_desk/pages/packages.py:343
+#: zypp_desk/pages/packages.py:346
 #, python-brace-format
 msgid ""
 "No repository has {name} any more, but these installed packages still need "
@@ -12188,7 +12247,7 @@ msgstr ""
 "besoin : {names}. Le supprimer les supprimerait aussi. En général, il n'est "
 "plus nécessaire après la prochaine mise à jour du système."
 
-#: zypp_desk/pages/packages.py:352
+#: zypp_desk/pages/packages.py:355
 #, python-brace-format
 msgid "{n} is still needed by other packages: it cannot be ticked"
 msgid_plural "{n} are still needed by other packages: they cannot be ticked"
@@ -12198,56 +12257,56 @@ msgstr[1] ""
 "{n} sont encore nécessaires à d'autres paquets : ils ne peuvent pas être "
 "cochés"
 
-#: zypp_desk/pages/packages.py:465 zypp_desk/txqueue.py:1069
+#: zypp_desk/pages/packages.py:468 zypp_desk/txqueue.py:1069
 #, python-brace-format
 msgid "{n} to install"
 msgid_plural "{n} to install"
 msgstr[0] "{n} à installer"
 msgstr[1] "{n} à installer"
 
-#: zypp_desk/pages/packages.py:467
+#: zypp_desk/pages/packages.py:470
 #, python-brace-format
 msgid "{n} you have"
 msgid_plural "{n} you have"
 msgstr[0] "{n} déjà installé"
 msgstr[1] "{n} déjà installés"
 
-#: zypp_desk/pages/packages.py:487
+#: zypp_desk/pages/packages.py:490
 #, python-brace-format
 msgid "Remove the ticked one"
 msgid_plural "Remove the {n} ticked"
 msgstr[0] "Supprimer le paquet coché"
 msgstr[1] "Supprimer les {n} cochés"
 
-#: zypp_desk/pages/packages.py:488
+#: zypp_desk/pages/packages.py:491
 #, python-brace-format
 msgid "Lock the ticked one"
 msgid_plural "Lock the {n} ticked"
 msgstr[0] "Verrouiller le paquet coché"
 msgstr[1] "Verrouiller les {n} cochés"
 
-#: zypp_desk/pages/packages.py:489
+#: zypp_desk/pages/packages.py:492
 #, python-brace-format
 msgid "Install the one not installed"
 msgid_plural "Install the {n} not installed"
 msgstr[0] "Installer le paquet non installé"
 msgstr[1] "Installer les {n} non installés"
 
-#: zypp_desk/pages/packages.py:490
+#: zypp_desk/pages/packages.py:493
 #, python-brace-format
 msgid "Remove the one installed"
 msgid_plural "Remove the {n} installed"
 msgstr[0] "Supprimer le paquet installé"
 msgstr[1] "Supprimer les {n} installés"
 
-#: zypp_desk/pages/packages.py:491
+#: zypp_desk/pages/packages.py:494
 #, python-brace-format
 msgid "Lock the one not locked"
 msgid_plural "Lock the {n} not locked"
 msgstr[0] "Verrouiller le paquet non verrouillé"
 msgstr[1] "Verrouiller les {n} non verrouillés"
 
-#: zypp_desk/pages/packages.py:502
+#: zypp_desk/pages/packages.py:505
 #, python-brace-format
 msgid ""
 "Puts the removal of {names} in the queue ({command}). Simulate shows what "
@@ -12262,7 +12321,7 @@ msgstr[1] ""
 "Ajoute la suppression de {names} à la file d'attente ({command}). Une "
 "simulation montre ce qui partirait aussi avec eux."
 
-#: zypp_desk/pages/packages.py:507
+#: zypp_desk/pages/packages.py:510
 #, python-brace-format
 msgid ""
 "Puts a lock on {names} in the queue ({command}): then zypper does not "
@@ -21365,6 +21424,10 @@ msgstr ""
 #, python-brace-format
 msgid "Only zypper runs here: “{word}” is not a zypper command."
 msgstr "Seul zypper s'exécute ici : « {word} » n'est pas une commande zypper."
+
+#, python-brace-format
+#~ msgid "Home page: {url}"
+#~ msgstr "Site web : {url}"
 
 #~ msgid "Check now"
 #~ msgstr "Vérifier maintenant"

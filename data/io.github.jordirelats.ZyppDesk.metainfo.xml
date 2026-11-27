@@ -60,6 +60,12 @@
     <display_length compare="ge">700</display_length>
   </recommends>
   <releases>
+    <release version="0.5.8" date="2026-11-27">
+      <description>
+        <p>Search online: Fedora COPR also finds names typed with capitals or spaces, real projects come before test
+          rebuilds, and the card beside the list shows what the selected result is, with its description.</p>
+      </description>
+    </release>
     <release version="0.5.7" date="2026-11-26">
       <description>
         <p>"Stop now" while anything runs (zypper finishes the package it is on and does no more), and "Undo…" for

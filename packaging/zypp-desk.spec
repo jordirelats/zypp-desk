@@ -9,7 +9,7 @@
 %define helperdir %{_prefix}/libexec/%{name}
 
 Name:           zypp-desk
-Version:        0.5.7
+Version:        0.5.8
 Release:        0
 Summary:        Every zypper feature in a window
 License:        GPL-3.0-or-later

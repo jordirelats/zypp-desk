@@ -66,7 +66,7 @@ The window has a **Help** section (F1) in English, Catalan, German and French.
 - **Repositories that work.** Enabled ones first, a check that tells which ones no longer answer,
   a list or a cards view, the Flatpak remotes next to them, and a search in the openSUSE Build
   Service, Fedora COPR and Flathub for what your repositories do not have — with a plain word on
-  how far each source can be trusted.
+  how far each source can be trusted, and a card beside the list with what each result is.
 - **Told when there is something new.** Without Discover nobody tells you about updates: a tray
   icon counts them (repositories, Flatpak, the web, firmware) and a notification says so once a
   day. A system timer refreshes the repositories as root every six hours, and “Look for new updates” in the

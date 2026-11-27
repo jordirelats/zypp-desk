@@ -5,14 +5,19 @@ Type a program name and see who publishes it, with how much each source can be t
 buttons only put changes in the queue (add a repository, install a package or a Flatpak app, import
 the signing key of a repository that was just queued, after its own question); nothing runs until
 Apply. The queue imports keys first, so zypper already trusts the key when it adds the repository.
+
+As in the other pages, the list is on the left and the card of the selected result on the right: what it
+is, its description and its details. Flathub and COPR send the description with the results; for the Build
+Service it is asked for after (the first rows at once, the others when the mouse reaches them or they are
+selected).
 """
 
 import html
 
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
-from PySide6.QtWidgets import (QDialog, QHBoxLayout, QLabel, QLineEdit, QTabWidget, QTreeWidget, QTreeWidgetItem,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QScrollArea, QTabWidget,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import backend, flatpak, keys, online
 from ..explain import SERIOUS, WARN, severity_label
@@ -21,9 +26,12 @@ from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action, pkg_ident
 from ..question import ask_change, confirm
-from ..ui import button, icon, muted
+from ..ui import button, icon, muted, rich_tip
+from .apps import Details
 from .markbar import flash_queued, queue_label
 from .repotools import REPO_ICON, commands_of, personal_project_question, short
+
+OBS_DESC_FIRST = 40  # Build Service results whose description is asked for as soon as they show
 
 TRUST = {
     online.OFFICIAL: (GREEN, _("Official"), _("Official Tumbleweed package"),
@@ -60,8 +68,32 @@ def trust_of(row, kind):
     return TRUST[row["trust"]]
 
 
+class ResultCard(Details):
+    """The card of the selected result, as in Applications, with its description under what it is."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.desc = QLabel(self)
+        self.desc.setWordWrap(True)
+        self.desc.setTextFormat(Qt.TextFormat.PlainText)  # it comes from the network
+        self.desc.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.layout().insertWidget(self.layout().indexOf(self.summary) + 1, self.desc)
+        self.info.setOpenExternalLinks(True)  # the home page; only http(s) addresses get a link
+        self.clear(_("Choose a result from the list."))
+
+    def clear(self, text=""):
+        super().clear(text)
+        if hasattr(self, "desc"):
+            self.desc.setText("")
+
+    def show_result(self, ic, name, summary, description, rows, note=""):
+        self.show_app(ic, name, summary, rows, note)
+        self.desc.setText(description or "")
+
+
 class ResultPanel(QWidget):
-    """One source: a status line, the list of results, what the selected one means and its buttons."""
+    """One source: a status line, the list of results with the card of the selected one beside it, what the
+    selected one means and its buttons."""
 
     def __init__(self, kind, columns, parent=None):
         super().__init__(parent)
@@ -70,12 +102,25 @@ class ResultPanel(QWidget):
         lay.setContentsMargins(0, 8, 0, 0)
         self.status = muted("", self)
         lay.addWidget(self.status)
+        body = QHBoxLayout()
+        body.setSpacing(12)
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels(columns)
         self.tree.setRootIsDecorated(False)
         self.tree.setAlternatingRowColors(True)
         self.tree.setUniformRowHeights(True)
-        lay.addWidget(self.tree, 1)
+        body.addWidget(self.tree, 1)
+        self.card = ResultCard(self)
+        scroll = QScrollArea(self)  # a long description scrolls inside the card's column
+        scroll.setWidget(self.card)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setFixedWidth(self.card.width() + scroll.verticalScrollBar().sizeHint().width() + 2)
+        scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        scroll.viewport().setAutoFillBackground(False)
+        body.addWidget(scroll)
+        lay.addLayout(body, 1)
         self.about = QLabel(self)
         self.about.setWordWrap(True)
         self.about.setTextFormat(Qt.TextFormat.RichText)
@@ -107,12 +152,15 @@ class FindRepoDialog(QDialog):
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self._closed = False
         self.setWindowTitle(_("Find software on line"))
-        self.resize(1040, 700)
+        self.resize(1120, 720)  # the list and, beside it, the card of the selected result
         self.generation = 0
         self.repos = []
         self.flatpak_remotes = []
         self.flatpak_installed = set()
         self.icons = {}
+        self.obs_desc = {}  # (project, package) → obs_description() or None: kept while the window is open
+        self._obs_asking = set()
+        self._pkg_term = None  # the package name looked for, when it is not what was typed
 
         lay = QVBoxLayout(self)
         top = QHBoxLayout()
@@ -172,6 +220,10 @@ class FindRepoDialog(QDialog):
         for panel in (self.obs, self.copr, self.flathub):
             panel.tree.currentItemChanged.connect(lambda cur, _p, pn=panel: self._selected(pn))
             self._selected(panel)
+        # the description of a Build Service result is asked for when the mouse reaches it (or it is selected)
+        self.obs.tree.setMouseTracking(True)
+        self.obs.tree.itemEntered.connect(lambda it, _c: self._obs_desc_near(it))
+        self.obs.tree.currentItemChanged.connect(lambda cur, _p: self._obs_desc_near(cur))
         run_async(self._local_state, on_done=self._local_loaded)
         if term:
             self.search()
@@ -228,9 +280,11 @@ class FindRepoDialog(QDialog):
             panel.tree.clear()
             panel.status.setText(_("Searching…"))
             self.tabs.setTabText(self.tabs.indexOf(panel), label)
-        if online.valid_term(term):
-            run_async(online.search_obs, term, on_done=lambda r, e: self._got(gen, self.obs, r, e))
-            run_async(online.search_copr, term, on_done=lambda r, e: self._got(gen, self.copr, r, e))
+        pkg = online.package_term(term)  # 'obs studio' is looked for as 'obs-studio'
+        self._pkg_term = pkg if pkg != term else None
+        if pkg:
+            run_async(online.search_obs, pkg, on_done=lambda r, e: self._got(gen, self.obs, r, e))
+            run_async(online.search_copr, pkg, on_done=lambda r, e: self._got(gen, self.copr, r, e))
         else:
             msg = _("Type a package name: letters, digits and . _ + - only.")
             self.obs.status.setText(msg)
@@ -248,7 +302,8 @@ class FindRepoDialog(QDialog):
                 if r["application"] in seen or not remotes:
                     continue
                 rows.append({"app_id": r["application"], "name": r["name"] or r["application"],
-                             "summary": r["description"], "developer": "", "icon_url": "", "verified": False,
+                             "summary": r["description"], "description": "", "developer": "", "icon_url": "",
+                             "verified": False,
                              "installs": 0, "installed": r["application"] in installed, "remote": remotes[0],
                              "trust": online.UNVERIFIED})
         return rows
@@ -279,6 +334,9 @@ class FindRepoDialog(QDialog):
                                           len(rows)).format(n=len(rows)))
         else:
             panel.status.setText(ngettext("{n} app found.", "{n} apps found.", len(rows)).format(n=len(rows)))
+        if self._pkg_term and panel.kind in ("obs", "copr"):
+            panel.status.setText(panel.status.text() + " " + _("Looked for as the package name “{name}”.").format(
+                name=self._pkg_term))
         for r in rows:
             self._add_row(panel, r)
         for c in range(panel.tree.columnCount()):
@@ -290,6 +348,8 @@ class FindRepoDialog(QDialog):
         if panel.kind in ("obs", "copr") and not self.ctx.icon_catalog:
             self._icon_tries = 0
             QTimer.singleShot(2000, self, self._refresh_pkg_icons)  # the dialog as context: no call once it is gone
+        if panel.kind == "obs":
+            self._want_obs_desc([self._obs_key(r) for r in rows[:OBS_DESC_FIRST]])
         if panel.kind == "flathub":
             for r in rows[:40]:
                 if r.get("icon_url"):
@@ -317,8 +377,97 @@ class FindRepoDialog(QDialog):
             f = it.font(0)
             f.setBold(True)
             it.setFont(0, f)
-        if panel.kind == "flathub":
-            it.setToolTip(1, r["summary"])
+        self._set_tip(panel, it, r)
+
+    # ------------------------------------------------------------ what each result is (its card and tooltip)
+    @staticmethod
+    def _obs_key(r):
+        return (r["project"], r.get("package") or r["name"])
+
+    def _about(self, kind, r):
+        """(what it is, its description, notes) of a result; for the Build Service once its description is in."""
+        if kind == "obs":
+            key = self._obs_key(r)
+            if key not in self.obs_desc:
+                return _("Looking up its description…"), "", []
+            d = self.obs_desc[key]
+            if not d:
+                return _("Its description could not be read."), "", []
+            pkg = key[1].split(":", 1)[0]
+            return d.get("title", ""), d.get("description", ""), [
+                _("Built from the sources of {package}.").format(package=pkg) if pkg != r["name"] else ""]
+        if kind == "copr":
+            return _("COPR project {project}").format(project=r["project"]), r.get("description") or "", [
+                _("This project has no description: it is often a test build or a rebuild of Fedora's own "
+                  "packages.") if r.get("description") == "" else "",
+                _("Its newest build is for Fedora {n}, which Fedora no longer keeps: the project may have been "
+                  "left behind.").format(n=r["fedora"]) if r.get("stale") else ""]
+        return r.get("summary", ""), r.get("description", ""), []
+
+    def _set_tip(self, panel, it, r):
+        """A short tooltip, the name and what it is: the description is in the card beside the list."""
+        summary, _desc, _notes = self._about(panel.kind, r)
+        tip = rich_tip(r["name"], summary)
+        for c in range(panel.tree.columnCount()):
+            it.setToolTip(c, tip)
+
+    @staticmethod
+    def _link(url):
+        if not url.startswith(("https://", "http://")):
+            return ""
+        return f"<a href='{html.escape(url, quote=True)}'>{html.escape(url)}</a>"
+
+    def _show_card(self, panel, it):
+        r = it.data(0, Qt.ItemDataRole.UserRole) if it is not None else None
+        if not r:
+            panel.card.clear(_("Choose a result from the list."))
+            return
+        summary, desc, notes = self._about(panel.kind, r)
+        e = html.escape
+        if panel.kind == "obs":
+            d = self.obs_desc.get(self._obs_key(r)) or {}
+            rows = [(_("Project"), e(r["project"])), (_("Version"), e(r["version"])),
+                    (_("Home page"), self._link(d.get("url", "")))]
+        elif panel.kind == "copr":
+            rows = [(_("Built for"), e(r["chroot"])), (_("Version"), e(r["version"])),
+                    (_("Home page"), self._link(r.get("homepage") or ""))]
+        else:
+            rows = [(_("Developer"), e(r.get("developer") or "")), (_("App ID"), e(r["app_id"]))]
+        panel.card.show_result(it.icon(0), r["name"], summary, desc, rows, "\n\n".join(n for n in notes if n))
+
+    def _want_obs_desc(self, keys):
+        keys = [k for k in dict.fromkeys(keys) if k not in self.obs_desc and k not in self._obs_asking]
+        if not keys:
+            return
+        self._obs_asking.update(keys)
+        run_async(online.obs_descriptions, keys, on_done=lambda res, err, ks=keys: self._obs_described(ks, res))
+
+    def _obs_desc_near(self, it):
+        """The mouse reached a result (or it was selected): its description, and the next rows' ones."""
+        if it is None or self._closed:
+            return
+        tree = self.obs.tree
+        start = tree.indexOfTopLevelItem(it)
+        rows = [tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+                for i in range(max(0, start), min(tree.topLevelItemCount(), start + 12))]
+        self._want_obs_desc([self._obs_key(r) for r in rows if r])
+
+    def _obs_described(self, keys, res):
+        if self._closed:
+            return
+        self._obs_asking.difference_update(keys)
+        for k in keys:
+            self.obs_desc[k] = (res or {}).get(k)
+        tree, done = self.obs.tree, set(keys)
+        for i in range(tree.topLevelItemCount()):
+            it = tree.topLevelItem(i)
+            r = it.data(0, Qt.ItemDataRole.UserRole)
+            if r and self._obs_key(r) in done:
+                self._set_tip(self.obs, it, r)
+        cur = tree.currentItem()
+        r = cur.data(0, Qt.ItemDataRole.UserRole) if cur else None
+        if r and self._obs_key(r) in done:
+            self._show_card(self.obs, cur)
 
     def _pkg_icon(self, name):
         found = (self.ctx.icon_catalog or {}).get(name)
@@ -342,6 +491,8 @@ class FindRepoDialog(QDialog):
             for i in range(panel.tree.topLevelItemCount()):
                 it = panel.tree.topLevelItem(i)
                 it.setIcon(0, self._pkg_icon(it.data(0, Qt.ItemDataRole.UserRole)["name"]))
+            if panel.tree.currentItem() is not None:
+                self._show_card(panel, panel.tree.currentItem())
 
     def _icon(self, gen, app, path, *_):
         if self._closed or gen != self.generation or not path:
@@ -352,6 +503,8 @@ class FindRepoDialog(QDialog):
             r = it.data(0, Qt.ItemDataRole.UserRole)
             if r and r["app_id"] == app:
                 it.setIcon(0, ic)
+                if it is self.flathub.tree.currentItem():
+                    self._show_card(self.flathub, it)
 
     # ------------------------------------------------------------ the selected result
     def _no_selection_labels(self, panel):
@@ -456,6 +609,7 @@ class FindRepoDialog(QDialog):
 
     def _selected(self, panel):
         r = panel.current()
+        self._show_card(panel, panel.tree.currentItem())
         if panel.kind == "obs":
             for b in (self.b_obs_install, self.b_obs_repo, self.b_obs_page):
                 b.setEnabled(bool(r))

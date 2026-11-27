@@ -11,7 +11,7 @@ from ..i18n import _, ngettext
 from ..style import BLUE, GREEN, ORANGE, RED, dot
 from ..tasks import run_async
 from ..txqueue import Action
-from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted, tool
+from ..ui import Chip, FlowLayout, Page, RoomSplitter, button, icon, muted, rich_tip, tool
 from .markbar import MarkBar, amp, is_checked
 from .pkgdetails import PackageDetails
 
@@ -293,6 +293,9 @@ class PackagesPage(Page):
             it.setFlags(it.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             it.setCheckState(0, Qt.CheckState.Unchecked)
             it.setIcon(1, self.pkg_icon(d))
+            tip = rich_tip(d["name"], d["summary"] or "")  # the summary column is often cut short
+            it.setToolTip(1, tip)
+            it.setToolTip(2, tip)
             if len(d["versions"]) > 1:
                 it.setToolTip(3, _("{n} versions available").format(n=len(d["versions"])))
             self._paint_status(it, d)
